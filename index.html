@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>alandeboer.computer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; }
+        canvas {
+            display: block;
+            width: 100vw !important;
+            height: 100vh !important;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #ui {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            user-select: none;
+            font-family: 'Quicksand', sans-serif;
+        }
+        #site-name {
+            position: absolute;
+            top: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(80, 110, 220, 0.45);
+            font-weight: 300;
+            font-size: 12px;
+            letter-spacing: 7px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        #hint {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(80, 110, 220, 0.2);
+            font-weight: 300;
+            font-size: 9px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        /* ── Controls panel ── */
+        #controls {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: all;
+        }
+        .ctrl-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ctrl-row label {
+            color: rgba(80, 110, 220, 0.32);
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 300;
+            font-size: 8.5px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            width: 58px;
+            text-align: right;
+            flex-shrink: 0;
+            cursor: default;
+        }
+        .ctrl-row input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 80px;
+            height: 2px;
+            border-radius: 1px;
+            outline: none;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        #brightness-slider {
+            background: linear-gradient(to right, rgba(80,110,220,0.08), rgba(80,110,220,0.5));
+        }
+        #color-slider {
+            background: linear-gradient(to right, #0e1e55, #1a3aaa, #aac0ff, #ee8833);
+        }
+        #lamp-slider {
+            background: linear-gradient(to right, rgba(180,90,20,0.1), rgba(255,150,50,0.6));
+        }
+        #lamp-color-slider {
+            background: linear-gradient(to right, #2a0e00, #cc5500, #ffeedd, #aabbff);
+        }
+        .ctrl-sep {
+            height: 1px;
+            background: rgba(80, 110, 220, 0.1);
+            margin: 1px 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(130, 160, 255, 0.75);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        input[type="range"]:hover::-webkit-slider-thumb {
+            background: rgba(170, 195, 255, 0.95);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(130, 160, 255, 0.75);
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="site-name">alandeboer.computer</div>
+        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom</div>
+        <div id="controls">
+            <div class="ctrl-row">
+                <label for="brightness-slider">brightness</label>
+                <input type="range" id="brightness-slider" min="0.1" max="2.2" step="0.01" value="1.0">
+            </div>
+            <div class="ctrl-row">
+                <label for="color-slider">color</label>
+                <input type="range" id="color-slider" min="0" max="1" step="0.01" value="0.1">
+            </div>
+            <div class="ctrl-sep"></div>
+            <div class="ctrl-row">
+                <label for="lamp-slider">lamp</label>
+                <input type="range" id="lamp-slider" min="0" max="2.5" step="0.01" value="1.0">
+            </div>
+            <div class="ctrl-row">
+                <label for="lamp-color-slider">lamp tint</label>
+                <input type="range" id="lamp-color-slider" min="0" max="1" step="0.01" value="0.0">
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ── Renderer ──
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setPixelRatio(0.5);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.BasicShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // ── Scene ──
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x030306);
+        scene.fog = new THREE.FogExp2(0x030306, 0.07);
+
+        // ── Camera ──
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 30);
+        camera.position.set(3.5, 2.6, 5.0);
+
+        // ── Orbit controls ──
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1.05, 0.2);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1.6;
+        controls.maxDistance = 9;
+        controls.maxPolarAngle = Math.PI * 0.8;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.28;
+        controls.update();
+
+        let resumeTimer;
+        controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(resumeTimer); });
+        controls.addEventListener('end',  () => { resumeTimer = setTimeout(() => (controls.autoRotate = true), 3500); });
+
+        // ── Helpers ──
+        const lm = (hex, emHex = 0, ei = 0) => {
+            const m = new THREE.MeshLambertMaterial({ color: hex });
+            if (emHex) { m.emissive.setHex(emHex); m.emissiveIntensity = ei; }
+            return m;
+        };
+        const box = (w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.position.set(x, y, z);
+            mesh.rotation.set(rx, ry, rz);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            return mesh;
+        };
+
+        // ── Materials ──
+        const M = {
+            floor:     lm(0x141418),
+            wall:      lm(0x111116),
+            desk:      lm(0x221c0e),
+            deskDark:  lm(0x16100a),
+            metal:     lm(0x242424),
+            frame:     lm(0x1c1c1c),
+            fabric:    lm(0x1a1a30),
+            skin:      lm(0xbd7a4a),
+            hair:      lm(0x1a1206),
+            shirt:     lm(0x1e3048),
+            pants:     lm(0x161e28),
+            macbook:   lm(0x2e2e2e),
+            macScreen: lm(0x6688dd, 0x223388, 0.85),
+            monFrame:  lm(0x181818),
+            monScreen: lm(0x7799ff, 0x1a3399, 1.2),
+        };
+
+        // ═══════════════════════════════
+        //  SCENE OBJECTS
+        // ═══════════════════════════════
+
+        const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), M.floor);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        const grid = new THREE.GridHelper(14, 14, 0x0d0d14, 0x08080f);
+        grid.position.y = 0.002;
+        scene.add(grid);
+
+        const wallMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 5.5), M.wall);
+        wallMesh.position.set(0, 2.75, -2.8);
+        wallMesh.receiveShadow = true;
+        scene.add(wallMesh);
+
+        // ── Window (back wall — night outdoors) ──────────────────
+        const WZ = -2.74;
+        const WIN_CX = 0, WIN_CY = 2.15, WIN_W = 3.3, WIN_H = 2.3;
+        const WIN_X1 = WIN_CX - WIN_W / 2, WIN_X2 = WIN_CX + WIN_W / 2;
+        const WIN_Y1 = WIN_CY - WIN_H / 2, WIN_Y2 = WIN_CY + WIN_H / 2;
+
+        // Outer frame
+        const winFrameMat = lm(0x0f0f0d);
+        box(WIN_W + 0.14, 0.085, 0.09, winFrameMat, WIN_CX, WIN_Y2, WZ);
+        box(WIN_W + 0.14, 0.085, 0.09, winFrameMat, WIN_CX, WIN_Y1, WZ);
+        box(0.085, WIN_H + 0.085, 0.09, winFrameMat, WIN_X1, WIN_CY, WZ);
+        box(0.085, WIN_H + 0.085, 0.09, winFrameMat, WIN_X2, WIN_CY, WZ);
+        // Inner mullions (2 vertical + 1 horizontal divider)
+        box(WIN_W - 0.09, 0.045, 0.06, winFrameMat, WIN_CX,        WIN_CY + 0.38, WZ);
+        box(0.045, WIN_H - 0.09, 0.06, winFrameMat, WIN_CX - 0.60, WIN_CY,        WZ);
+        box(0.045, WIN_H - 0.09, 0.06, winFrameMat, WIN_CX + 0.60, WIN_CY,        WZ);
+
+        // Night sky background (MeshBasicMaterial — unaffected by scene fog/lights)
+        const skyBG = new THREE.Mesh(
+            new THREE.PlaneGeometry(WIN_W - 0.08, WIN_H - 0.08),
+            new THREE.MeshBasicMaterial({ color: 0x04060f })
+        );
+        skyBG.position.set(WIN_CX, WIN_CY, WZ - 0.07);
+        scene.add(skyBG);
+
+        // Stars — deterministic LCG so positions are consistent on every reload
+        const STAR_N = 240;
+        const sPts = new Float32Array(STAR_N * 3);
+        let seed = 12345;
+        const rand = () => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed / 0x7fffffff; };
+        for (let i = 0; i < STAR_N; i++) {
+            sPts[i*3]   = WIN_X1 + 0.05 + rand() * (WIN_W - 0.10);
+            // concentrate stars in upper half (above tree line)
+            sPts[i*3+1] = WIN_CY + 0.10 + rand() * (WIN_H * 0.46);
+            sPts[i*3+2] = WZ - 0.05;
+        }
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(sPts, 3));
+        scene.add(new THREE.Points(starGeo,
+            new THREE.PointsMaterial({ color: 0xffffff, size: 0.030, sizeAttenuation: true, fog: false })
+        ));
+
+        // A few brighter accent stars (larger points layer)
+        const BSTAR_N = 28;
+        const bPts = new Float32Array(BSTAR_N * 3);
+        for (let i = 0; i < BSTAR_N; i++) {
+            bPts[i*3]   = WIN_X1 + 0.1 + rand() * (WIN_W - 0.2);
+            bPts[i*3+1] = WIN_CY + 0.15 + rand() * (WIN_H * 0.44);
+            bPts[i*3+2] = WZ - 0.05;
+        }
+        const bStarGeo = new THREE.BufferGeometry();
+        bStarGeo.setAttribute('position', new THREE.BufferAttribute(bPts, 3));
+        scene.add(new THREE.Points(bStarGeo,
+            new THREE.PointsMaterial({ color: 0xeeeeff, size: 0.055, sizeAttenuation: true, fog: false })
+        ));
+
+        // Moon
+        const moonMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.175, 10, 7),
+            new THREE.MeshBasicMaterial({ color: 0xeeeedd })
+        );
+        moonMesh.position.set(WIN_X2 - 0.40, WIN_Y2 - 0.42, WZ - 0.06);
+        scene.add(moonMesh);
+
+        // Soft moon halo (slightly larger, dimmer sphere behind moon)
+        const moonHalo = new THREE.Mesh(
+            new THREE.SphereGeometry(0.30, 10, 7),
+            new THREE.MeshBasicMaterial({ color: 0x1a1f2e })
+        );
+        moonHalo.position.copy(moonMesh.position);
+        moonHalo.position.z -= 0.01;
+        scene.add(moonHalo);
+
+        // Moonlight cast into scene (very faint cool blue-white)
+        const moonSceneLight = new THREE.PointLight(0xaabbdd, 0.7, 8);
+        moonSceneLight.position.set(WIN_X2 - 0.40, WIN_Y2 - 0.42, WZ + 1.2);
+        scene.add(moonSceneLight);
+
+        // Tree silhouettes — layered box canopies, MeshBasicMaterial so fog doesn't wash them out
+        const treeBM  = new THREE.MeshBasicMaterial({ color: 0x070a07 });
+        const trunkBM = new THREE.MeshBasicMaterial({ color: 0x050705 });
+        const addTree = (tx, ty, sc) => {
+            const tz = WZ - 0.04;
+            box(0.055*sc, 0.40*sc, 0.035, trunkBM, tx, ty + 0.20*sc, tz);
+            box(0.58*sc,  0.26*sc, 0.035, treeBM,  tx, ty + 0.52*sc, tz);
+            box(0.48*sc,  0.23*sc, 0.035, treeBM,  tx, ty + 0.70*sc, tz);
+            box(0.38*sc,  0.21*sc, 0.035, treeBM,  tx, ty + 0.87*sc, tz);
+            box(0.27*sc,  0.18*sc, 0.035, treeBM,  tx, ty + 1.01*sc, tz);
+            box(0.15*sc,  0.14*sc, 0.035, treeBM,  tx, ty + 1.13*sc, tz);
+        };
+        addTree(-1.28, WIN_Y1, 0.92);
+        addTree(-0.62, WIN_Y1, 1.10);
+        addTree( 0.10, WIN_Y1, 0.80);
+        addTree( 0.72, WIN_Y1, 1.06);
+        addTree( 1.22, WIN_Y1, 0.84);
+
+        // ── Desk ──
+        const DY = 0.76;
+        box(2.1,  0.055, 0.88, M.desk,     0, DY,        0);
+        box(2.16, 0.02,  0.92, M.deskDark, 0, DY - 0.04, 0);
+        box(0.055, DY - 0.03, 0.86, M.metal, -1.02, DY / 2, 0);
+        box(0.055, DY - 0.03, 0.86, M.metal,  1.02, DY / 2, 0);
+
+        // ── Chair ──
+        const CZ = 0.62;
+
+        // Seat cushion + shell
+        box(0.56, 0.08, 0.52, M.fabric,  0, 0.47,  CZ);
+        box(0.60, 0.06, 0.55, M.frame,   0, 0.425, CZ);
+
+        // Backrest cushion
+        box(0.50, 0.56, 0.065, M.fabric, 0, 0.775, CZ + 0.27);
+        // Lumbar bulge (slight protrusion at lower back)
+        box(0.42, 0.18, 0.030, M.fabric, 0, 0.635, CZ + 0.287);
+        // Back frame shell
+        box(0.525, 0.60, 0.025, M.frame, 0, 0.775, CZ + 0.298);
+        // Top rail
+        box(0.525, 0.040, 0.07, M.frame, 0, 1.080, CZ + 0.275);
+
+        // Armrests — upright, rail, padded top
+        box(0.040, 0.20, 0.050, M.frame,  -0.285, 0.565, CZ - 0.015);
+        box(0.040, 0.20, 0.050, M.frame,   0.285, 0.565, CZ - 0.015);
+        box(0.040, 0.038, 0.36, M.frame,  -0.285, 0.670, CZ + 0.065);
+        box(0.040, 0.038, 0.36, M.frame,   0.285, 0.670, CZ + 0.065);
+        box(0.065, 0.022, 0.22, M.fabric, -0.285, 0.692, CZ + 0.045);
+        box(0.065, 0.022, 0.22, M.fabric,  0.285, 0.692, CZ + 0.045);
+
+        // Gas cylinder
+        box(0.055, 0.38, 0.055, M.frame, 0, 0.23, CZ);
+
+        // 5-star base with caster wheels
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            const L = 0.44;
+            box(0.052, 0.036, L, M.frame, Math.sin(a)*L/2, 0.025, CZ + Math.cos(a)*L/2, 0, a, 0);
+            box(0.038, 0.058, 0.038, M.frame, Math.sin(a)*L, 0.029, CZ + Math.cos(a)*L);
+        }
+
+        // ── Person ──
+        const PZ = CZ - 0.05;
+
+        // Thighs (horizontal, from seat forward toward knees near desk edge)
+        box(0.14, 0.13, 0.52, M.pants, -0.09, 0.50, PZ - 0.16);
+        box(0.14, 0.13, 0.52, M.pants,  0.09, 0.50, PZ - 0.16);
+
+        // Knees (front of thigh — z=0.16 is the knee world position)
+        box(0.13, 0.14, 0.13, M.pants, -0.09, 0.415, 0.17);
+        box(0.13, 0.14, 0.13, M.pants,  0.09, 0.415, 0.17);
+
+        // Shins (vertical, knee down to ankle)
+        box(0.11, 0.38, 0.11, M.pants, -0.09, 0.21, 0.17);
+        box(0.11, 0.38, 0.11, M.pants,  0.09, 0.21, 0.17);
+
+        // Ankles
+        box(0.115, 0.075, 0.105, M.pants, -0.09, 0.038, 0.17);
+        box(0.115, 0.075, 0.105, M.pants,  0.09, 0.038, 0.17);
+
+        // Shoes — main body, sole, toe cap
+        const shoeMat = lm(0x1c1c1e);
+        const soleMat = lm(0x0d0d0f);
+        box(0.128, 0.075, 0.27, shoeMat,    -0.09, 0.052, 0.10);
+        box(0.128, 0.075, 0.27, shoeMat,     0.09, 0.052, 0.10);
+        box(0.138, 0.018, 0.28, soleMat,    -0.09, 0.009, 0.10);
+        box(0.138, 0.018, 0.28, soleMat,     0.09, 0.009, 0.10);
+        box(0.122, 0.068, 0.085, lm(0x141416), -0.09, 0.055, -0.01);
+        box(0.122, 0.068, 0.085, lm(0x141416),  0.09, 0.055, -0.01);
+
+        // Torso
+        box(0.30, 0.40, 0.21, M.shirt,  0, 1.02, PZ);
+        box(0.26, 0.12, 0.19, M.shirt,  0, 0.83, PZ);
+
+        // Upper arms (rotation.x 0.45 → elbows swing forward toward desk)
+        box(0.11, 0.32, 0.11, M.shirt, -0.24, 0.93, PZ - 0.04,  0.45, 0,  0.06);
+        box(0.11, 0.32, 0.11, M.shirt,  0.24, 0.93, PZ - 0.04,  0.45, 0, -0.06);
+
+        // Elbow joints (world position computed from upper-arm rotation)
+        box(0.11, 0.11, 0.11, M.shirt, -0.24, 0.79, 0.45);
+        box(0.11, 0.11, 0.11, M.shirt,  0.24, 0.79, 0.45);
+
+        // Forearms — shortened now that keyboard is closer
+        box(0.09, 0.07, 0.31, M.skin, -0.25, DY + 0.050, 0.295);
+        box(0.09, 0.07, 0.31, M.skin,  0.25, DY + 0.050, 0.295);
+
+        // Wrists
+        box(0.080, 0.055, 0.07, M.skin, -0.250, DY + 0.036, 0.175);
+        box(0.080, 0.055, 0.07, M.skin,  0.250, DY + 0.036, 0.175);
+
+        // Palms — left over left keys, right over right keys
+        box(0.105, 0.040, 0.11, M.skin, -0.185, DY + 0.027, 0.135);
+        box(0.105, 0.040, 0.11, M.skin,  0.185, DY + 0.027, 0.135);
+
+        // Left hand fingers (index, middle, ring, pinky, thumb)
+        const LHX = -0.183, LHY = DY + 0.016, LHZ = 0.08;
+        box(0.026, 0.020, 0.072, M.skin, LHX - 0.040, LHY, LHZ,  0.16, 0,  0.00);
+        box(0.026, 0.020, 0.076, M.skin, LHX - 0.013, LHY, LHZ,  0.12, 0,  0.00);
+        box(0.026, 0.020, 0.072, M.skin, LHX + 0.014, LHY, LHZ,  0.16, 0,  0.00);
+        box(0.021, 0.018, 0.058, M.skin, LHX + 0.038, LHY, LHZ,  0.20, 0,  0.00);
+        box(0.030, 0.018, 0.052, M.skin, LHX - 0.062, LHY + 0.008, LHZ + 0.042, 0, 0, 0.36);
+
+        // Right hand fingers
+        const RHX =  0.183, RHY = DY + 0.016, RHZ = 0.08;
+        box(0.026, 0.020, 0.072, M.skin, RHX - 0.038, RHY, RHZ,  0.16, 0,  0.00);
+        box(0.026, 0.020, 0.076, M.skin, RHX - 0.014, RHY, RHZ,  0.12, 0,  0.00);
+        box(0.026, 0.020, 0.072, M.skin, RHX + 0.013, RHY, RHZ,  0.16, 0,  0.00);
+        box(0.021, 0.018, 0.058, M.skin, RHX + 0.040, RHY, RHZ,  0.20, 0,  0.00);
+        box(0.030, 0.018, 0.052, M.skin, RHX + 0.062, RHY + 0.008, RHZ + 0.042, 0, 0, -0.36);
+
+        // Neck
+        box(0.105, 0.10, 0.105, M.skin, 0, 1.24, PZ);
+
+        // Head (forward tilt — looking at screens)
+        const head = box(0.23, 0.25, 0.22, M.skin, 0, 1.405, PZ);
+        head.rotation.x = 0.16;
+
+        // Eyes (approximate world position accounting for head tilt)
+        box(0.038, 0.022, 0.012, M.hair, -0.057, 1.418, PZ - 0.108);
+        box(0.038, 0.022, 0.012, M.hair,  0.057, 1.418, PZ - 0.108);
+
+        // Ears
+        box(0.016, 0.065, 0.065, M.skin, -0.123, 1.402, PZ);
+        box(0.016, 0.065, 0.065, M.skin,  0.123, 1.402, PZ);
+
+        // Hair
+        const hairTop   = box(0.240, 0.090, 0.230, M.hair,  0,      1.516, PZ);
+        const hairBack  = box(0.230, 0.220, 0.040, M.hair,  0,      1.415, PZ + 0.10);
+        const hairSideL = box(0.028, 0.190, 0.200, M.hair, -0.118,  1.405, PZ);
+        const hairSideR = box(0.028, 0.190, 0.200, M.hair,  0.118,  1.405, PZ);
+        [head, hairTop, hairBack, hairSideL, hairSideR].forEach(m => (m.rotation.x = 0.16));
+
+        // ── Keyboard (RGB backlit) ──────────────────────────────
+        const KBX = -0.04, KBZ = 0.08, KBY = DY + 0.013;
+        box(0.64, 0.022, 0.26, lm(0x0c0c10), KBX, KBY, KBZ);
+
+        const kbKeyMat = new THREE.MeshLambertMaterial({
+            color: 0x101014,
+            emissive: new THREE.Color(0x220044),
+            emissiveIntensity: 0.8,
+        });
+        // 5 key rows from back (function) to front (space bar)
+        [-0.020, 0.030, 0.080, 0.130, 0.180].forEach(rz => {
+            const keyRow = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.013, 0.030), kbKeyMat);
+            keyRow.position.set(KBX, KBY + 0.018, rz);
+            scene.add(keyRow);
+        });
+
+        // Keyboard backlight point — lights hands and face from below
+        const kbLight = new THREE.PointLight(0x8833ff, 1.5, 1.4);
+        kbLight.position.set(KBX, KBY + 0.07, KBZ);
+        scene.add(kbLight);
+
+        // ── MacBook ──
+        const MBX = 0.72, MBZ = 0.10;
+        box(0.32, 0.015, 0.22, M.macbook, MBX, DY + 0.02, MBZ);
+        const mbScreen = box(0.31, 0.20, 0.010, M.macScreen, MBX, DY + 0.116, MBZ - 0.120);
+        const mbBezel  = box(0.33, 0.22, 0.013, M.macbook,   MBX, DY + 0.116, MBZ - 0.118);
+        mbScreen.rotation.x = mbBezel.rotation.x = -0.42;
+
+        // ── Wide Monitor ──
+        const MOX = -0.15, MOZ = -0.28;
+        const MOW = 1.20, MOH = 0.52;
+        const MOY = DY + 0.53;
+        box(0.30, 0.022, 0.20, M.monFrame, MOX, DY + 0.022, MOZ - 0.02);
+        box(0.04, 0.24,  0.04, M.monFrame, MOX, DY + 0.155, MOZ);
+        box(MOW + 0.04, MOH + 0.04, 0.022, M.monFrame, MOX, MOY, MOZ);
+        box(MOW, MOH, 0.018, M.monScreen, MOX, MOY, MOZ + 0.004);
+
+        // ── Floor Lamp ──
+        const LX = -1.45, LZ = 0.2;
+        const lampMat = lm(0x141414);
+        box(0.22, 0.04, 0.22, lampMat, LX, 0.02, LZ);           // base
+        box(0.038, 1.52, 0.038, lampMat, LX, 0.80, LZ);         // pole
+        box(0.06, 0.035, 0.06, lampMat, LX, 1.885, LZ);         // finial cap
+
+        const lampShadeMat = new THREE.MeshLambertMaterial({
+            color: 0x0e0a04,
+            emissive: new THREE.Color(0x441a00),
+            emissiveIntensity: 0.6,
+            side: THREE.DoubleSide,
+        });
+        const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.24, 0.30, 8), lampShadeMat);
+        lampShade.position.set(LX, 1.715, LZ);
+        scene.add(lampShade);
+
+        // ═══════════════════════════════
+        //  LIGHTING
+        // ═══════════════════════════════
+
+        // Hemisphere: sky color tints down from above, ground color up from below
+        const hemiLight = new THREE.HemisphereLight(0x2233aa, 0x111122, 5.0);
+        scene.add(hemiLight);
+
+        // Broad overhead fill — illuminates the whole scene evenly
+        const fillLight = new THREE.DirectionalLight(0x3344bb, 3.5);
+        fillLight.position.set(0, 6, 3);
+        scene.add(fillLight);
+
+        // Monitor glow — main colored light source
+        const monLight = new THREE.PointLight(0x2244ee, 7.0, 0);
+        monLight.position.set(MOX, MOY, MOZ + 0.65);
+        scene.add(monLight);
+
+        // MacBook glow — secondary
+        const mbLight = new THREE.PointLight(0x1133cc, 2.8, 0);
+        mbLight.position.set(MBX, DY + 0.18, MBZ + 0.12);
+        scene.add(mbLight);
+
+        // Rim — separates person from background
+        const rimLight = new THREE.PointLight(0x1a1a44, 3.0, 0);
+        rimLight.position.set(0, 2.2, -1.8);
+        scene.add(rimLight);
+
+        // Floor lamp — warm pool, casts downward
+        const lampLight = new THREE.PointLight(0xff8833, 4.0, 0);
+        lampLight.position.set(LX, 1.62, LZ);
+        scene.add(lampLight);
+
+        // ═══════════════════════════════
+        //  UI CONTROLS
+        // ═══════════════════════════════
+
+        const params = { brightness: 1.0, color: 0.1, lampBrightness: 1.0, lampColor: 0.0 };
+
+        document.getElementById('brightness-slider').addEventListener('input', e => {
+            params.brightness = parseFloat(e.target.value);
+        });
+        document.getElementById('color-slider').addEventListener('input', e => {
+            params.color = parseFloat(e.target.value);
+        });
+        document.getElementById('lamp-slider').addEventListener('input', e => {
+            params.lampBrightness = parseFloat(e.target.value);
+        });
+        document.getElementById('lamp-color-slider').addEventListener('input', e => {
+            params.lampColor = parseFloat(e.target.value);
+        });
+
+        // Base intensities (before multipliers)
+        const BASE = { hemi: 5.0, fill: 3.5, mon: 7.0, mb: 2.8, rim: 3.0, lamp: 4.0, kb: 1.5 };
+
+        // Scene color endpoints: cool blue → warm amber
+        const coolSky    = new THREE.Color(0x2233aa);
+        const warmSky    = new THREE.Color(0xaa6622);
+        const coolGround = new THREE.Color(0x111122);
+        const warmGround = new THREE.Color(0x221a0a);
+        const coolFill   = new THREE.Color(0x3344bb);
+        const warmFill   = new THREE.Color(0xbb8833);
+        const coolMon    = new THREE.Color(0x1133cc);
+        const warmMon    = new THREE.Color(0xdd7711);
+        const tintColor  = new THREE.Color();
+
+        // Lamp color endpoints: warm incandescent → cool daylight
+        const lampWarm  = new THREE.Color(0xff8833);
+        const lampCool  = new THREE.Color(0xbbccff);
+        const lampTint  = new THREE.Color();
+
+        // ═══════════════════════════════
+        //  EVENTS & LOOP
+        // ═══════════════════════════════
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+            const b = params.brightness;
+            const c = params.color;
+
+            tintColor.copy(coolMon).lerp(warmMon, c);
+
+            // Hemisphere — whole-scene ambient fill, color-shifted
+            hemiLight.intensity = BASE.hemi * b;
+            hemiLight.color.copy(coolSky).lerp(warmSky, c);
+            hemiLight.groundColor.copy(coolGround).lerp(warmGround, c);
+
+            // Directional fill — broad even illumination, color-shifted
+            fillLight.intensity = BASE.fill * b;
+            fillLight.color.copy(coolFill).lerp(warmFill, c);
+
+            // Monitor flicker × brightness
+            const flicker = Math.sin(t * 1.1) * 0.18 + Math.sin(t * 13.3) * 0.06;
+            monLight.intensity = (BASE.mon + flicker) * b;
+            monLight.color.copy(tintColor);
+
+            mbLight.intensity = BASE.mb * b;
+            mbLight.color.copy(tintColor).multiplyScalar(0.65);
+
+            rimLight.intensity = BASE.rim * b;
+            rimLight.color.copy(tintColor).multiplyScalar(0.4);
+
+            // Screen emissive tracks tint
+            M.monScreen.emissive.copy(tintColor).multiplyScalar(0.45);
+            M.macScreen.emissive.copy(tintColor).multiplyScalar(0.3);
+
+            // Floor lamp
+            lampTint.copy(lampWarm).lerp(lampCool, params.lampColor);
+            lampLight.intensity = BASE.lamp * params.lampBrightness;
+            lampLight.color.copy(lampTint);
+            lampShadeMat.emissive.copy(lampTint).multiplyScalar(0.25 * params.lampBrightness);
+
+            // Keyboard RGB — slow hue cycle
+            const kbHue = (t * 0.04) % 1;
+            kbKeyMat.emissive.setHSL(kbHue, 0.90, 0.32);
+            kbLight.color.setHSL(kbHue, 0.90, 0.50);
+            kbLight.intensity = BASE.kb * b;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
