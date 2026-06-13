@@ -1775,7 +1775,7 @@
         };
         for (let i = 0; i < 28; i++) {
             const a = (i / 28)*Math.PI*2 + Math.random()*0.32;
-            const r = 3.9 + Math.random()*3.6;
+            const r = 5.2 + Math.random()*2.8;
             spruce(Math.sin(a)*r, Math.cos(a)*r, 0.80 + Math.random()*1.15);
         }
 
@@ -1822,6 +1822,59 @@
             drift.receiveShadow = true;
             addTarget.add(drift);
         });
+
+        // ── Glass dome — covers person, desk and dog ──
+        // Center at (0, 0, 0.4) — midpoint between desk front and dog bed
+        const NP_DOME_R = 2.55, NP_DOME_CZ = 0.40;
+
+        // Outer glass shell — front-face only (you see it from outside)
+        const npDomeGeo = new THREE.SphereGeometry(NP_DOME_R, 40, 28, 0, Math.PI*2, 0, Math.PI*0.5);
+        const npDomeMat = new THREE.MeshLambertMaterial({
+            color: 0x88c8ee,
+            transparent: true,
+            opacity: 0.10,
+            side: THREE.FrontSide,
+            depthWrite: false,
+            emissive: 0x003366,
+            emissiveIntensity: 0.06,
+        });
+        const npDome = new THREE.Mesh(npDomeGeo, npDomeMat);
+        npDome.position.set(0, 0, NP_DOME_CZ);
+        npDome.renderOrder = 2;
+        addTarget.add(npDome);
+
+        // Inner glass shell — back-face, gives thickness + interior sheen
+        const npDomeInnerMat = new THREE.MeshLambertMaterial({
+            color: 0xaaddff,
+            transparent: true,
+            opacity: 0.05,
+            side: THREE.BackSide,
+            depthWrite: false,
+            emissive: 0x002244,
+            emissiveIntensity: 0.04,
+        });
+        const npDomeInner = new THREE.Mesh(npDomeGeo, npDomeInnerMat);
+        npDomeInner.position.set(0, 0, NP_DOME_CZ);
+        npDomeInner.renderOrder = 1;
+        addTarget.add(npDomeInner);
+
+        // Metal base ring where dome meets snow
+        const npDomeRing = new THREE.Mesh(
+            new THREE.TorusGeometry(NP_DOME_R, 0.032, 7, 72),
+            lm(0x2e3840)
+        );
+        npDomeRing.rotation.x = Math.PI / 2;
+        npDomeRing.position.set(0, 0.016, NP_DOME_CZ);
+        addTarget.add(npDomeRing);
+
+        // Subtle highlight arc at dome top (thin bright rim)
+        const npDomeCapRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.24, 0.018, 5, 24),
+            lm(0x88b8d0, 0x4488aa, 0.4)
+        );
+        npDomeCapRing.rotation.x = Math.PI / 2;
+        npDomeCapRing.position.set(0, NP_DOME_R - 0.01, NP_DOME_CZ);
+        addTarget.add(npDomeCapRing);
 
         // ── Dog's snowy mat (same BEDX/BEDZ so nap state machine still works) ──
         const npBed = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.065, 9), lm(0x7a8eaa));
