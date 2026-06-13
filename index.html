@@ -106,6 +106,33 @@
         #lamp-color-slider {
             background: linear-gradient(to right, #2a0e00, #cc5500, #ffeedd, #aabbff);
         }
+        #time-slider {
+            background: linear-gradient(to right, #0a1230, #28406e, #d08a4a, #aee0ff);
+        }
+        .ctrl-row.hidden { display: none; }
+        #theme-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            pointer-events: all;
+            background: rgba(20, 28, 60, 0.30);
+            border: 1px solid rgba(110, 140, 240, 0.30);
+            color: rgba(150, 175, 255, 0.85);
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 300;
+            font-size: 10px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            padding: 9px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        #theme-btn:hover {
+            background: rgba(45, 60, 115, 0.5);
+            border-color: rgba(140, 170, 255, 0.55);
+            color: rgba(205, 220, 255, 0.95);
+        }
         .ctrl-sep {
             height: 1px;
             background: rgba(80, 110, 220, 0.1);
@@ -142,20 +169,25 @@
                 <label for="brightness-slider">brightness</label>
                 <input type="range" id="brightness-slider" min="0.1" max="2.2" step="0.01" value="1.0">
             </div>
-            <div class="ctrl-row">
+            <div class="ctrl-row" id="color-row">
                 <label for="color-slider">color</label>
                 <input type="range" id="color-slider" min="0" max="1" step="0.01" value="0.1">
             </div>
+            <div class="ctrl-row hidden" id="time-row">
+                <label for="time-slider">time</label>
+                <input type="range" id="time-slider" min="0" max="1" step="0.01" value="1.0">
+            </div>
             <div class="ctrl-sep"></div>
-            <div class="ctrl-row">
-                <label for="lamp-slider">lamp</label>
+            <div class="ctrl-row" id="lamp-row">
+                <label for="lamp-slider" id="lamp-label">lamp</label>
                 <input type="range" id="lamp-slider" min="0" max="2.5" step="0.01" value="1.0">
             </div>
-            <div class="ctrl-row">
+            <div class="ctrl-row" id="lamp-tint-row">
                 <label for="lamp-color-slider">lamp tint</label>
                 <input type="range" id="lamp-color-slider" min="0" max="1" step="0.01" value="0.0">
             </div>
         </div>
+        <button id="theme-btn">enter the woods</button>
     </div>
 
     <script type="importmap">
@@ -183,6 +215,16 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x030306);
         scene.fog = new THREE.FogExp2(0x030306, 0.07);
+
+        // ── Theme groups: scenery is split so the button can swap worlds.
+        //    Desk, person and dog live directly in the scene (shared).
+        let theme = 'room';
+        const roomGroup = new THREE.Group();
+        const forestGroup = new THREE.Group();
+        forestGroup.visible = false;
+        scene.add(roomGroup);
+        scene.add(forestGroup);
+        let addTarget = scene; // construction target; switched per section below
 
         // ── Camera ──
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 30);
@@ -217,7 +259,7 @@
             mesh.rotation.set(rx, ry, rz);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-            scene.add(mesh);
+            addTarget.add(mesh);
             return mesh;
         };
 
@@ -244,19 +286,21 @@
         //  SCENE OBJECTS
         // ═══════════════════════════════
 
+        addTarget = roomGroup; // ── room scenery from here ──
+
         const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), M.floor);
         floorMesh.rotation.x = -Math.PI / 2;
         floorMesh.receiveShadow = true;
-        scene.add(floorMesh);
+        addTarget.add(floorMesh);
 
         const grid = new THREE.GridHelper(14, 14, 0x0d0d14, 0x08080f);
         grid.position.y = 0.002;
-        scene.add(grid);
+        addTarget.add(grid);
 
         const wallMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 5.5), M.wall);
         wallMesh.position.set(0, 2.75, -2.8);
         wallMesh.receiveShadow = true;
-        scene.add(wallMesh);
+        addTarget.add(wallMesh);
 
         // ── Left wall with window ──────────────────
         const SWX = -2.9;                 // side wall plane
@@ -344,7 +388,7 @@
         );
         cityMesh.position.set(SWX - 0.55, 1.85, WIN.zc);
         cityMesh.rotation.y = Math.PI / 2;
-        scene.add(cityMesh);
+        addTarget.add(cityMesh);
         // Faint glass sheen
         const glassMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(WIN.w, WIN.y1 - WIN.y0),
@@ -352,7 +396,7 @@
         );
         glassMesh.position.set(SWX + 0.02, (WIN.y0+WIN.y1)/2, WIN.zc);
         glassMesh.rotation.y = Math.PI / 2;
-        scene.add(glassMesh);
+        addTarget.add(glassMesh);
 
         // Moonlight through the window — main shadow caster
         const moonLight = new THREE.DirectionalLight(0x8899cc, 2.2);
@@ -364,8 +408,8 @@
         moonLight.shadow.camera.top = 3.5;   moonLight.shadow.camera.bottom = -3.5;
         moonLight.shadow.camera.near = 1;    moonLight.shadow.camera.far = 14;
         moonLight.shadow.bias = -0.002;
-        scene.add(moonLight);
-        scene.add(moonLight.target);
+        addTarget.add(moonLight);
+        addTarget.add(moonLight.target);
 
         // ── Baseboards ──
         const bbMat = lm(0x1a1a20);
@@ -384,7 +428,7 @@
             const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
             const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 28, r, 5), cableMat);
             m.castShadow = true;
-            scene.add(m);
+            addTarget.add(m);
             return m;
         };
         // Monitor power
@@ -404,7 +448,7 @@
                 new THREE.MeshLambertMaterial({ map: tex, emissive: 0x202028, emissiveIntensity: 0.35 }));
             m.position.set(x, y, -2.764);
             m.rotation.z = rz;
-            scene.add(m);
+            addTarget.add(m);
         };
         // Poster 1 — synthwave sunset
         const p1 = document.createElement('canvas'); p1.width = 256; p1.height = 340;
@@ -535,7 +579,7 @@
         );
         rugMesh.rotation.x = -Math.PI / 2;
         rugMesh.position.set(0, 0.008, 0.40);
-        scene.add(rugMesh);
+        addTarget.add(rugMesh);
 
         // ── Bookshelf (against back wall, right side) ──
         const BSX = 2.55, BSZ = -2.52, BSW = 0.95, BSH = 1.92, BSD = 0.30;
@@ -583,10 +627,10 @@
         const potMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.24, 10), lm(0x6e3424));
         potMesh.position.set(FPX, 0.12, FPZ);
         potMesh.castShadow = potMesh.receiveShadow = true;
-        scene.add(potMesh);
+        addTarget.add(potMesh);
         const soilMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.02, 10), lm(0x100b06));
         soilMesh.position.set(FPX, 0.235, FPZ);
-        scene.add(soilMesh);
+        addTarget.add(soilMesh);
         for (let i = 0; i < 11; i++) {
             const a = Math.random() * Math.PI * 2, r = Math.random() * 0.07;
             const lh = 0.45 + Math.random() * 0.45;
@@ -601,17 +645,17 @@
         binMesh.material.side = THREE.DoubleSide;
         binMesh.position.set(1.38, 0.135, 0.42);
         binMesh.castShadow = binMesh.receiveShadow = true;
-        scene.add(binMesh);
+        addTarget.add(binMesh);
         const binBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.012, 12), lm(0x181c20));
         binBottom.position.set(1.38, 0.01, 0.42);
-        scene.add(binBottom);
+        addTarget.add(binBottom);
         const paperMat = lm(0xc9c4b4);
         [[1.38, 0.24, 0.40], [1.34, 0.22, 0.46], [1.58, 0.028, 0.30], [1.22, 0.028, 0.62]].forEach(([px, py, pz], i) => {
             const ball = new THREE.Mesh(new THREE.DodecahedronGeometry(0.030 + (i%2)*0.006, 0), paperMat);
             ball.position.set(px, py, pz);
             ball.rotation.set(i, i*1.7, i*0.6);
             ball.castShadow = true;
-            scene.add(ball);
+            addTarget.add(ball);
         });
 
         // ── Dog Bed ──
@@ -629,10 +673,12 @@
         // Inner cushion (sunken middle)
         box(0.44, 0.025, 0.54, bedCushMat, BEDX, 0.065, BEDZ);
 
+        addTarget = scene; // ── the beagle travels between worlds ──
+
         // ── Beagle ──
         const dogGroup = new THREE.Group();
         dogGroup.position.set(BEDX, 0, BEDZ);
-        scene.add(dogGroup);
+        addTarget.add(dogGroup);
 
         // Materials
         const dogWhite = lm(0xe6e1d8);
@@ -719,6 +765,8 @@
             sniffUntil: 0,
         };
 
+        addTarget = roomGroup; // ── neon is room scenery ──
+
         // ── Neon Sign (back wall) ──────────────────
         const WZ = -2.74;
         const NZ = WZ + 0.06; // neon tube plane — slightly in front of wall
@@ -731,7 +779,7 @@
             );
             m.position.set(x,y,z);
             m.rotation.z = rz;
-            scene.add(m);
+            addTarget.add(m);
             return m;
         };
         // Neon ring (torus)
@@ -742,14 +790,14 @@
             );
             m.position.set(x,y,z);
             m.rotation.set(rx,ry,0);
-            scene.add(m);
+            addTarget.add(m);
             return m;
         };
         // Cast colored light on the wall behind each shape
         const neonLight = (color,x,y,intensity=2.5,distance=2.6) => {
             const L = new THREE.PointLight(color,intensity,distance);
             L.position.set(x, y, NZ + 0.18);
-            scene.add(L);
+            addTarget.add(L);
         };
 
         // Color palette
@@ -798,7 +846,7 @@
         ].forEach(([dx,dy,r]) => {
             const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), dotMat);
             dot.position.set(dx, dy, NZ);
-            scene.add(dot);
+            addTarget.add(dot);
         });
         neonLight(C_LIME, 0, 3.40, 1.5, 2.4);
 
@@ -815,6 +863,8 @@
         };
         plus(-0.50, 2.95, 0.14, C_CYAN);
         plus( 0.55, 2.95, 0.14, C_CYAN);
+
+        addTarget = scene; // ── desk, chair, person + gear are shared ──
 
         // ── Desk ──
         const DY = 0.76;
@@ -947,7 +997,7 @@
         const headGroup = new THREE.Group();
         headGroup.position.set(0, 1.30, PZ);
         headGroup.rotation.x = 0.16;
-        scene.add(headGroup);
+        addTarget.add(headGroup);
         const hAdd = (w, h, d, mat, x, y, z) => {
             const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             m.position.set(x, y, z);
@@ -1007,11 +1057,11 @@
         [-6.5, -5.5, -4.5, 4.5, 5.5, 6.0, 6.5].forEach((u, i) =>
             placeKey(KBX + u * bp, bz, (i === 5 ? bp * 0.45 : bp) - 0.007));
         keyInst.instanceMatrix.needsUpdate = true;
-        scene.add(keyInst);
+        addTarget.add(keyInst);
         // Spacebar
         const spaceKey = new THREE.Mesh(new THREE.BoxGeometry(0.235, 0.013, 0.030), kbKeyMat);
         spaceKey.position.set(KBX - 0.02, KBY + 0.017, bz);
-        scene.add(spaceKey);
+        addTarget.add(spaceKey);
 
         // ── Mousepad + mouse ──
         box(0.235, 0.005, 0.21, lm(0x0b0b10), 0.43, DY + 0.030, 0.11);
@@ -1021,14 +1071,14 @@
             new THREE.MeshLambertMaterial({ color: 0x202028, emissive: 0x6622cc, emissiveIntensity: 0.7 }));
         mWheel.rotation.z = Math.PI / 2; mWheel.rotation.y = -0.18;
         mWheel.position.set(0.430, DY + 0.062, 0.092);
-        scene.add(mWheel);
+        addTarget.add(mWheel);
         // RGB underglow strip on mouse
         box(0.056, 0.005, 0.094, kbKeyMat, 0.435, DY + 0.036, 0.125, 0, -0.18, 0);
 
         // Keyboard backlight point — lights hands and face from below
         const kbLight = new THREE.PointLight(0x8833ff, 1.5, 1.4);
         kbLight.position.set(KBX, KBY + 0.07, KBZ);
-        scene.add(kbLight);
+        addTarget.add(kbLight);
 
         // ── MacBook ──
         const MBX = 0.72, MBZ = 0.10;
@@ -1054,7 +1104,7 @@
         const mbPivot = new THREE.Group();
         mbPivot.position.set(MBX, MBT, MBZ - 0.11);
         mbPivot.rotation.x = -0.30;
-        scene.add(mbPivot);
+        addTarget.add(mbPivot);
 
         // toL: create a box mesh in pivot-local space
         const toL = (w,h,d,mat,y,z=0,x=0) => {
@@ -1153,13 +1203,13 @@
         const saucerGeo = new THREE.CylinderGeometry(mugR * 2.3, mugR * 2.05, 0.013, 12);
         const saucerMesh = new THREE.Mesh(saucerGeo, lm(0x1c1c22));
         saucerMesh.position.set(CFX, deskTop + 0.0065, CFZ);
-        scene.add(saucerMesh);
+        addTarget.add(saucerMesh);
 
         // Saucer inner well ring (shallow indent mug sits in)
         const wellGeo = new THREE.CylinderGeometry(mugR * 1.12, mugR * 1.05, 0.005, 12);
         const wellMesh = new THREE.Mesh(wellGeo, lm(0x141418));
         wellMesh.position.set(CFX, deskTop + 0.015, CFZ);
-        scene.add(wellMesh);
+        addTarget.add(wellMesh);
 
         // Mug base sits on saucer top
         const mugBase = deskTop + 0.013;
@@ -1170,25 +1220,25 @@
         const mugGeo = new THREE.CylinderGeometry(mugR, mugR * 0.87, mugH, 10);
         const mugMesh = new THREE.Mesh(mugGeo, mugMat);
         mugMesh.position.set(CFX, mugCY, CFZ);
-        scene.add(mugMesh);
+        addTarget.add(mugMesh);
 
         // Inner hollow (dark interior visible from top)
         const innerGeo = new THREE.CylinderGeometry(mugR * 0.80, mugR * 0.73, mugH * 0.91, 10);
         const innerMesh = new THREE.Mesh(innerGeo, lm(0x070709));
         innerMesh.position.set(CFX, mugCY + 0.005, CFZ);
-        scene.add(innerMesh);
+        addTarget.add(innerMesh);
 
         // Coffee surface — warm dark brown, slight emissive
         const cofGeo = new THREE.CylinderGeometry(mugR * 0.77, mugR * 0.77, 0.007, 10);
         const cofMesh = new THREE.Mesh(cofGeo, lm(0x1e0f07, 0x3a1a08, 0.18));
         cofMesh.position.set(CFX, mugBase + mugH - 0.012, CFZ);
-        scene.add(cofMesh);
+        addTarget.add(cofMesh);
 
         // Rim ring — slightly wider collar at lip
         const rimGeo = new THREE.CylinderGeometry(mugR + 0.005, mugR, 0.012, 10);
         const rimMesh = new THREE.Mesh(rimGeo, lm(0x2c2c34));
         rimMesh.position.set(CFX, mugBase + mugH - 0.006, CFZ);
-        scene.add(rimMesh);
+        addTarget.add(rimMesh);
 
         // Handle — proper D-shape: top bar + bottom bar + outer vertical
         const hxBase = CFX + mugR;
@@ -1218,7 +1268,7 @@
             sizeAttenuation: true, fog: false,
         });
         const steamPoints = new THREE.Points(steamGeo, steamMat);
-        scene.add(steamPoints);
+        addTarget.add(steamPoints);
 
         // Steam — layer 2: higher, wider, more diffuse (fade-out effect)
         const STEAM_N2 = 28;
@@ -1238,7 +1288,7 @@
             sizeAttenuation: true, fog: false,
         });
         const steamPoints2 = new THREE.Points(steamGeo2, steamMat2);
-        scene.add(steamPoints2);
+        addTarget.add(steamPoints2);
 
         // ── Desk clutter ──────────────────
         const deskSurf = DY + 0.0275;
@@ -1251,11 +1301,11 @@
         penMesh.rotation.z = Math.PI / 2; penMesh.rotation.y = 0.65;
         penMesh.position.set(-0.52, deskSurf + 0.039, 0.27);
         penMesh.castShadow = true;
-        scene.add(penMesh);
+        addTarget.add(penMesh);
         const penClip = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.02, 6), lm(0x8a8a92));
         penClip.rotation.z = Math.PI / 2; penClip.rotation.y = 0.65;
         penClip.position.set(-0.475, deskSurf + 0.041, 0.243);
-        scene.add(penClip);
+        addTarget.add(penClip);
 
         // Smartphone, face up, screen dimly lit with a notification
         box(0.072, 0.009, 0.148, lm(0x0a0a0e), 0.295, deskSurf + 0.0045, 0.345, 0, -0.35, 0);
@@ -1270,7 +1320,7 @@
         const hbMesh = new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.009, 6, 14, Math.PI), lm(0x202024));
         hbMesh.position.set(HSX, deskSurf + 0.235, HSZ);
         hbMesh.castShadow = true;
-        scene.add(hbMesh);
+        addTarget.add(hbMesh);
         box(0.020, 0.068, 0.058, lm(0x18181c), HSX - 0.058, deskSurf + 0.20, HSZ);
         box(0.020, 0.068, 0.058, lm(0x18181c), HSX + 0.058, deskSurf + 0.20, HSZ);
         box(0.006, 0.040, 0.044, lm(0x2c2c34), HSX - 0.069, deskSurf + 0.20, HSZ); // earcup plates
@@ -1280,7 +1330,7 @@
         const sucPot = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.024, 0.042, 8), lm(0x55555c));
         sucPot.position.set(0.92, deskSurf + 0.021, -0.33);
         sucPot.castShadow = true;
-        scene.add(sucPot);
+        addTarget.add(sucPot);
         for (let i = 0; i < 6; i++) {
             const a = (i / 6) * Math.PI * 2;
             box(0.014, 0.038, 0.014, lm(i % 2 ? 0x2e6638 : 0x255530),
@@ -1402,7 +1452,7 @@
         const monScrMat = new THREE.MeshBasicMaterial({ map: monTex });
         const monScr = new THREE.Mesh(new THREE.BoxGeometry(MOW, MOH, 0.012), monScrMat);
         monScr.position.set(MOX, MOY, MOZ + 0.008);
-        scene.add(monScr);
+        addTarget.add(monScr);
         let monLastDraw = 0;
         // Screen tint endpoints for color slider
         const scrCool = new THREE.Color(0xdfe8ff);
@@ -1414,7 +1464,7 @@
                 new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.18 }));
             m.position.set(x, y, MOZ + 0.016);
             m.rotation.z = rz;
-            scene.add(m);
+            addTarget.add(m);
         };
         sticky(0xd8c84a, MOX + MOW/2 + 0.048, MOY + 0.16, 0.10);
         sticky(0x7ad8a0, MOX + MOW/2 + 0.052, MOY + 0.07, -0.07);
@@ -1426,15 +1476,17 @@
             const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.008, 10), lm(0x26262e));
             cone.rotation.x = Math.PI / 2; cone.rotation.z = -ry;
             cone.position.set(x + Math.sin(ry) * 0.052, DY + 0.155, -0.34 + Math.cos(ry) * 0.052);
-            scene.add(cone);
+            addTarget.add(cone);
             const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.008, 8), lm(0x303040));
             tw.rotation.x = Math.PI / 2; tw.rotation.z = -ry;
             tw.position.set(x + Math.sin(ry) * 0.052, DY + 0.075, -0.34 + Math.cos(ry) * 0.052);
-            scene.add(tw);
+            addTarget.add(tw);
             box(0.010, 0.008, 0.005, lm(0x041004, 0x22ff66, 1.2), x + Math.sin(ry)*0.054 + 0.035, DY + 0.045, -0.30);
         };
         spk(-0.94, 0.22);
         spk(0.58, -0.20);
+
+        addTarget = roomGroup; // ── floor lamp stays inside ──
 
         // ── Floor Lamp ──
         const LX = -1.45, LZ = 0.2;
@@ -1451,40 +1503,256 @@
         });
         const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.24, 0.30, 8), lampShadeMat);
         lampShade.position.set(LX, 1.715, LZ);
-        scene.add(lampShade);
+        addTarget.add(lampShade);
+
+        // ═══════════════════════════════
+        //  FOREST THEME (scenery button)
+        // ═══════════════════════════════
+        addTarget = forestGroup;
+
+        // ── Mossy forest floor ──
+        const fgCanvas = document.createElement('canvas');
+        fgCanvas.width = 256; fgCanvas.height = 256;
+        const fgc = fgCanvas.getContext('2d');
+        fgc.fillStyle = '#2c4720'; fgc.fillRect(0, 0, 256, 256);
+        const mossTones = ['#26401b', '#33512a', '#2a4a1e', '#3a5a2e', '#243c18'];
+        for (let i = 0; i < 900; i++) {
+            fgc.fillStyle = mossTones[(Math.random() * mossTones.length) | 0];
+            fgc.fillRect(Math.random()*256, Math.random()*256, 2 + Math.random()*5, 2 + Math.random()*5);
+        }
+        for (let i = 0; i < 14; i++) {  // dirt patches
+            fgc.fillStyle = `rgba(74,58,38,${0.22 + Math.random()*0.3})`;
+            fgc.beginPath();
+            fgc.arc(Math.random()*256, Math.random()*256, 6 + Math.random()*14, 0, Math.PI*2);
+            fgc.fill();
+        }
+        const fgTex = new THREE.CanvasTexture(fgCanvas);
+        fgTex.wrapS = fgTex.wrapT = THREE.RepeatWrapping;
+        fgTex.repeat.set(3, 3);
+        const forestGround = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), new THREE.MeshLambertMaterial({ map: fgTex }));
+        forestGround.rotation.x = -Math.PI / 2;
+        forestGround.receiveShadow = true;
+        addTarget.add(forestGround);
+
+        // ── Pine trees ringing the clearing ──
+        const trunkMat = lm(0x3a2a16);
+        const pineMats = [lm(0x274018), lm(0x2e4a1f), lm(0x21381a)];
+        const pine = (x, z, s) => {
+            const mat = pineMats[(Math.random() * pineMats.length) | 0];
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06*s, 0.10*s, 0.8*s, 6), trunkMat);
+            trunk.position.set(x, 0.4*s, z);
+            trunk.castShadow = trunk.receiveShadow = true;
+            addTarget.add(trunk);
+            [[0.62, 0.95, 0.95], [0.46, 0.85, 1.55], [0.30, 0.75, 2.10]].forEach(([r, h, y]) => {
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(r*s, h*s, 7), mat);
+                cone.position.set(x, y*s, z);
+                cone.castShadow = cone.receiveShadow = true;
+                addTarget.add(cone);
+            });
+        };
+        for (let i = 0; i < 26; i++) {
+            const a = (i / 26) * Math.PI * 2 + Math.random() * 0.4;
+            const r = 3.7 + Math.random() * 3.4;
+            pine(Math.sin(a) * r, Math.cos(a) * r, 0.9 + Math.random() * 1.3);
+        }
+
+        // ── Rocks, fallen log, stump, mushrooms ──
+        for (let i = 0; i < 7; i++) {
+            const a = Math.random()*Math.PI*2, r = 2.6 + Math.random()*3.2;
+            const s = 0.10 + Math.random()*0.22;
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), lm(0x4c4c50));
+            rock.position.set(Math.sin(a)*r, s*0.55, Math.cos(a)*r);
+            rock.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+            rock.castShadow = rock.receiveShadow = true;
+            addTarget.add(rock);
+        }
+        const logMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.3, 8), lm(0x46301c));
+        logMesh.rotation.z = Math.PI/2; logMesh.rotation.y = 0.5;
+        logMesh.position.set(2.7, 0.12, 2.4);
+        logMesh.castShadow = logMesh.receiveShadow = true;
+        addTarget.add(logMesh);
+        const stumpMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.21, 0.26, 8), lm(0x4a3420));
+        stumpMesh.position.set(-2.75, 0.13, 0.9);
+        stumpMesh.castShadow = true;
+        addTarget.add(stumpMesh);
+        const stumpTop = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.012, 8), lm(0x8a6a42));
+        stumpTop.position.set(-2.75, 0.266, 0.9);
+        addTarget.add(stumpTop);
+        [[-2.55, 1.08], [-2.92, 0.70], [2.5, 2.12], [2.95, 2.62], [1.95, -2.6]].forEach(([mx, mz], i) => {
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.05, 5), lm(0xc9bfa8));
+            stem.position.set(mx, 0.025, mz);
+            addTarget.add(stem);
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.035, 7), lm(i % 2 ? 0xa83226 : 0xb08a55));
+            cap.position.set(mx, 0.062, mz);
+            cap.castShadow = true;
+            addTarget.add(cap);
+        });
+
+        // ── Bushes + grass tufts ──
+        for (let i = 0; i < 9; i++) {
+            const a = Math.random()*Math.PI*2, r = 3.0 + Math.random()*3.4;
+            const s = 0.14 + Math.random()*0.16;
+            const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), pineMats[(Math.random()*3)|0]);
+            bush.position.set(Math.sin(a)*r, s*0.7, Math.cos(a)*r);
+            bush.scale.y = 0.7;
+            bush.castShadow = bush.receiveShadow = true;
+            addTarget.add(bush);
+        }
+        for (let i = 0; i < 50; i++) {
+            const a = Math.random()*Math.PI*2, r = 0.8 + Math.random()*5.6;
+            box(0.018, 0.07 + Math.random()*0.07, 0.018, pineMats[(Math.random()*3)|0],
+                Math.sin(a)*r, 0.045, Math.cos(a)*r, (Math.random()-0.5)*0.5, 0, (Math.random()-0.5)*0.5);
+        }
+
+        // ── Mossy dog nest (same spot as the bed, so the nap routine still works) ──
+        const mossBed = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.42, 0.07, 9), lm(0x365426));
+        mossBed.position.set(BEDX, 0.035, BEDZ);
+        mossBed.receiveShadow = true;
+        addTarget.add(mossBed);
+        [[-0.2, 0.15], [0.18, -0.1], [0.05, 0.25], [-0.15, -0.2]].forEach(([ox, oz], i) => {
+            box(0.09, 0.012, 0.06, lm(i % 2 ? 0x6a5a2a : 0x4a5a26), BEDX + ox, 0.075, BEDZ + oz, 0, i * 1.2, 0);
+        });
+
+        // ── Campfire — shares the lamp slider as "campfire" ──
+        const FX = 1.75, FZ = 1.7;
+        for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2;
+            const st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.055 + Math.random()*0.02, 0), lm(0x55555a));
+            st.position.set(FX + Math.sin(a)*0.30, 0.04, FZ + Math.cos(a)*0.30);
+            st.rotation.set(i, i * 2, 0);
+            st.castShadow = true;
+            addTarget.add(st);
+        }
+        for (let i = 0; i < 4; i++) {
+            const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.040, 0.44, 6), lm(0x3c2814));
+            lg.rotation.order = 'YXZ';
+            lg.rotation.y = (i / 4) * Math.PI * 2 + 0.4;
+            lg.rotation.x = 1.18;
+            lg.position.set(FX, 0.12, FZ);
+            lg.castShadow = true;
+            addTarget.add(lg);
+        }
+        const flames = [];
+        const flameCols = [0xff5a1a, 0xff9a2a, 0xffd45a];
+        [[0.10, 0.30, 0, 0], [0.07, 0.22, 0.06, -0.04], [0.05, 0.16, -0.06, 0.05]].forEach(([r, h, ox, oz], i) => {
+            const f = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6),
+                new THREE.MeshBasicMaterial({ color: flameCols[i], fog: false }));
+            f.position.set(FX + ox, 0.10 + h/2, FZ + oz);
+            f.userData.baseY = 0.10 + h/2;
+            flames.push(f);
+            addTarget.add(f);
+        });
+        const ember = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.02, 8),
+            new THREE.MeshBasicMaterial({ color: 0xff3300, fog: false }));
+        ember.position.set(FX, 0.045, FZ);
+        addTarget.add(ember);
+        const fireLight = new THREE.PointLight(0xff7722, 0, 9, 1.8);
+        fireLight.position.set(FX, 0.45, FZ);
+        addTarget.add(fireLight);
+
+        // ── Fireflies (night only) ──
+        const FF_N = 42;
+        const ffPos = new Float32Array(FF_N * 3);
+        const ffSeed = [];
+        for (let i = 0; i < FF_N; i++) {
+            const a = Math.random()*Math.PI*2, r = 1.2 + Math.random()*4.8;
+            ffSeed.push(Math.sin(a)*r, 0.25 + Math.random()*1.5, Math.cos(a)*r, Math.random()*10);
+            ffPos[i*3] = ffSeed[i*4]; ffPos[i*3+1] = ffSeed[i*4+1]; ffPos[i*3+2] = ffSeed[i*4+2];
+        }
+        const ffGeo = new THREE.BufferGeometry();
+        ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
+        const ffMat = new THREE.PointsMaterial({ color: 0xb8ff5a, size: 0.032, transparent: true, opacity: 0.9, fog: false });
+        const fireflies = new THREE.Points(ffGeo, ffMat);
+        addTarget.add(fireflies);
+
+        // ── Star dome (fades out in daylight) ──
+        const ST_N = 320;
+        const stPos = new Float32Array(ST_N * 3);
+        for (let i = 0; i < ST_N; i++) {
+            const az = Math.random()*Math.PI*2;
+            const el = Math.random()*Math.PI*0.46 + 0.06;
+            stPos[i*3]   = Math.cos(el)*Math.sin(az)*13;
+            stPos[i*3+1] = Math.sin(el)*13;
+            stPos[i*3+2] = Math.cos(el)*Math.cos(az)*13;
+        }
+        const stGeo = new THREE.BufferGeometry();
+        stGeo.setAttribute('position', new THREE.BufferAttribute(stPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xd8e2ff, size: 0.05, transparent: true, opacity: 0.9, fog: false });
+        const starPoints = new THREE.Points(stGeo, starMat);
+        addTarget.add(starPoints);
+
+        // ── Moon + sun discs ──
+        const moonDisc = new THREE.Mesh(new THREE.CircleGeometry(0.75, 20),
+            new THREE.MeshBasicMaterial({ color: 0xe8eeff, transparent: true, opacity: 1, fog: false }));
+        moonDisc.position.set(-7.5, 7.2, -8.0);
+        addTarget.add(moonDisc);
+        const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(0.95, 20),
+            new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0, fog: false }));
+        sunDisc.position.set(-9, 1, -5);
+        addTarget.add(sunDisc);
+
+        // ── Forest lights: sun arc + moonlight ──
+        const forestSun = new THREE.DirectionalLight(0xffeecc, 0);
+        forestSun.castShadow = true;
+        forestSun.shadow.mapSize.set(1024, 1024);
+        forestSun.shadow.camera.left = -8; forestSun.shadow.camera.right = 8;
+        forestSun.shadow.camera.top = 8;   forestSun.shadow.camera.bottom = -8;
+        forestSun.shadow.camera.near = 1;  forestSun.shadow.camera.far = 30;
+        forestSun.shadow.bias = -0.002;
+        forestSun.shadow.camera.updateProjectionMatrix();
+        addTarget.add(forestSun);
+        addTarget.add(forestSun.target);
+        const forestMoonLight = new THREE.DirectionalLight(0x8fa6d8, 0);
+        forestMoonLight.position.set(-7.5, 7.2, -8.0);
+        addTarget.add(forestMoonLight);
+        addTarget.add(forestMoonLight.target);
+
+        // Day/night palette
+        const skyNight = new THREE.Color(0x050a1a);
+        const skyDusk  = new THREE.Color(0xc06a38);
+        const skyDay   = new THREE.Color(0x8fc0e8);
+        const skyCol   = new THREE.Color();
+        const sunWarm  = new THREE.Color(0xff9a4a);
+        const sunNoon  = new THREE.Color(0xfff4dc);
+        const grNight  = new THREE.Color(0x0a140a);
+        const grDay    = new THREE.Color(0x2a4022);
 
         // ═══════════════════════════════
         //  LIGHTING
         // ═══════════════════════════════
 
+        addTarget = scene; // ── shared lights ──
+
         // Hemisphere: sky color tints down from above, ground color up from below
         const hemiLight = new THREE.HemisphereLight(0x2233aa, 0x111122, 5.0);
-        scene.add(hemiLight);
+        addTarget.add(hemiLight);
 
         // Broad overhead fill — illuminates the whole scene evenly
         const fillLight = new THREE.DirectionalLight(0x3344bb, 3.5);
         fillLight.position.set(0, 6, 3);
-        scene.add(fillLight);
+        addTarget.add(fillLight);
 
         // Monitor glow — main colored light source
         const monLight = new THREE.PointLight(0x2244ee, 7.0, 0);
         monLight.position.set(MOX, MOY, MOZ + 0.65);
-        scene.add(monLight);
+        addTarget.add(monLight);
 
         // MacBook glow — between screen and person
         const mbLight = new THREE.PointLight(0x1133cc, 2.8, 0);
         mbLight.position.set(MBX, DY + 0.18, MBZ + 0.06);
-        scene.add(mbLight);
+        addTarget.add(mbLight);
 
         // Rim — separates person from background
         const rimLight = new THREE.PointLight(0x1a1a44, 3.0, 0);
         rimLight.position.set(0, 2.2, -1.8);
-        scene.add(rimLight);
+        addTarget.add(rimLight);
+
+        addTarget = roomGroup; // lamp lights belong to the room
 
         // Floor lamp — warm pool, casts downward
         const lampLight = new THREE.PointLight(0xff8833, 4.0, 0);
         lampLight.position.set(LX, 1.62, LZ);
-        scene.add(lampLight);
+        addTarget.add(lampLight);
 
         // Lamp spotlight — shadow-casting warm cone onto the floor
         const lampSpot = new THREE.SpotLight(0xff8833, 6.0, 5.0, Math.PI * 0.40, 0.55, 1.1);
@@ -1493,8 +1761,10 @@
         lampSpot.castShadow = true;
         lampSpot.shadow.mapSize.set(512, 512);
         lampSpot.shadow.bias = -0.003;
-        scene.add(lampSpot);
-        scene.add(lampSpot.target);
+        addTarget.add(lampSpot);
+        addTarget.add(lampSpot.target);
+
+        addTarget = scene; // dust drifts in both worlds
 
         // ── Dust motes drifting through the air ──
         const DUST_N = 110;
@@ -1518,13 +1788,32 @@
             sizeAttenuation: true,
         });
         const dustPoints = new THREE.Points(dustGeo, dustMat);
-        scene.add(dustPoints);
+        addTarget.add(dustPoints);
 
         // ═══════════════════════════════
         //  UI CONTROLS
         // ═══════════════════════════════
 
-        const params = { brightness: 1.0, color: 0.1, lampBrightness: 1.0, lampColor: 0.0 };
+        const params = { brightness: 1.0, color: 0.1, lampBrightness: 1.0, lampColor: 0.0, time: 1.0 };
+
+        document.getElementById('time-slider').addEventListener('input', e => {
+            params.time = parseFloat(e.target.value);
+        });
+
+        // ── Scenery toggle ──
+        const themeBtn = document.getElementById('theme-btn');
+        const setTheme = th => {
+            theme = th;
+            const forest = th === 'forest';
+            roomGroup.visible = !forest;
+            forestGroup.visible = forest;
+            document.getElementById('time-row').classList.toggle('hidden', !forest);
+            document.getElementById('color-row').classList.toggle('hidden', forest);
+            document.getElementById('lamp-tint-row').classList.toggle('hidden', forest);
+            document.getElementById('lamp-label').textContent = forest ? 'campfire' : 'lamp';
+            themeBtn.textContent = forest ? 'back inside' : 'enter the woods';
+        };
+        themeBtn.addEventListener('click', () => setTheme(theme === 'room' ? 'forest' : 'room'));
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
             params.brightness = parseFloat(e.target.value);
@@ -1685,14 +1974,76 @@
 
             tintColor.copy(coolMon).lerp(warmMon, c);
 
-            // Hemisphere — whole-scene ambient fill, color-shifted
-            hemiLight.intensity = BASE.hemi * b;
-            hemiLight.color.copy(coolSky).lerp(warmSky, c);
-            hemiLight.groundColor.copy(coolGround).lerp(warmGround, c);
+            if (theme === 'room') {
+                scene.background.setHex(0x030306);
+                scene.fog.color.setHex(0x030306);
+                scene.fog.density = 0.07;
 
-            // Directional fill — broad even illumination, color-shifted
-            fillLight.intensity = BASE.fill * b;
-            fillLight.color.copy(coolFill).lerp(warmFill, c);
+                // Hemisphere — whole-scene ambient fill, color-shifted
+                hemiLight.intensity = BASE.hemi * b;
+                hemiLight.color.copy(coolSky).lerp(warmSky, c);
+                hemiLight.groundColor.copy(coolGround).lerp(warmGround, c);
+
+                // Directional fill — broad even illumination, color-shifted
+                fillLight.intensity = BASE.fill * b;
+                fillLight.color.copy(coolFill).lerp(warmFill, c);
+            } else {
+                // ── Forest day/night cycle (time slider: 0 night → 1 noon) ──
+                const td = params.time;
+                if (td < 0.5) skyCol.copy(skyNight).lerp(skyDusk, td * 2);
+                else skyCol.copy(skyDusk).lerp(skyDay, (td - 0.5) * 2);
+                scene.background.copy(skyCol);
+                scene.fog.color.copy(skyCol).multiplyScalar(0.92);
+                scene.fog.density = 0.028 + (1 - td) * 0.018;
+
+                hemiLight.intensity = (0.9 + td * 5.5) * b;
+                hemiLight.color.copy(skyCol);
+                hemiLight.groundColor.copy(grNight).lerp(grDay, td);
+                fillLight.intensity = 0.4 * b;
+                fillLight.color.copy(skyCol);
+
+                // Sun climbs from the horizon to overhead
+                const el = -0.10 + td * 1.35;
+                const sy = Math.sin(el), sc = Math.cos(el);
+                forestSun.position.set(-sc * 9, sy * 10 + 0.3, -4.5);
+                forestSun.intensity = Math.max(0, td - 0.07) * 7.5 * b;
+                forestSun.color.copy(sunWarm).lerp(sunNoon, Math.min(1, td * 1.4));
+                sunDisc.position.set(-sc * 10.5, sy * 11 + 0.3, -5.2);
+                sunDisc.material.opacity = THREE.MathUtils.clamp((td - 0.08) * 4, 0, 1);
+                sunDisc.lookAt(camera.position);
+
+                // Moon + stars take over after dark
+                moonDisc.material.opacity = THREE.MathUtils.clamp((0.5 - td) * 3.2, 0, 1);
+                moonDisc.lookAt(camera.position);
+                forestMoonLight.intensity = Math.max(0, 0.5 - td) * 3.6 * b;
+                starMat.opacity = THREE.MathUtils.clamp((0.45 - td) * 2.6, 0, 1);
+
+                // Fireflies wander once the light fades
+                ffMat.opacity = THREE.MathUtils.clamp((0.4 - td) * 3, 0, 1) * (0.7 + Math.sin(t * 3.1) * 0.3);
+                if (ffMat.opacity > 0.01) {
+                    const fp = fireflies.geometry.attributes.position.array;
+                    for (let i = 0; i < FF_N; i++) {
+                        const s = ffSeed[i*4+3];
+                        fp[i*3]   = ffSeed[i*4]   + Math.sin(t * 0.35 + s) * 0.5;
+                        fp[i*3+1] = ffSeed[i*4+1] + Math.sin(t * 0.8 + s * 2) * 0.18;
+                        fp[i*3+2] = ffSeed[i*4+2] + Math.cos(t * 0.3 + s) * 0.5;
+                    }
+                    fireflies.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Campfire — flicker scaled by the campfire slider
+                const fb = params.lampBrightness;
+                const fFlick = Math.sin(t * 11) * 0.18 + Math.sin(t * 23.7) * 0.12 + Math.sin(t * 5.3) * 0.10;
+                fireLight.intensity = Math.max(0, (1.6 + fFlick) * fb * 2.2);
+                for (let i = 0; i < flames.length; i++) {
+                    const f = flames[i];
+                    const sFl = fb < 0.05 ? 0.001 : 0.75 + Math.sin(t * 9 + i * 2.4) * 0.18 + fb * 0.25;
+                    f.scale.set(sFl, sFl * (1 + Math.sin(t * 13 + i) * 0.12), sFl);
+                    f.position.y = f.userData.baseY * f.scale.y;
+                    f.rotation.y = t * (1.2 + i * 0.5);
+                }
+                ember.material.color.setHSL(0.03, 1.0, 0.10 + 0.14 * Math.min(fb, 1.5) + Math.sin(t * 7) * 0.03);
+            }
 
             // Monitor flicker × brightness
             const flicker = Math.sin(t * 1.1) * 0.18 + Math.sin(t * 13.3) * 0.06;
