@@ -48,38 +48,46 @@
             text-transform: uppercase;
             white-space: nowrap;
         }
+        /* Cinematic vignette */
+        #ui::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(0,0,0,0.42) 100%);
+            pointer-events: none;
+        }
 
         /* ── Controls panel ── */
         #controls {
             position: absolute;
-            bottom: 24px;
-            right: 24px;
+            top: 24px;
+            left: 24px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 11px;
             pointer-events: all;
         }
         .ctrl-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .ctrl-row label {
-            color: rgba(80, 110, 220, 0.32);
+            color: rgba(140, 170, 255, 0.75);
             font-family: 'Quicksand', sans-serif;
             font-weight: 300;
-            font-size: 8.5px;
+            font-size: 11px;
             letter-spacing: 2.5px;
             text-transform: uppercase;
-            width: 58px;
-            text-align: right;
+            width: 76px;
+            text-align: left;
             flex-shrink: 0;
             cursor: default;
         }
         .ctrl-row input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
-            width: 80px;
+            width: 100px;
             height: 2px;
             border-radius: 1px;
             outline: none;
@@ -168,7 +176,7 @@
         renderer.setPixelRatio(0.5);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.BasicShadowMap;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
         document.body.appendChild(renderer.domElement);
 
         // ── Scene ──
@@ -185,8 +193,9 @@
         controls.target.set(0, 1.05, 0.2);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.minDistance = 1.6;
+        controls.minDistance = 0.4;
         controls.maxDistance = 9;
+        controls.zoomSpeed = 3.0;
         controls.maxPolarAngle = Math.PI * 0.8;
         controls.autoRotate = true;
         controls.autoRotateSpeed = 0.28;
@@ -249,101 +258,563 @@
         wallMesh.receiveShadow = true;
         scene.add(wallMesh);
 
-        // ── Window (back wall — night outdoors) ──────────────────
-        const WZ = -2.74;
-        const WIN_CX = 0, WIN_CY = 2.15, WIN_W = 3.3, WIN_H = 2.3;
-        const WIN_X1 = WIN_CX - WIN_W / 2, WIN_X2 = WIN_CX + WIN_W / 2;
-        const WIN_Y1 = WIN_CY - WIN_H / 2, WIN_Y2 = WIN_CY + WIN_H / 2;
-
-        // Outer frame
-        const winFrameMat = lm(0x0f0f0d);
-        box(WIN_W + 0.14, 0.085, 0.09, winFrameMat, WIN_CX, WIN_Y2, WZ);
-        box(WIN_W + 0.14, 0.085, 0.09, winFrameMat, WIN_CX, WIN_Y1, WZ);
-        box(0.085, WIN_H + 0.085, 0.09, winFrameMat, WIN_X1, WIN_CY, WZ);
-        box(0.085, WIN_H + 0.085, 0.09, winFrameMat, WIN_X2, WIN_CY, WZ);
-        // Inner mullions (2 vertical + 1 horizontal divider)
-        box(WIN_W - 0.09, 0.045, 0.06, winFrameMat, WIN_CX,        WIN_CY + 0.38, WZ);
-        box(0.045, WIN_H - 0.09, 0.06, winFrameMat, WIN_CX - 0.60, WIN_CY,        WZ);
-        box(0.045, WIN_H - 0.09, 0.06, winFrameMat, WIN_CX + 0.60, WIN_CY,        WZ);
-
-        // Night sky background (MeshBasicMaterial — unaffected by scene fog/lights)
-        const skyBG = new THREE.Mesh(
-            new THREE.PlaneGeometry(WIN_W - 0.08, WIN_H - 0.08),
-            new THREE.MeshBasicMaterial({ color: 0x04060f })
-        );
-        skyBG.position.set(WIN_CX, WIN_CY, WZ - 0.07);
-        scene.add(skyBG);
-
-        // Stars — deterministic LCG so positions are consistent on every reload
-        const STAR_N = 240;
-        const sPts = new Float32Array(STAR_N * 3);
-        let seed = 12345;
-        const rand = () => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed / 0x7fffffff; };
-        for (let i = 0; i < STAR_N; i++) {
-            sPts[i*3]   = WIN_X1 + 0.05 + rand() * (WIN_W - 0.10);
-            // concentrate stars in upper half (above tree line)
-            sPts[i*3+1] = WIN_CY + 0.10 + rand() * (WIN_H * 0.46);
-            sPts[i*3+2] = WZ - 0.05;
-        }
-        const starGeo = new THREE.BufferGeometry();
-        starGeo.setAttribute('position', new THREE.BufferAttribute(sPts, 3));
-        scene.add(new THREE.Points(starGeo,
-            new THREE.PointsMaterial({ color: 0xffffff, size: 0.030, sizeAttenuation: true, fog: false })
-        ));
-
-        // A few brighter accent stars (larger points layer)
-        const BSTAR_N = 28;
-        const bPts = new Float32Array(BSTAR_N * 3);
-        for (let i = 0; i < BSTAR_N; i++) {
-            bPts[i*3]   = WIN_X1 + 0.1 + rand() * (WIN_W - 0.2);
-            bPts[i*3+1] = WIN_CY + 0.15 + rand() * (WIN_H * 0.44);
-            bPts[i*3+2] = WZ - 0.05;
-        }
-        const bStarGeo = new THREE.BufferGeometry();
-        bStarGeo.setAttribute('position', new THREE.BufferAttribute(bPts, 3));
-        scene.add(new THREE.Points(bStarGeo,
-            new THREE.PointsMaterial({ color: 0xeeeeff, size: 0.055, sizeAttenuation: true, fog: false })
-        ));
-
-        // Moon
-        const moonMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.175, 10, 7),
-            new THREE.MeshBasicMaterial({ color: 0xeeeedd })
-        );
-        moonMesh.position.set(WIN_X2 - 0.40, WIN_Y2 - 0.42, WZ - 0.06);
-        scene.add(moonMesh);
-
-        // Soft moon halo (slightly larger, dimmer sphere behind moon)
-        const moonHalo = new THREE.Mesh(
-            new THREE.SphereGeometry(0.30, 10, 7),
-            new THREE.MeshBasicMaterial({ color: 0x1a1f2e })
-        );
-        moonHalo.position.copy(moonMesh.position);
-        moonHalo.position.z -= 0.01;
-        scene.add(moonHalo);
-
-        // Moonlight cast into scene (very faint cool blue-white)
-        const moonSceneLight = new THREE.PointLight(0xaabbdd, 0.7, 8);
-        moonSceneLight.position.set(WIN_X2 - 0.40, WIN_Y2 - 0.42, WZ + 1.2);
-        scene.add(moonSceneLight);
-
-        // Tree silhouettes — layered box canopies, MeshBasicMaterial so fog doesn't wash them out
-        const treeBM  = new THREE.MeshBasicMaterial({ color: 0x070a07 });
-        const trunkBM = new THREE.MeshBasicMaterial({ color: 0x050705 });
-        const addTree = (tx, ty, sc) => {
-            const tz = WZ - 0.04;
-            box(0.055*sc, 0.40*sc, 0.035, trunkBM, tx, ty + 0.20*sc, tz);
-            box(0.58*sc,  0.26*sc, 0.035, treeBM,  tx, ty + 0.52*sc, tz);
-            box(0.48*sc,  0.23*sc, 0.035, treeBM,  tx, ty + 0.70*sc, tz);
-            box(0.38*sc,  0.21*sc, 0.035, treeBM,  tx, ty + 0.87*sc, tz);
-            box(0.27*sc,  0.18*sc, 0.035, treeBM,  tx, ty + 1.01*sc, tz);
-            box(0.15*sc,  0.14*sc, 0.035, treeBM,  tx, ty + 1.13*sc, tz);
+        // ── Left wall with window ──────────────────
+        const SWX = -2.9;                 // side wall plane
+        const WIN = { zc: -0.7, w: 1.5, y0: 1.0, y1: 2.6 };   // window opening
+        const swSeg = (h, yc, zspan, zc) => {
+            const m = box(0.06, h, zspan, M.wall, SWX, yc, zc);
+            m.castShadow = false;
+            return m;
         };
-        addTree(-1.28, WIN_Y1, 0.92);
-        addTree(-0.62, WIN_Y1, 1.10);
-        addTree( 0.10, WIN_Y1, 0.80);
-        addTree( 0.72, WIN_Y1, 1.06);
-        addTree( 1.22, WIN_Y1, 0.84);
+        swSeg(WIN.y0, WIN.y0/2, 6.0, 0.2);                              // below window
+        swSeg(5.5 - WIN.y1, (5.5 + WIN.y1)/2, 6.0, 0.2);                // above window
+        swSeg(WIN.y1 - WIN.y0, (WIN.y0+WIN.y1)/2, 1.35, -2.125);        // left of window
+        swSeg(WIN.y1 - WIN.y0, (WIN.y0+WIN.y1)/2, 3.15, 1.625);         // right of window
+
+        // Window frame + mullions
+        const winFrameMat = lm(0x0c0c10);
+        box(0.10, 0.06, WIN.w + 0.12, winFrameMat, SWX, WIN.y1 + 0.02, WIN.zc);  // header
+        box(0.10, 0.06, WIN.w + 0.12, winFrameMat, SWX, WIN.y0 - 0.02, WIN.zc);  // footer
+        box(0.10, WIN.y1 - WIN.y0 + 0.10, 0.06, winFrameMat, SWX, (WIN.y0+WIN.y1)/2, WIN.zc - WIN.w/2 - 0.02);
+        box(0.10, WIN.y1 - WIN.y0 + 0.10, 0.06, winFrameMat, SWX, (WIN.y0+WIN.y1)/2, WIN.zc + WIN.w/2 + 0.02);
+        box(0.07, 0.030, WIN.w, winFrameMat, SWX, (WIN.y0+WIN.y1)/2, WIN.zc);    // horizontal mullion
+        box(0.07, WIN.y1 - WIN.y0, 0.030, winFrameMat, SWX, (WIN.y0+WIN.y1)/2, WIN.zc); // vertical mullion
+        // Sill
+        box(0.18, 0.035, WIN.w + 0.24, lm(0x16120c), SWX + 0.05, WIN.y0 - 0.055, WIN.zc);
+
+        // ── Night city seen through the window ──
+        const cityCanvas = document.createElement('canvas');
+        cityCanvas.width = 512; cityCanvas.height = 440;
+        const cc = cityCanvas.getContext('2d');
+        // Night sky gradient
+        const skyG = cc.createLinearGradient(0, 0, 0, 440);
+        skyG.addColorStop(0, '#020310'); skyG.addColorStop(0.55, '#070b24'); skyG.addColorStop(1, '#101a38');
+        cc.fillStyle = skyG; cc.fillRect(0, 0, 512, 440);
+        // Stars
+        for (let i = 0; i < 110; i++) {
+            cc.fillStyle = `rgba(220,228,255,${0.25 + Math.random()*0.6})`;
+            cc.fillRect(Math.random()*512, Math.random()*250, Math.random() < 0.12 ? 2 : 1, 1);
+        }
+        // Moon + halo
+        const moonX = 392, moonY = 84;
+        const halo = cc.createRadialGradient(moonX, moonY, 6, moonX, moonY, 70);
+        halo.addColorStop(0, 'rgba(190,205,255,0.55)'); halo.addColorStop(1, 'rgba(190,205,255,0)');
+        cc.fillStyle = halo; cc.fillRect(moonX-70, moonY-70, 140, 140);
+        cc.fillStyle = '#dde4ff';
+        cc.beginPath(); cc.arc(moonX, moonY, 22, 0, Math.PI*2); cc.fill();
+        cc.fillStyle = 'rgba(160,170,210,0.5)';
+        cc.beginPath(); cc.arc(moonX-7, moonY-4, 5, 0, Math.PI*2); cc.fill();
+        cc.beginPath(); cc.arc(moonX+8, moonY+8, 3.4, 0, Math.PI*2); cc.fill();
+        // Far skyline (dimmer)
+        cc.fillStyle = '#0a0e22';
+        let fx = 0;
+        while (fx < 512) {
+            const bw = 26 + Math.random()*48, bh = 90 + Math.random()*120;
+            cc.fillRect(fx, 440 - bh - 60, bw, bh + 60);
+            fx += bw + 3;
+        }
+        // Near skyline with lit windows
+        fx = -10;
+        while (fx < 512) {
+            const bw = 40 + Math.random()*64, bh = 130 + Math.random()*170;
+            const bx = fx, by = 440 - bh;
+            cc.fillStyle = '#05060f';
+            cc.fillRect(bx, by, bw, bh);
+            // Rooftop detail
+            if (Math.random() < 0.5) { cc.fillRect(bx + bw*0.3, by - 8, bw*0.2, 8); }
+            if (Math.random() < 0.3) { cc.fillStyle = '#ff3344'; cc.fillRect(bx + bw*0.42, by - 12, 3, 4); cc.fillStyle = '#05060f'; }
+            // Window grid — some lit
+            for (let wy = by + 10; wy < 432; wy += 13) {
+                for (let wx = bx + 6; wx < bx + bw - 8; wx += 11) {
+                    if (Math.random() < 0.34) {
+                        const warm = Math.random() < 0.7;
+                        cc.fillStyle = warm
+                            ? `rgba(255,${190+Math.random()*40|0},110,${0.5+Math.random()*0.5})`
+                            : `rgba(150,200,255,${0.4+Math.random()*0.4})`;
+                        cc.fillRect(wx, wy, 5, 7);
+                    }
+                }
+            }
+            fx += bw + 5 + Math.random()*14;
+        }
+        const cityTex = new THREE.CanvasTexture(cityCanvas);
+        const cityMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.0, 2.5),
+            new THREE.MeshBasicMaterial({ map: cityTex, fog: false })
+        );
+        cityMesh.position.set(SWX - 0.55, 1.85, WIN.zc);
+        cityMesh.rotation.y = Math.PI / 2;
+        scene.add(cityMesh);
+        // Faint glass sheen
+        const glassMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(WIN.w, WIN.y1 - WIN.y0),
+            new THREE.MeshBasicMaterial({ color: 0x99bbff, transparent: true, opacity: 0.05, fog: false })
+        );
+        glassMesh.position.set(SWX + 0.02, (WIN.y0+WIN.y1)/2, WIN.zc);
+        glassMesh.rotation.y = Math.PI / 2;
+        scene.add(glassMesh);
+
+        // Moonlight through the window — main shadow caster
+        const moonLight = new THREE.DirectionalLight(0x8899cc, 2.2);
+        moonLight.position.set(-6, 4.2, -0.7);
+        moonLight.target.position.set(0.3, 0.6, 0.3);
+        moonLight.castShadow = true;
+        moonLight.shadow.mapSize.set(1024, 1024);
+        moonLight.shadow.camera.left = -3.5; moonLight.shadow.camera.right = 3.5;
+        moonLight.shadow.camera.top = 3.5;   moonLight.shadow.camera.bottom = -3.5;
+        moonLight.shadow.camera.near = 1;    moonLight.shadow.camera.far = 14;
+        moonLight.shadow.bias = -0.002;
+        scene.add(moonLight);
+        scene.add(moonLight.target);
+
+        // ── Baseboards ──
+        const bbMat = lm(0x1a1a20);
+        box(9.96, 0.085, 0.025, bbMat, 0, 0.042, -2.785);          // back wall
+        box(0.025, 0.085, 5.96, bbMat, SWX + 0.035, 0.042, 0.2);   // side wall
+
+        // ── Wall outlet + power strip + cables ──
+        box(0.07, 0.11, 0.018, lm(0x202026), 1.05, 0.22, -2.785);
+        box(0.022, 0.022, 0.006, lm(0x0a0a0c), 1.05, 0.245, -2.772);
+        box(0.022, 0.022, 0.006, lm(0x0a0a0c), 1.05, 0.205, -2.772);
+        const stripBody = box(0.34, 0.045, 0.095, lm(0x18181e), 0.42, 0.025, -0.60);
+        for (let i = 0; i < 4; i++) box(0.040, 0.012, 0.050, lm(0x060608), 0.30 + i*0.075, 0.050, -0.60);
+        box(0.014, 0.010, 0.012, lm(0x100404, 0xff2222, 1.2), 0.56, 0.050, -0.575); // power LED
+        const cableMat = lm(0x0a0a0c);
+        const cable = (pts, r = 0.0075) => {
+            const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+            const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 28, r, 5), cableMat);
+            m.castShadow = true;
+            scene.add(m);
+            return m;
+        };
+        // Monitor power
+        cable([[-0.15, 1.18, -0.34], [-0.10, 0.70, -0.50], [0.15, 0.12, -0.56], [0.34, 0.05, -0.60]]);
+        // MacBook charger
+        cable([[0.88, 0.79, 0.10], [0.95, 0.50, -0.18], [0.70, 0.08, -0.50], [0.50, 0.05, -0.59]], 0.006);
+        // Strip → wall outlet
+        cable([[0.58, 0.025, -0.62], [0.80, 0.012, -1.45], [1.00, 0.012, -2.40], [1.05, 0.16, -2.76]]);
+        // Lamp cord
+        cable([[-1.45, 0.03, 0.28], [-1.10, 0.012, -0.10], [0.10, 0.015, -0.55], [0.28, 0.04, -0.60]], 0.006);
+
+        // ── Posters on the back wall ──
+        const posterMesh = (canvas, w, h, x, y, rz = 0) => {
+            const tex = new THREE.CanvasTexture(canvas);
+            box(w + 0.05, h + 0.05, 0.018, lm(0x0e0e12), x, y, -2.776, 0, 0, rz);
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+                new THREE.MeshLambertMaterial({ map: tex, emissive: 0x202028, emissiveIntensity: 0.35 }));
+            m.position.set(x, y, -2.764);
+            m.rotation.z = rz;
+            scene.add(m);
+        };
+        // Poster 1 — synthwave sunset
+        const p1 = document.createElement('canvas'); p1.width = 256; p1.height = 340;
+        const p1c = p1.getContext('2d');
+        const p1g = p1c.createLinearGradient(0, 0, 0, 340);
+        p1g.addColorStop(0, '#0d0221'); p1g.addColorStop(0.55, '#3a0b45'); p1g.addColorStop(1, '#0d0221');
+        p1c.fillStyle = p1g; p1c.fillRect(0, 0, 256, 340);
+        const sunG = p1c.createLinearGradient(0, 60, 0, 210);
+        sunG.addColorStop(0, '#ffd23e'); sunG.addColorStop(1, '#ff2079');
+        p1c.fillStyle = sunG;
+        p1c.beginPath(); p1c.arc(128, 140, 70, 0, Math.PI*2); p1c.fill();
+        p1c.fillStyle = '#0d0221';
+        for (let i = 0; i < 6; i++) p1c.fillRect(58, 140 + i*12, 140, 4 + i);
+        p1c.strokeStyle = '#ff2079'; p1c.lineWidth = 1.5;
+        for (let i = 0; i < 7; i++) {
+            p1c.beginPath(); p1c.moveTo(128, 215); p1c.lineTo(128 + (i-3)*85, 340); p1c.stroke();
+        }
+        for (let i = 0; i < 5; i++) {
+            p1c.beginPath(); p1c.moveTo(0, 222 + i*i*7); p1c.lineTo(256, 222 + i*i*7); p1c.stroke();
+        }
+        p1c.fillStyle = '#20e0ff'; p1c.font = 'bold 22px monospace'; p1c.textAlign = 'center';
+        p1c.fillText('N I G H T', 128, 42);
+        posterMesh(p1, 0.62, 0.82, -3.55, 2.45, 0.015);
+        // Poster 2 — terminal print
+        const p2 = document.createElement('canvas'); p2.width = 256; p2.height = 300;
+        const p2c = p2.getContext('2d');
+        p2c.fillStyle = '#0a0e0a'; p2c.fillRect(0, 0, 256, 300);
+        p2c.strokeStyle = '#1e3a1e'; p2c.lineWidth = 3; p2c.strokeRect(10, 10, 236, 280);
+        p2c.fillStyle = '#46ff6e'; p2c.font = 'bold 26px monospace'; p2c.textAlign = 'left';
+        ['EAT', 'SLEEP', 'CODE', 'REPEAT'].forEach((w, i) => p2c.fillText('> ' + w, 28, 78 + i*52));
+        p2c.fillStyle = '#2a8f42'; p2c.font = '13px monospace';
+        p2c.fillText('while(true){}', 28, 276);
+        posterMesh(p2, 0.56, 0.66, 3.6, 2.55, -0.02);
+
+        // ── Rug (large, under desk and chair) ──
+        const rugCanvas = document.createElement('canvas');
+        rugCanvas.width = 512; rugCanvas.height = 640;
+        const rc = rugCanvas.getContext('2d');
+
+        // Base near-black wine
+        rc.fillStyle = '#100608';
+        rc.fillRect(0, 0, 512, 640);
+        // Outer field
+        rc.fillStyle = '#1a0a08';
+        rc.fillRect(28, 28, 456, 584);
+        // Subdued gold border bands (frame)
+        rc.fillStyle = '#3e2814';
+        rc.fillRect(40, 40, 432, 8);
+        rc.fillRect(40, 592, 432, 8);
+        rc.fillRect(40, 40, 8, 560);
+        rc.fillRect(464, 40, 8, 560);
+        // Inner darker field (nearly black)
+        rc.fillStyle = '#0a0306';
+        rc.fillRect(60, 60, 392, 520);
+        // Inner thin gold line
+        rc.strokeStyle = '#2e1c0e';
+        rc.lineWidth = 2;
+        rc.strokeRect(72, 72, 368, 496);
+
+        // Central diamond medallion
+        const rCX = 256, rCY = 320;
+        rc.strokeStyle = '#5a3a18';
+        rc.lineWidth = 5;
+        rc.beginPath();
+        rc.moveTo(rCX, rCY - 200);
+        rc.lineTo(rCX + 140, rCY);
+        rc.lineTo(rCX, rCY + 200);
+        rc.lineTo(rCX - 140, rCY);
+        rc.closePath();
+        rc.stroke();
+        // Inner diamond filled (very dark)
+        rc.fillStyle = '#1c0a0c';
+        rc.beginPath();
+        rc.moveTo(rCX, rCY - 130);
+        rc.lineTo(rCX + 90, rCY);
+        rc.lineTo(rCX, rCY + 130);
+        rc.lineTo(rCX - 90, rCY);
+        rc.closePath();
+        rc.fill();
+        // Inner diamond outline
+        rc.strokeStyle = '#3e2814';
+        rc.lineWidth = 3;
+        rc.stroke();
+        // Center medallion
+        rc.fillStyle = '#5a3a18';
+        rc.beginPath(); rc.arc(rCX, rCY, 30, 0, Math.PI * 2); rc.fill();
+        rc.fillStyle = '#1a0a08';
+        rc.beginPath(); rc.arc(rCX, rCY, 14, 0, Math.PI * 2); rc.fill();
+        rc.fillStyle = '#5a3a18';
+        rc.beginPath(); rc.arc(rCX, rCY, 5, 0, Math.PI * 2); rc.fill();
+
+        // Corner accent medallions
+        [[120,150],[392,150],[120,490],[392,490]].forEach(([x,y]) => {
+            rc.fillStyle = '#3e2814';
+            rc.beginPath(); rc.arc(x, y, 22, 0, Math.PI * 2); rc.fill();
+            rc.fillStyle = '#0a0306';
+            rc.beginPath(); rc.arc(x, y, 12, 0, Math.PI * 2); rc.fill();
+            rc.fillStyle = '#5a3a18';
+            rc.beginPath(); rc.arc(x, y, 4, 0, Math.PI * 2); rc.fill();
+        });
+
+        // Repeating ornaments along inner border
+        rc.fillStyle = '#3e2814';
+        for (let x = 80; x < 452; x += 20) {
+            rc.fillRect(x, 84, 4, 4);
+            rc.fillRect(x, 556, 4, 4);
+        }
+        for (let y = 100; y < 540; y += 20) {
+            rc.fillRect(84, y, 4, 4);
+            rc.fillRect(428, y, 4, 4);
+        }
+        // Small diamonds along the edges of medallion
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const dx = rCX + Math.cos(a) * 175;
+            const dy = rCY + Math.sin(a) * 175;
+            rc.fillStyle = '#2a1810';
+            rc.beginPath();
+            rc.moveTo(dx, dy - 6); rc.lineTo(dx + 6, dy);
+            rc.lineTo(dx, dy + 6); rc.lineTo(dx - 6, dy);
+            rc.closePath(); rc.fill();
+        }
+
+        const rugTex = new THREE.CanvasTexture(rugCanvas);
+        const rugMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(4.6, 5.8),
+            new THREE.MeshLambertMaterial({ map: rugTex })
+        );
+        rugMesh.rotation.x = -Math.PI / 2;
+        rugMesh.position.set(0, 0.008, 0.40);
+        scene.add(rugMesh);
+
+        // ── Bookshelf (against back wall, right side) ──
+        const BSX = 2.55, BSZ = -2.52, BSW = 0.95, BSH = 1.92, BSD = 0.30;
+        const shelfMat = lm(0x231809);
+        box(0.028, BSH, BSD, shelfMat, BSX - BSW/2, BSH/2, BSZ);
+        box(0.028, BSH, BSD, shelfMat, BSX + BSW/2, BSH/2, BSZ);
+        box(BSW + 0.028, 0.032, BSD, shelfMat, BSX, BSH, BSZ);
+        box(BSW, BSH, 0.018, lm(0x130d06), BSX, BSH/2, BSZ - BSD/2 + 0.012);
+        const bookPalette = [0x5a3a3a, 0x3a4a5a, 0x4a5a3a, 0x5a503a, 0x3a3a52, 0x6a4a32, 0x2e4646, 0x553344, 0x44515e];
+        [0.05, 0.51, 0.97, 1.43].forEach((sy, si) => {
+            box(BSW, 0.026, BSD, shelfMat, BSX, sy, BSZ);
+            let bx = BSX - BSW/2 + 0.045;
+            while (bx < BSX + BSW/2 - 0.07) {
+                if (Math.random() < 0.13) { bx += 0.045; continue; }  // gaps
+                const bw = 0.022 + Math.random()*0.030;
+                const bh = 0.19 + Math.random()*0.14;
+                const lean = Math.random() < 0.10 ? 0.10 : 0;
+                box(bw, bh, 0.185 + Math.random()*0.05,
+                    lm(bookPalette[(Math.random()*bookPalette.length)|0]),
+                    bx + bw/2, sy + 0.014 + bh/2, BSZ + 0.012, 0, 0, lean);
+                bx += bw + 0.005;
+            }
+            // A flat stacked book or two on some shelves
+            if (si % 2 === 0) {
+                box(0.16, 0.024, 0.21, lm(bookPalette[(Math.random()*bookPalette.length)|0]),
+                    BSX + BSW/2 - 0.14, sy + 0.026, BSZ + 0.01, 0, 0.12, 0);
+            }
+        });
+        // Trailing plant on top of shelf
+        box(0.085, 0.075, 0.085, lm(0x803a28), BSX - 0.25, BSH + 0.055, BSZ);
+        box(0.07, 0.012, 0.07, lm(0x14100a), BSX - 0.25, BSH + 0.092, BSZ);
+        for (let i = 0; i < 7; i++) {
+            const a = (i / 7) * Math.PI * 2;
+            box(0.035, 0.022, 0.085, lm(i % 2 ? 0x1d4a26 : 0x163a1e),
+                BSX - 0.25 + Math.sin(a)*0.05, BSH + 0.10 + Math.random()*0.02, BSZ + Math.cos(a)*0.05,
+                0.35, a, 0);
+        }
+        // One vine hanging down the side
+        for (let i = 0; i < 4; i++) {
+            box(0.030, 0.055, 0.018, lm(0x1a4222), BSX - 0.33, BSH + 0.02 - i*0.075, BSZ + 0.06, 0.2, 0.3*i, 0.15);
+        }
+
+        // ── Floor plant (snake plant, corner) ──
+        const FPX = -2.45, FPZ = -2.25;
+        const potMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.24, 10), lm(0x6e3424));
+        potMesh.position.set(FPX, 0.12, FPZ);
+        potMesh.castShadow = potMesh.receiveShadow = true;
+        scene.add(potMesh);
+        const soilMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.02, 10), lm(0x100b06));
+        soilMesh.position.set(FPX, 0.235, FPZ);
+        scene.add(soilMesh);
+        for (let i = 0; i < 11; i++) {
+            const a = Math.random() * Math.PI * 2, r = Math.random() * 0.07;
+            const lh = 0.45 + Math.random() * 0.45;
+            box(0.045, lh, 0.014, lm(i % 3 === 0 ? 0x2a5530 : 0x1c4024),
+                FPX + Math.sin(a)*r, 0.23 + lh/2, FPZ + Math.cos(a)*r,
+                (Math.random()-0.5)*0.22, a, (Math.random()-0.5)*0.22);
+        }
+
+        // ── Trash bin + crumpled paper ──
+        const binMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.115, 0.095, 0.27, 12, 1, true), lm(0x20242a));
+        binMesh.material.side = THREE.DoubleSide;
+        binMesh.position.set(1.38, 0.135, 0.42);
+        binMesh.castShadow = binMesh.receiveShadow = true;
+        scene.add(binMesh);
+        const binBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.012, 12), lm(0x181c20));
+        binBottom.position.set(1.38, 0.01, 0.42);
+        scene.add(binBottom);
+        const paperMat = lm(0xc9c4b4);
+        [[1.38, 0.24, 0.40], [1.34, 0.22, 0.46], [1.58, 0.028, 0.30], [1.22, 0.028, 0.62]].forEach(([px, py, pz], i) => {
+            const ball = new THREE.Mesh(new THREE.DodecahedronGeometry(0.030 + (i%2)*0.006, 0), paperMat);
+            ball.position.set(px, py, pz);
+            ball.rotation.set(i, i*1.7, i*0.6);
+            ball.castShadow = true;
+            scene.add(ball);
+        });
+
+        // ── Dog Bed ──
+        const BEDX = -1.75, BEDZ = 1.55;
+        const bedBaseMat = lm(0x281a14);
+        const bedRimMat  = lm(0x3a2820);
+        const bedCushMat = lm(0x4a3024);
+        // Base
+        box(0.62, 0.05, 0.74, bedBaseMat, BEDX, 0.027, BEDZ);
+        // Raised rim (4 sides — looks like a pillow border)
+        box(0.62, 0.07, 0.10, bedRimMat, BEDX,        0.075, BEDZ - 0.32);
+        box(0.62, 0.07, 0.10, bedRimMat, BEDX,        0.075, BEDZ + 0.32);
+        box(0.10, 0.07, 0.58, bedRimMat, BEDX - 0.26, 0.075, BEDZ);
+        box(0.10, 0.07, 0.58, bedRimMat, BEDX + 0.26, 0.075, BEDZ);
+        // Inner cushion (sunken middle)
+        box(0.44, 0.025, 0.54, bedCushMat, BEDX, 0.065, BEDZ);
+
+        // ── Beagle ──
+        const dogGroup = new THREE.Group();
+        dogGroup.position.set(BEDX, 0, BEDZ);
+        scene.add(dogGroup);
+
+        // Materials
+        const dogWhite = lm(0xe6e1d8);
+        const dogTan   = lm(0x9a5c30);
+        const dogDark  = lm(0x1a0e08);
+
+        // Helper to add a box mesh to dogGroup
+        const dAdd = (w,h,d,mat,x,y,z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+            m.position.set(x,y,z);
+            dogGroup.add(m);
+            return m;
+        };
+
+        // Body (white belly, brown saddle on top) — ref kept for breathing
+        const dogBody = dAdd(0.18, 0.16, 0.36, dogWhite, 0, 0.17, 0);
+        // Brown saddle
+        dAdd(0.182, 0.045, 0.28, dogTan, 0, 0.26, -0.02);
+        // Dark patch on top of saddle
+        dAdd(0.16, 0.020, 0.18, dogDark, 0, 0.282, -0.02);
+        // Chest patch
+        dAdd(0.10, 0.06, 0.030, dogTan, 0, 0.13, 0.175);
+
+        // Head group — pivots at the neck so it can sniff the ground
+        const dogHeadGrp = new THREE.Group();
+        dogHeadGrp.position.set(0, 0.21, 0.19);
+        dogGroup.add(dogHeadGrp);
+        const dhAdd = (w, h, d, mat, x, y, z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, y, z);
+            dogHeadGrp.add(m);
+            return m;
+        };
+        dhAdd(0.135, 0.13, 0.15, dogWhite, 0,  0.015, 0.035);  // head
+        dhAdd(0.135, 0.038, 0.13, dogTan,  0,  0.095, 0.035);  // tan crown
+        dhAdd(0.075, 0.065, 0.10, dogWhite, 0, -0.020, 0.140); // snout
+        dhAdd(0.035, 0.026, 0.022, dogDark, 0,  0.000, 0.198); // nose
+        dhAdd(0.018, 0.018, 0.010, dogDark, -0.040, 0.035, 0.105); // eyes
+        dhAdd(0.018, 0.018, 0.010, dogDark,  0.040, 0.035, 0.105);
+        // Ears — long, hanging down (tan), sway while trotting
+        const earL = dhAdd(0.028, 0.140, 0.060, dogTan, -0.078, -0.020, 0.020);
+        const earR = dhAdd(0.028, 0.140, 0.060, dogTan,  0.078, -0.020, 0.020);
+
+        // Tail base + white tip (signature beagle white tail tip)
+        const tail = dAdd(0.025, 0.025, 0.11, dogWhite, 0, 0.225, -0.225);
+        tail.rotation.x = -0.45; // angled up
+        dAdd(0.030, 0.030, 0.035, dogWhite, 0, 0.260, -0.265);
+
+        // Legs — use groups so they swing from the hip joint
+        const legGeo = new THREE.BoxGeometry(0.044, 0.10, 0.044);
+        const makeLeg = (x, z) => {
+            const grp = new THREE.Group();
+            grp.position.set(x, 0.10, z);
+            dogGroup.add(grp);
+            const m = new THREE.Mesh(legGeo, dogWhite);
+            m.position.set(0, -0.05, 0);
+            grp.add(m);
+            return grp;
+        };
+        const legFL = makeLeg(-0.060, 0.120);
+        const legFR = makeLeg( 0.060, 0.120);
+        const legBL = makeLeg(-0.060, -0.120);
+        const legBR = makeLeg( 0.060, -0.120);
+
+        // ── Dog state machine ──
+        const dogState = {
+            mode: 'walking',
+            modeStart: 0,
+            waypoints: [
+                [-0.7,  1.7],
+                [ 0.9,  1.8],
+                [ 1.7,  1.0],
+                [ 1.7, -0.6],
+                [ 0.6, -1.5],
+                [-0.7, -1.5],
+                [-1.7, -0.7],
+                [-1.9,  0.9],
+            ],
+            wpIndex: 0,
+            pos: [BEDX, BEDZ],
+            facing: 0,
+            walkUntil: 32, // first transition to bed at t=32
+            bedUntil: 0,
+            sniffUntil: 0,
+        };
+
+        // ── Neon Sign (back wall) ──────────────────
+        const WZ = -2.74;
+        const NZ = WZ + 0.06; // neon tube plane — slightly in front of wall
+
+        // Neon stroke (thin glowing box)
+        const neon = (w,h,d,color,x,y,z=NZ,rz=0) => {
+            const m = new THREE.Mesh(
+                new THREE.BoxGeometry(w,h,d),
+                new THREE.MeshBasicMaterial({ color, fog: false })
+            );
+            m.position.set(x,y,z);
+            m.rotation.z = rz;
+            scene.add(m);
+            return m;
+        };
+        // Neon ring (torus)
+        const neonRing = (radius,tube,color,x,y,z=NZ,rx=0,ry=0) => {
+            const m = new THREE.Mesh(
+                new THREE.TorusGeometry(radius,tube,8,32),
+                new THREE.MeshBasicMaterial({ color, fog: false })
+            );
+            m.position.set(x,y,z);
+            m.rotation.set(rx,ry,0);
+            scene.add(m);
+            return m;
+        };
+        // Cast colored light on the wall behind each shape
+        const neonLight = (color,x,y,intensity=2.5,distance=2.6) => {
+            const L = new THREE.PointLight(color,intensity,distance);
+            L.position.set(x, y, NZ + 0.18);
+            scene.add(L);
+        };
+
+        // Color palette
+        const C_PINK    = 0xff2090;
+        const C_CYAN    = 0x20e0ff;
+        const C_MAGENTA = 0xc040ff;
+        const C_YELLOW  = 0xffd838;
+        const C_ORANGE  = 0xff7030;
+        const C_LIME    = 0x60ff70;
+
+        // ── Big pink ring (upper left) ──
+        neonRing(0.42, 0.024, C_PINK, -1.30, 2.55);
+        neonLight(C_PINK, -1.30, 2.55, 3.0, 2.6);
+        // Inner small ring inside it
+        neonRing(0.16, 0.016, C_MAGENTA, -1.30, 2.55);
+
+        // ── Cyan triangle outline (upper right) ──
+        const TX = 1.30, TY = 2.55, TS = 0.55;
+        neon(TS, 0.030, 0.03, C_CYAN, TX, TY - TS*0.35, NZ);
+        neon(TS, 0.030, 0.03, C_CYAN, TX - TS*0.28, TY + TS*0.08, NZ, Math.PI/3);
+        neon(TS, 0.030, 0.03, C_CYAN, TX + TS*0.28, TY + TS*0.08, NZ, -Math.PI/3);
+        neonLight(C_CYAN, TX, TY, 2.5, 2.4);
+
+        // ── Magenta vertical zigzag (center) ──
+        const ZX = 0.05, ZY = 2.20;
+        for (let i = 0; i < 5; i++) {
+            const off = (i % 2 === 0) ? 0.14 : -0.14;
+            neon(0.32, 0.024, 0.025, C_MAGENTA, ZX + off, ZY - i*0.13, NZ,
+                 (i % 2 === 0) ? Math.PI/4 : -Math.PI/4);
+        }
+        neonLight(C_MAGENTA, ZX, ZY - 0.26, 2.8, 2.4);
+
+        // ── Yellow horizontal bars (lower) ──
+        neon(2.4, 0.034, 0.030, C_YELLOW, 0, 1.10, NZ);
+        neon(1.4, 0.022, 0.025, C_ORANGE, -0.50, 0.90, NZ);
+        neon(0.7, 0.022, 0.025, C_ORANGE,  0.85, 0.92, NZ);
+        neonLight(C_YELLOW, 0, 1.05, 2.6, 3.2);
+        neonLight(C_ORANGE, -0.50, 0.90, 1.5, 1.8);
+
+        // ── Lime dots and short strokes (accents) ──
+        const dotMat = new THREE.MeshBasicMaterial({ color: C_LIME, fog: false });
+        [[-1.85, 1.50, 0.045],[-1.85, 3.30, 0.045],
+         [ 1.85, 1.50, 0.045],[ 1.85, 3.30, 0.045],
+         [-0.85, 3.40, 0.035],[ 0.85, 3.40, 0.035],
+         [ 0.00, 3.45, 0.030]
+        ].forEach(([dx,dy,r]) => {
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), dotMat);
+            dot.position.set(dx, dy, NZ);
+            scene.add(dot);
+        });
+        neonLight(C_LIME, 0, 3.40, 1.5, 2.4);
+
+        // ── Short orange tick marks at edges ──
+        neon(0.10, 0.040, 0.025, C_ORANGE, -2.10, 2.10, NZ);
+        neon(0.10, 0.040, 0.025, C_ORANGE, -2.10, 2.30, NZ);
+        neon(0.10, 0.040, 0.025, C_ORANGE,  2.10, 2.10, NZ);
+        neon(0.10, 0.040, 0.025, C_ORANGE,  2.10, 2.30, NZ);
+
+        // ── Small cyan plus signs ──
+        const plus = (cx, cy, sz, color) => {
+            neon(sz, 0.020, 0.020, color, cx, cy, NZ);
+            neon(0.020, sz, 0.020, color, cx, cy, NZ);
+        };
+        plus(-0.50, 2.95, 0.14, C_CYAN);
+        plus( 0.55, 2.95, 0.14, C_CYAN);
 
         // ── Desk ──
         const DY = 0.76;
@@ -416,9 +887,13 @@
         box(0.122, 0.068, 0.085, lm(0x141416), -0.09, 0.055, -0.01);
         box(0.122, 0.068, 0.085, lm(0x141416),  0.09, 0.055, -0.01);
 
-        // Torso
-        box(0.30, 0.40, 0.21, M.shirt,  0, 1.02, PZ);
+        // Torso (ref kept for breathing animation)
+        const torso = box(0.30, 0.40, 0.21, M.shirt,  0, 1.02, PZ);
         box(0.26, 0.12, 0.19, M.shirt,  0, 0.83, PZ);
+        // Shirt collar + shoulder caps
+        box(0.13, 0.030, 0.13, lm(0x24384f), 0, 1.215, PZ);
+        box(0.075, 0.060, 0.16, M.shirt, -0.205, 1.175, PZ);
+        box(0.075, 0.060, 0.16, M.shirt,  0.205, 1.175, PZ);
 
         // Upper arms (rotation.x 0.45 → elbows swing forward toward desk)
         box(0.11, 0.32, 0.11, M.shirt, -0.24, 0.93, PZ - 0.04,  0.45, 0,  0.06);
@@ -428,58 +903,75 @@
         box(0.11, 0.11, 0.11, M.shirt, -0.24, 0.79, 0.45);
         box(0.11, 0.11, 0.11, M.shirt,  0.24, 0.79, 0.45);
 
-        // Forearms — shortened now that keyboard is closer
-        box(0.09, 0.07, 0.31, M.skin, -0.25, DY + 0.050, 0.295);
-        box(0.09, 0.07, 0.31, M.skin,  0.25, DY + 0.050, 0.295);
+        // Forearms — raised with the keyboard so hands rest on the keys
+        box(0.09, 0.07, 0.31, M.skin, -0.25, DY + 0.080, 0.295);
+        box(0.09, 0.07, 0.31, M.skin,  0.25, DY + 0.080, 0.295);
 
         // Wrists
-        box(0.080, 0.055, 0.07, M.skin, -0.250, DY + 0.036, 0.175);
-        box(0.080, 0.055, 0.07, M.skin,  0.250, DY + 0.036, 0.175);
+        box(0.080, 0.055, 0.07, M.skin, -0.250, DY + 0.066, 0.175);
+        box(0.080, 0.055, 0.07, M.skin,  0.250, DY + 0.066, 0.175);
 
         // Palms — left over left keys, right over right keys
-        box(0.105, 0.040, 0.11, M.skin, -0.185, DY + 0.027, 0.135);
-        box(0.105, 0.040, 0.11, M.skin,  0.185, DY + 0.027, 0.135);
+        box(0.105, 0.040, 0.11, M.skin, -0.185, DY + 0.057, 0.135);
+        box(0.105, 0.040, 0.11, M.skin,  0.185, DY + 0.057, 0.135);
+
+        // Fingers — captured so they can peck at the keys in the animate loop
+        const fingerMeshes = [];
+        const fingerBox = (...a) => {
+            const m = box(...a);
+            m.userData.baseY = m.position.y;
+            fingerMeshes.push(m);
+            return m;
+        };
 
         // Left hand fingers (index, middle, ring, pinky, thumb)
-        const LHX = -0.183, LHY = DY + 0.016, LHZ = 0.08;
-        box(0.026, 0.020, 0.072, M.skin, LHX - 0.040, LHY, LHZ,  0.16, 0,  0.00);
-        box(0.026, 0.020, 0.076, M.skin, LHX - 0.013, LHY, LHZ,  0.12, 0,  0.00);
-        box(0.026, 0.020, 0.072, M.skin, LHX + 0.014, LHY, LHZ,  0.16, 0,  0.00);
-        box(0.021, 0.018, 0.058, M.skin, LHX + 0.038, LHY, LHZ,  0.20, 0,  0.00);
-        box(0.030, 0.018, 0.052, M.skin, LHX - 0.062, LHY + 0.008, LHZ + 0.042, 0, 0, 0.36);
+        const LHX = -0.183, LHY = DY + 0.046, LHZ = 0.08;
+        fingerBox(0.026, 0.020, 0.072, M.skin, LHX - 0.040, LHY, LHZ,  0.16, 0,  0.00);
+        fingerBox(0.026, 0.020, 0.076, M.skin, LHX - 0.013, LHY, LHZ,  0.12, 0,  0.00);
+        fingerBox(0.026, 0.020, 0.072, M.skin, LHX + 0.014, LHY, LHZ,  0.16, 0,  0.00);
+        fingerBox(0.021, 0.018, 0.058, M.skin, LHX + 0.038, LHY, LHZ,  0.20, 0,  0.00);
+        fingerBox(0.030, 0.018, 0.052, M.skin, LHX - 0.062, LHY + 0.008, LHZ + 0.042, 0, 0, 0.36);
 
         // Right hand fingers
-        const RHX =  0.183, RHY = DY + 0.016, RHZ = 0.08;
-        box(0.026, 0.020, 0.072, M.skin, RHX - 0.038, RHY, RHZ,  0.16, 0,  0.00);
-        box(0.026, 0.020, 0.076, M.skin, RHX - 0.014, RHY, RHZ,  0.12, 0,  0.00);
-        box(0.026, 0.020, 0.072, M.skin, RHX + 0.013, RHY, RHZ,  0.16, 0,  0.00);
-        box(0.021, 0.018, 0.058, M.skin, RHX + 0.040, RHY, RHZ,  0.20, 0,  0.00);
-        box(0.030, 0.018, 0.052, M.skin, RHX + 0.062, RHY + 0.008, RHZ + 0.042, 0, 0, -0.36);
+        const RHX =  0.183, RHY = DY + 0.046, RHZ = 0.08;
+        fingerBox(0.026, 0.020, 0.072, M.skin, RHX - 0.038, RHY, RHZ,  0.16, 0,  0.00);
+        fingerBox(0.026, 0.020, 0.076, M.skin, RHX - 0.014, RHY, RHZ,  0.12, 0,  0.00);
+        fingerBox(0.026, 0.020, 0.072, M.skin, RHX + 0.013, RHY, RHZ,  0.16, 0,  0.00);
+        fingerBox(0.021, 0.018, 0.058, M.skin, RHX + 0.040, RHY, RHZ,  0.20, 0,  0.00);
+        fingerBox(0.030, 0.018, 0.052, M.skin, RHX + 0.062, RHY + 0.008, RHZ + 0.042, 0, 0, -0.36);
 
         // Neck
         box(0.105, 0.10, 0.105, M.skin, 0, 1.24, PZ);
 
-        // Head (forward tilt — looking at screens)
-        const head = box(0.23, 0.25, 0.22, M.skin, 0, 1.405, PZ);
-        head.rotation.x = 0.16;
-
-        // Eyes (approximate world position accounting for head tilt)
-        box(0.038, 0.022, 0.012, M.hair, -0.057, 1.418, PZ - 0.108);
-        box(0.038, 0.022, 0.012, M.hair,  0.057, 1.418, PZ - 0.108);
-
-        // Ears
-        box(0.016, 0.065, 0.065, M.skin, -0.123, 1.402, PZ);
-        box(0.016, 0.065, 0.065, M.skin,  0.123, 1.402, PZ);
-
-        // Hair
-        const hairTop   = box(0.240, 0.090, 0.230, M.hair,  0,      1.516, PZ);
-        const hairBack  = box(0.230, 0.220, 0.040, M.hair,  0,      1.415, PZ + 0.10);
-        const hairSideL = box(0.028, 0.190, 0.200, M.hair, -0.118,  1.405, PZ);
-        const hairSideR = box(0.028, 0.190, 0.200, M.hair,  0.118,  1.405, PZ);
-        [head, hairTop, hairBack, hairSideL, hairSideR].forEach(m => (m.rotation.x = 0.16));
+        // Head group — pivots at the neck so it can subtly look around
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 1.30, PZ);
+        headGroup.rotation.x = 0.16;
+        scene.add(headGroup);
+        const hAdd = (w, h, d, mat, x, y, z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, y, z);
+            m.castShadow = m.receiveShadow = true;
+            headGroup.add(m);
+            return m;
+        };
+        hAdd(0.23, 0.25, 0.22, M.skin, 0, 0.105, 0);              // head
+        hAdd(0.038, 0.022, 0.012, M.hair, -0.057, 0.118, -0.110); // eyes
+        hAdd(0.038, 0.022, 0.012, M.hair,  0.057, 0.118, -0.110);
+        hAdd(0.042, 0.012, 0.010, M.hair, -0.057, 0.152, -0.112); // eyebrows
+        hAdd(0.042, 0.012, 0.010, M.hair,  0.057, 0.152, -0.112);
+        hAdd(0.026, 0.040, 0.022, M.skin, 0, 0.085, -0.118);      // nose
+        hAdd(0.060, 0.012, 0.010, lm(0x8a5535), 0, 0.030, -0.112); // mouth
+        hAdd(0.016, 0.065, 0.065, M.skin, -0.123, 0.102, 0);      // ears
+        hAdd(0.016, 0.065, 0.065, M.skin,  0.123, 0.102, 0);
+        hAdd(0.240, 0.090, 0.230, M.hair, 0, 0.216, 0);           // hair top
+        hAdd(0.230, 0.220, 0.040, M.hair, 0, 0.115, 0.100);       // hair back
+        hAdd(0.028, 0.190, 0.200, M.hair, -0.118, 0.105, 0);      // hair sides
+        hAdd(0.028, 0.190, 0.200, M.hair,  0.118, 0.105, 0);
+        hAdd(0.180, 0.045, 0.024, M.hair, 0, 0.232, -0.108);      // fringe
 
         // ── Keyboard (RGB backlit) ──────────────────────────────
-        const KBX = -0.04, KBZ = 0.08, KBY = DY + 0.013;
+        const KBX = -0.04, KBZ = 0.08, KBY = DY + 0.0385; // base now rests ON the desk surface
         box(0.64, 0.022, 0.26, lm(0x0c0c10), KBX, KBY, KBZ);
 
         const kbKeyMat = new THREE.MeshLambertMaterial({
@@ -487,12 +979,51 @@
             emissive: new THREE.Color(0x220044),
             emissiveIntensity: 0.8,
         });
-        // 5 key rows from back (function) to front (space bar)
-        [-0.020, 0.030, 0.080, 0.130, 0.180].forEach(rz => {
-            const keyRow = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.013, 0.030), kbKeyMat);
-            keyRow.position.set(KBX, KBY + 0.018, rz);
-            scene.add(keyRow);
+        // Individual keycaps (instanced for performance)
+        const keyRows = [
+            { z: -0.025, n: 14 },
+            { z:  0.013, n: 14 },
+            { z:  0.051, n: 13 },
+            { z:  0.089, n: 12 },
+        ];
+        let keyCount = keyRows.reduce((s, r) => s + r.n, 0) + 7; // + bottom row mods
+        const keyGeo = new THREE.BoxGeometry(1, 0.013, 0.030);
+        const keyInst = new THREE.InstancedMesh(keyGeo, kbKeyMat, keyCount);
+        const _kd = new THREE.Object3D();
+        let ki = 0;
+        const placeKey = (x, z, w) => {
+            _kd.position.set(x, KBY + 0.017, z);
+            _kd.scale.set(w, 1, 1);
+            _kd.updateMatrix();
+            keyInst.setMatrixAt(ki++, _kd.matrix);
+        };
+        keyRows.forEach(({ z, n }) => {
+            const pitch = 0.60 / n;
+            for (let i = 0; i < n; i++)
+                placeKey(KBX - 0.30 + pitch * (i + 0.5), z, pitch - 0.007);
         });
+        // Bottom row: modifiers + arrows (spacebar separate below)
+        const bz = 0.127, bp = 0.60 / 14;
+        [-6.5, -5.5, -4.5, 4.5, 5.5, 6.0, 6.5].forEach((u, i) =>
+            placeKey(KBX + u * bp, bz, (i === 5 ? bp * 0.45 : bp) - 0.007));
+        keyInst.instanceMatrix.needsUpdate = true;
+        scene.add(keyInst);
+        // Spacebar
+        const spaceKey = new THREE.Mesh(new THREE.BoxGeometry(0.235, 0.013, 0.030), kbKeyMat);
+        spaceKey.position.set(KBX - 0.02, KBY + 0.017, bz);
+        scene.add(spaceKey);
+
+        // ── Mousepad + mouse ──
+        box(0.235, 0.005, 0.21, lm(0x0b0b10), 0.43, DY + 0.030, 0.11);
+        const mouseBody = box(0.052, 0.026, 0.092, lm(0x16161c), 0.435, DY + 0.047, 0.125, -0.06, -0.18, 0);
+        box(0.048, 0.014, 0.038, lm(0x1c1c24), 0.435, DY + 0.059, 0.098, -0.10, -0.18, 0);
+        const mWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.008, 8),
+            new THREE.MeshLambertMaterial({ color: 0x202028, emissive: 0x6622cc, emissiveIntensity: 0.7 }));
+        mWheel.rotation.z = Math.PI / 2; mWheel.rotation.y = -0.18;
+        mWheel.position.set(0.430, DY + 0.062, 0.092);
+        scene.add(mWheel);
+        // RGB underglow strip on mouse
+        box(0.056, 0.005, 0.094, kbKeyMat, 0.435, DY + 0.036, 0.125, 0, -0.18, 0);
 
         // Keyboard backlight point — lights hands and face from below
         const kbLight = new THREE.PointLight(0x8833ff, 1.5, 1.4);
@@ -501,19 +1032,409 @@
 
         // ── MacBook ──
         const MBX = 0.72, MBZ = 0.10;
-        box(0.32, 0.015, 0.22, M.macbook, MBX, DY + 0.02, MBZ);
-        const mbScreen = box(0.31, 0.20, 0.010, M.macScreen, MBX, DY + 0.116, MBZ - 0.120);
-        const mbBezel  = box(0.33, 0.22, 0.013, M.macbook,   MBX, DY + 0.116, MBZ - 0.118);
-        mbScreen.rotation.x = mbBezel.rotation.x = -0.42;
+        // Base top surface sits at this Y
+        const MBT = DY + 0.028;
+
+        // ── Keyboard base ──
+        box(0.32, 0.016, 0.22, M.macbook, MBX, DY+0.020, MBZ);
+        // Keyboard deck recess
+        box(0.26, 0.002, 0.130, lm(0x1a1a20), MBX, MBT+0.001, MBZ-0.022);
+        // Key rows (4 strips)
+        [-0.060,-0.032,-0.004,0.024].forEach(rz =>
+            box(0.24,0.003,0.018,lm(0x272730), MBX, MBT+0.002, MBZ+rz));
+        // Trackpad
+        box(0.120, 0.002, 0.080, lm(0x252530), MBX, MBT+0.001, MBZ+0.068);
+        // Rubber feet
+        [[MBX-0.13,MBZ-0.090],[MBX+0.13,MBZ-0.090],[MBX-0.13,MBZ+0.090],[MBX+0.13,MBZ+0.090]]
+            .forEach(([fx,fz]) => box(0.020,0.006,0.020,lm(0x040406),fx,DY+0.005,fz));
+
+        // ── Lid — pivot at hinge (back edge of base, top surface) ──
+        // rotation.x = -0.30: lid is nearly vertical, top leans ~17° away from person
+        // This gives the classic "laptop open at ~105°" look with screen facing the person
+        const mbPivot = new THREE.Group();
+        mbPivot.position.set(MBX, MBT, MBZ - 0.11);
+        mbPivot.rotation.x = -0.30;
+        scene.add(mbPivot);
+
+        // toL: create a box mesh in pivot-local space
+        const toL = (w,h,d,mat,y,z=0,x=0) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+            m.position.set(x, y, z);
+            mbPivot.add(m);
+        };
+
+        // Outer aluminum lid shell
+        toL(0.33,  0.220, 0.012, M.macbook,      0.110,  0.000);
+        // Apple logo glow on back face
+        toL(0.048, 0.056, 0.003, lm(0x404040,0xffffff,0.5), 0.110, -0.008);
+        // Black bezel (screen surround, front face)
+        toL(0.315, 0.208, 0.008, lm(0x0c0c12),   0.110,  0.007);
+        // Camera bump
+        toL(0.014, 0.008, 0.004, lm(0x080812),   0.207,  0.009);
+
+        // ── Screen canvas: wallpaper + chat window ──
+        const mbCanvas = document.createElement('canvas');
+        mbCanvas.width = 620; mbCanvas.height = 390;
+        const mbc = mbCanvas.getContext('2d');
+
+        // Dark space wallpaper
+        const mbWG = mbc.createLinearGradient(0,0,620,390);
+        mbWG.addColorStop(0,'#04061c'); mbWG.addColorStop(0.45,'#0f0838'); mbWG.addColorStop(1,'#040e26');
+        mbc.fillStyle=mbWG; mbc.fillRect(0,0,620,390);
+        // Stars
+        for (let i=0;i<90;i++){
+            const a=0.2+Math.random()*0.65, s=Math.random()<0.14?2:1;
+            mbc.fillStyle=`rgba(210,220,255,${a})`;
+            mbc.fillRect(Math.random()*620, 24+Math.random()*270, s, s);
+        }
+        // Nebula glow
+        const mbNeb=mbc.createRadialGradient(310,190,8,310,190,190);
+        mbNeb.addColorStop(0,'rgba(80,20,120,0.28)'); mbNeb.addColorStop(1,'rgba(0,0,0,0)');
+        mbc.fillStyle=mbNeb; mbc.fillRect(0,0,620,390);
+
+        // macOS menu bar
+        mbc.fillStyle='rgba(8,8,18,0.93)'; mbc.fillRect(0,0,620,22);
+        mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='bold 11px sans-serif';
+        mbc.fillText('',9,15);
+        mbc.font='11px sans-serif'; mbc.fillText('Messages',32,15);
+        mbc.textAlign='right'; mbc.fillStyle='rgba(255,255,255,0.38)'; mbc.font='10px sans-serif';
+        mbc.fillText('23:47',612,15); mbc.textAlign='left';
+
+        // Chat window
+        const mbCW=340, mbCH=272, mbCX=140, mbCY=32;
+        // Shadow
+        mbc.fillStyle='rgba(0,0,0,0.45)'; mbc.fillRect(mbCX+4,mbCY+4,mbCW,mbCH);
+        // Body
+        mbc.fillStyle='#0e0e1a'; mbc.fillRect(mbCX,mbCY,mbCW,mbCH);
+        // Title bar
+        const mbTB=mbc.createLinearGradient(mbCX,mbCY,mbCX,mbCY+28);
+        mbTB.addColorStop(0,'#252534'); mbTB.addColorStop(1,'#1b1b28');
+        mbc.fillStyle=mbTB; mbc.fillRect(mbCX,mbCY,mbCW,28);
+        // Traffic lights
+        [[mbCX+13,'#ff5f57'],[mbCX+29,'#febc2e'],[mbCX+45,'#28c840']].forEach(([cx,c])=>{
+            mbc.fillStyle=c; mbc.beginPath(); mbc.arc(cx,mbCY+14,5,0,Math.PI*2); mbc.fill();
+        });
+        mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='11px sans-serif';
+        mbc.textAlign='center'; mbc.fillText('Messages',mbCX+mbCW/2,mbCY+19); mbc.textAlign='left';
+        mbc.fillStyle='rgba(255,255,255,0.07)'; mbc.fillRect(mbCX,mbCY+28,mbCW,1);
+
+        // Message bubbles
+        mbc.font='10px sans-serif';
+        let mbMY=mbCY+42;
+        [['hey, still up?',false],['yeah just coding',true],
+         ['building something?',false],['always 🙌',true],
+         ['send the link when live',false],['will do 🤙',true]
+        ].forEach(([txt,right])=>{
+            const bw=mbc.measureText(txt).width+20, bx=right?mbCX+mbCW-bw-8:mbCX+8;
+            mbc.fillStyle=right?'#1a52e8':'#232336';
+            mbc.fillRect(bx,mbMY,bw,21);
+            mbc.fillStyle=right?'rgba(255,255,255,0.94)':'rgba(255,255,255,0.76)';
+            mbc.fillText(txt,bx+8,mbMY+14); mbMY+=29;
+        });
+        // Typing dots
+        mbc.fillStyle='#1e1e2e'; mbc.fillRect(mbCX+8,mbMY,42,20);
+        mbc.fillStyle='rgba(255,255,255,0.30)'; mbc.font='14px sans-serif';
+        mbc.fillText('• • •',mbCX+11,mbMY+15);
+
+        const mbTex = new THREE.CanvasTexture(mbCanvas);
+        const mbScrMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.295, 0.190, 0.002),
+            new THREE.MeshBasicMaterial({map: mbTex})
+        );
+        mbScrMesh.position.set(0, 0.108, 0.010);
+        mbPivot.add(mbScrMesh);
+
+        // ── Coffee Mug ──
+        const CFX = -0.75, CFZ = 0.22;
+        const deskTop = DY + 0.0275;
+        const mugH = 0.098, mugR = 0.044;
+
+        // Saucer — wide flat disc with tapered edge
+        const saucerGeo = new THREE.CylinderGeometry(mugR * 2.3, mugR * 2.05, 0.013, 12);
+        const saucerMesh = new THREE.Mesh(saucerGeo, lm(0x1c1c22));
+        saucerMesh.position.set(CFX, deskTop + 0.0065, CFZ);
+        scene.add(saucerMesh);
+
+        // Saucer inner well ring (shallow indent mug sits in)
+        const wellGeo = new THREE.CylinderGeometry(mugR * 1.12, mugR * 1.05, 0.005, 12);
+        const wellMesh = new THREE.Mesh(wellGeo, lm(0x141418));
+        wellMesh.position.set(CFX, deskTop + 0.015, CFZ);
+        scene.add(wellMesh);
+
+        // Mug base sits on saucer top
+        const mugBase = deskTop + 0.013;
+        const mugCY = mugBase + mugH / 2;
+
+        // Outer mug body
+        const mugMat = lm(0x222228);
+        const mugGeo = new THREE.CylinderGeometry(mugR, mugR * 0.87, mugH, 10);
+        const mugMesh = new THREE.Mesh(mugGeo, mugMat);
+        mugMesh.position.set(CFX, mugCY, CFZ);
+        scene.add(mugMesh);
+
+        // Inner hollow (dark interior visible from top)
+        const innerGeo = new THREE.CylinderGeometry(mugR * 0.80, mugR * 0.73, mugH * 0.91, 10);
+        const innerMesh = new THREE.Mesh(innerGeo, lm(0x070709));
+        innerMesh.position.set(CFX, mugCY + 0.005, CFZ);
+        scene.add(innerMesh);
+
+        // Coffee surface — warm dark brown, slight emissive
+        const cofGeo = new THREE.CylinderGeometry(mugR * 0.77, mugR * 0.77, 0.007, 10);
+        const cofMesh = new THREE.Mesh(cofGeo, lm(0x1e0f07, 0x3a1a08, 0.18));
+        cofMesh.position.set(CFX, mugBase + mugH - 0.012, CFZ);
+        scene.add(cofMesh);
+
+        // Rim ring — slightly wider collar at lip
+        const rimGeo = new THREE.CylinderGeometry(mugR + 0.005, mugR, 0.012, 10);
+        const rimMesh = new THREE.Mesh(rimGeo, lm(0x2c2c34));
+        rimMesh.position.set(CFX, mugBase + mugH - 0.006, CFZ);
+        scene.add(rimMesh);
+
+        // Handle — proper D-shape: top bar + bottom bar + outer vertical
+        const hxBase = CFX + mugR;
+        box(0.042, 0.014, 0.014, mugMat, hxBase + 0.021, mugCY + 0.030, CFZ); // top
+        box(0.042, 0.014, 0.014, mugMat, hxBase + 0.021, mugCY - 0.030, CFZ); // bottom
+        box(0.014, 0.058, 0.014, mugMat, hxBase + 0.042, mugCY,          CFZ); // outer
+
+        // Steam — layer 1: tight wisps near cup mouth (denser, more opaque)
+        const STEAM_N = 36;
+        const steamPos = new Float32Array(STEAM_N * 3);
+        const steamPhases = [], steamXZ = [];
+        const wispCenters = [[-0.012, -0.007], [0.013, 0.005], [-0.003, 0.016]];
+        for (let i = 0; i < STEAM_N; i++) {
+            const w = i % 3;
+            steamPhases.push((i / STEAM_N) + w * 0.13);
+            const rx = (Math.random() - 0.5) * 0.016 + wispCenters[w][0];
+            const rz = (Math.random() - 0.5) * 0.016 + wispCenters[w][1];
+            steamXZ.push(rx, rz);
+            steamPos[i*3] = CFX + rx;
+            steamPos[i*3+1] = mugBase + mugH + steamPhases[i] * 0.26;
+            steamPos[i*3+2] = CFZ + rz;
+        }
+        const steamGeo = new THREE.BufferGeometry();
+        steamGeo.setAttribute('position', new THREE.BufferAttribute(steamPos, 3));
+        const steamMat = new THREE.PointsMaterial({
+            color: 0xbbcdd8, size: 0.027, transparent: true, opacity: 0.52,
+            sizeAttenuation: true, fog: false,
+        });
+        const steamPoints = new THREE.Points(steamGeo, steamMat);
+        scene.add(steamPoints);
+
+        // Steam — layer 2: higher, wider, more diffuse (fade-out effect)
+        const STEAM_N2 = 28;
+        const steamPos2 = new Float32Array(STEAM_N2 * 3);
+        const steamPhases2 = [], steamXZ2 = [];
+        for (let i = 0; i < STEAM_N2; i++) {
+            steamPhases2.push(i / STEAM_N2);
+            steamXZ2.push((Math.random() - 0.5) * 0.060, (Math.random() - 0.5) * 0.060);
+            steamPos2[i*3]   = CFX + steamXZ2[i*2];
+            steamPos2[i*3+1] = mugBase + mugH + 0.13 + steamPhases2[i] * 0.22;
+            steamPos2[i*3+2] = CFZ + steamXZ2[i*2+1];
+        }
+        const steamGeo2 = new THREE.BufferGeometry();
+        steamGeo2.setAttribute('position', new THREE.BufferAttribute(steamPos2, 3));
+        const steamMat2 = new THREE.PointsMaterial({
+            color: 0x8898a8, size: 0.018, transparent: true, opacity: 0.22,
+            sizeAttenuation: true, fog: false,
+        });
+        const steamPoints2 = new THREE.Points(steamGeo2, steamMat2);
+        scene.add(steamPoints2);
+
+        // ── Desk clutter ──────────────────
+        const deskSurf = DY + 0.0275;
+        // Notebook (closed, leather cover) + pen
+        box(0.20, 0.014, 0.27, lm(0x4a2c16), -0.55, deskSurf + 0.012, 0.30, 0, 0.28, 0);
+        box(0.19, 0.009, 0.255, lm(0xcfc9b8), -0.55, deskSurf + 0.023, 0.30, 0, 0.28, 0);
+        box(0.20, 0.006, 0.27, lm(0x3d2412), -0.55, deskSurf + 0.030, 0.30, 0, 0.28, 0);
+        box(0.018, 0.026, 0.040, lm(0x8a6a30), -0.585, deskSurf + 0.018, 0.415, 0, 0.28, 0); // elastic clasp
+        const penMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.135, 6), lm(0x202830));
+        penMesh.rotation.z = Math.PI / 2; penMesh.rotation.y = 0.65;
+        penMesh.position.set(-0.52, deskSurf + 0.039, 0.27);
+        penMesh.castShadow = true;
+        scene.add(penMesh);
+        const penClip = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.02, 6), lm(0x8a8a92));
+        penClip.rotation.z = Math.PI / 2; penClip.rotation.y = 0.65;
+        penClip.position.set(-0.475, deskSurf + 0.041, 0.243);
+        scene.add(penClip);
+
+        // Smartphone, face up, screen dimly lit with a notification
+        box(0.072, 0.009, 0.148, lm(0x0a0a0e), 0.295, deskSurf + 0.0045, 0.345, 0, -0.35, 0);
+        box(0.064, 0.003, 0.138, lm(0x05060d, 0x16204a, 0.55), 0.295, deskSurf + 0.010, 0.345, 0, -0.35, 0);
+        box(0.012, 0.002, 0.012, lm(0x202030, 0x4466ff, 1.0), 0.272, deskSurf + 0.0125, 0.300, 0, -0.35, 0); // notif glow
+
+        // Headphone stand with headphones hanging
+        const HSX = -0.90, HSZ = -0.30;
+        box(0.10, 0.012, 0.10, lm(0x141418), HSX, deskSurf + 0.006, HSZ);
+        box(0.016, 0.24, 0.016, lm(0x141418), HSX, deskSurf + 0.13, HSZ);
+        box(0.085, 0.014, 0.050, lm(0x141418), HSX, deskSurf + 0.255, HSZ);
+        const hbMesh = new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.009, 6, 14, Math.PI), lm(0x202024));
+        hbMesh.position.set(HSX, deskSurf + 0.235, HSZ);
+        hbMesh.castShadow = true;
+        scene.add(hbMesh);
+        box(0.020, 0.068, 0.058, lm(0x18181c), HSX - 0.058, deskSurf + 0.20, HSZ);
+        box(0.020, 0.068, 0.058, lm(0x18181c), HSX + 0.058, deskSurf + 0.20, HSZ);
+        box(0.006, 0.040, 0.044, lm(0x2c2c34), HSX - 0.069, deskSurf + 0.20, HSZ); // earcup plates
+        box(0.006, 0.040, 0.044, lm(0x2c2c34), HSX + 0.069, deskSurf + 0.20, HSZ);
+
+        // Tiny succulent in a concrete pot
+        const sucPot = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.024, 0.042, 8), lm(0x55555c));
+        sucPot.position.set(0.92, deskSurf + 0.021, -0.33);
+        sucPot.castShadow = true;
+        scene.add(sucPot);
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            box(0.014, 0.038, 0.014, lm(i % 2 ? 0x2e6638 : 0x255530),
+                0.92 + Math.sin(a) * 0.012, deskSurf + 0.058, -0.33 + Math.cos(a) * 0.012,
+                Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45);
+        }
 
         // ── Wide Monitor ──
         const MOX = -0.15, MOZ = -0.28;
         const MOW = 1.20, MOH = 0.52;
         const MOY = DY + 0.53;
-        box(0.30, 0.022, 0.20, M.monFrame, MOX, DY + 0.022, MOZ - 0.02);
-        box(0.04, 0.24,  0.04, M.monFrame, MOX, DY + 0.155, MOZ);
-        box(MOW + 0.04, MOH + 0.04, 0.022, M.monFrame, MOX, MOY, MOZ);
-        box(MOW, MOH, 0.018, M.monScreen, MOX, MOY, MOZ + 0.004);
+        // Stand: weighted base plate + riser + VESA plate
+        box(0.34, 0.018, 0.22, M.monFrame, MOX, DY + 0.020, MOZ - 0.02);
+        box(0.28, 0.008, 0.17, lm(0x101014), MOX, DY + 0.033, MOZ - 0.02);
+        box(0.055, 0.26, 0.07, M.monFrame, MOX, DY + 0.16, MOZ - 0.01);
+        box(0.15, 0.13, 0.020, M.monFrame, MOX, MOY - 0.06, MOZ - 0.018);
+        // Bezel + back shell + brand notch
+        box(MOW + 0.035, MOH + 0.035, 0.022, M.monFrame, MOX, MOY, MOZ);
+        box(MOW * 0.72, MOH * 0.72, 0.034, lm(0x101014), MOX, MOY, MOZ - 0.014);
+        box(0.012, 0.010, 0.005, lm(0x101410, 0x33ff66, 1.4), MOX + MOW/2 - 0.03, MOY - MOH/2 - 0.006, MOZ + 0.012); // power LED
+
+        // ── Monitor screen: live code editor texture ──
+        const monCanvas = document.createElement('canvas');
+        monCanvas.width = 1024; monCanvas.height = 440;
+        const mc = monCanvas.getContext('2d');
+        // Deterministic pseudo-code layout (seeded so it doesn't shimmer between redraws)
+        let _seed = 73;
+        const srnd = () => (_seed = (_seed * 16807) % 2147483647) / 2147483647;
+        const SYN = ['#ff7b72', '#79c0ff', '#d2a8ff', '#a5d6ff', '#ffa657', '#7ee787', '#8b949e'];
+        const codeLines = [];
+        for (let i = 0; i < 25; i++) {
+            const segs = [];
+            let x = Math.floor(srnd() * 4) * 26;
+            const n = 1 + Math.floor(srnd() * 4);
+            for (let j = 0; j < n; j++) {
+                const w = 22 + srnd() * 95;
+                if (x + w > 480) break;
+                segs.push([x, w, SYN[Math.floor(srnd() * SYN.length)]]);
+                x += w + 12;
+            }
+            if (!segs.length) segs.push([0, 40, SYN[6]]);
+            codeLines.push(segs);
+        }
+        const termLines = [
+            '$ npx wrangler deploy',
+            'Uploading assets... (1 file)',
+            '✨ Success! Deployed to',
+            '  https://alandeboer.computer',
+            '$ git log --oneline -1',
+            'a3f29c1 more detail, more life',
+            '$ node scene.js --watch',
+            '[watch] rebuilt in 42ms',
+            '[watch] dog.js: tail wag ok',
+            '$ ▍',
+        ];
+        function drawMonitor(t) {
+            const W = 1024, H = 440;
+            mc.textAlign = 'left'; mc.font = '11px monospace';
+            // Tab strip
+            mc.fillStyle = '#10141b'; mc.fillRect(0, 0, W, 26);
+            mc.fillStyle = '#0d1117'; mc.fillRect(118, 0, 110, 26);
+            mc.fillStyle = '#79c0ff'; mc.fillText('scene.js', 132, 17);
+            mc.fillStyle = '#9aa4b2'; mc.fillText('●', 206, 17);
+            mc.fillStyle = '#5a6373'; mc.fillText('index.html', 246, 17);
+            // Sidebar file tree
+            mc.fillStyle = '#0a0e14'; mc.fillRect(0, 26, 118, H - 52);
+            ['▾ src', ' scene.js', ' dog.js', ' lights.js', '▾ public', ' index.html', 'package.json', 'wrangler.toml']
+                .forEach((f, i) => {
+                    mc.fillStyle = i === 1 ? '#79c0ff' : '#5a6373';
+                    mc.fillText(f, 9, 50 + i * 19);
+                });
+            // Code area — colored token blocks read as code from a distance
+            mc.fillStyle = '#0d1117'; mc.fillRect(118, 26, 580, H - 52);
+            const curLine = Math.floor(t / 4.3) % codeLines.length;
+            mc.fillStyle = 'rgba(120,150,255,0.08)';
+            mc.fillRect(118, 42 + curLine * 15 - 2, 580, 13);
+            for (let i = 0; i < codeLines.length; i++) {
+                const y = 42 + i * 15;
+                mc.fillStyle = '#39424f'; mc.textAlign = 'right';
+                mc.fillText(String(i + 112), 150, y + 9);
+                mc.textAlign = 'left';
+                mc.globalAlpha = 0.88;
+                for (const [sx, sw, col] of codeLines[i]) {
+                    mc.fillStyle = col;
+                    mc.fillRect(162 + sx, y, sw, 9);
+                }
+                mc.globalAlpha = 1;
+            }
+            // Blinking cursor at end of active line
+            if (Math.floor(t * 2) % 2 === 0) {
+                const segs = codeLines[curLine], last = segs[segs.length - 1];
+                mc.fillStyle = '#e6edf3';
+                mc.fillRect(162 + last[0] + last[1] + 5, 42 + curLine * 15 - 1, 2, 11);
+            }
+            // Terminal pane
+            mc.fillStyle = '#07090d'; mc.fillRect(698, 26, W - 698, H - 52);
+            mc.fillStyle = '#11141b'; mc.fillRect(698, 26, W - 698, 20);
+            mc.fillStyle = '#8a93a3'; mc.fillText('zsh — alan@computer', 712, 40);
+            mc.font = '12px monospace';
+            const shown = 1 + Math.floor(t / 2.4) % termLines.length;
+            for (let i = 0; i < shown; i++) {
+                const line = termLines[i];
+                mc.fillStyle = line.startsWith('$') ? '#7ee787'
+                    : line.includes('✨') ? '#ffd23e'
+                    : line.includes('computer') ? '#79c0ff' : '#9aa4b2';
+                mc.fillText(line, 712, 64 + i * 17);
+            }
+            // Status bar
+            mc.fillStyle = '#0a3a5c'; mc.fillRect(0, H - 26, W, 26);
+            mc.fillStyle = '#cfe3f5'; mc.font = '11px monospace';
+            mc.fillText('⎇ main*', 12, H - 9);
+            mc.fillText('Ln 128, Col 42   UTF-8   JavaScript   Prettier ✓', 112, H - 9);
+            mc.textAlign = 'right';
+            mc.fillText('⚡ deployed: alandeboer.computer', W - 14, H - 9);
+            mc.textAlign = 'left';
+        }
+        drawMonitor(0);
+        const monTex = new THREE.CanvasTexture(monCanvas);
+        const monScrMat = new THREE.MeshBasicMaterial({ map: monTex });
+        const monScr = new THREE.Mesh(new THREE.BoxGeometry(MOW, MOH, 0.012), monScrMat);
+        monScr.position.set(MOX, MOY, MOZ + 0.008);
+        scene.add(monScr);
+        let monLastDraw = 0;
+        // Screen tint endpoints for color slider
+        const scrCool = new THREE.Color(0xdfe8ff);
+        const scrWarm = new THREE.Color(0xffd9ae);
+
+        // ── Sticky notes on monitor bezel ──
+        const sticky = (color, x, y, rz) => {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.055),
+                new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.18 }));
+            m.position.set(x, y, MOZ + 0.016);
+            m.rotation.z = rz;
+            scene.add(m);
+        };
+        sticky(0xd8c84a, MOX + MOW/2 + 0.048, MOY + 0.16, 0.10);
+        sticky(0x7ad8a0, MOX + MOW/2 + 0.052, MOY + 0.07, -0.07);
+        sticky(0xd88a7a, MOX - MOW/2 - 0.046, MOY + 0.20, 0.06);
+
+        // ── Desk speakers (flanking the monitor, toed in) ──
+        const spk = (x, ry) => {
+            box(0.11, 0.17, 0.10, lm(0x14141a), x, DY + 0.115, -0.34, 0, ry, 0);
+            const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.008, 10), lm(0x26262e));
+            cone.rotation.x = Math.PI / 2; cone.rotation.z = -ry;
+            cone.position.set(x + Math.sin(ry) * 0.052, DY + 0.155, -0.34 + Math.cos(ry) * 0.052);
+            scene.add(cone);
+            const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.008, 8), lm(0x303040));
+            tw.rotation.x = Math.PI / 2; tw.rotation.z = -ry;
+            tw.position.set(x + Math.sin(ry) * 0.052, DY + 0.075, -0.34 + Math.cos(ry) * 0.052);
+            scene.add(tw);
+            box(0.010, 0.008, 0.005, lm(0x041004, 0x22ff66, 1.2), x + Math.sin(ry)*0.054 + 0.035, DY + 0.045, -0.30);
+        };
+        spk(-0.94, 0.22);
+        spk(0.58, -0.20);
 
         // ── Floor Lamp ──
         const LX = -1.45, LZ = 0.2;
@@ -550,9 +1471,9 @@
         monLight.position.set(MOX, MOY, MOZ + 0.65);
         scene.add(monLight);
 
-        // MacBook glow — secondary
+        // MacBook glow — between screen and person
         const mbLight = new THREE.PointLight(0x1133cc, 2.8, 0);
-        mbLight.position.set(MBX, DY + 0.18, MBZ + 0.12);
+        mbLight.position.set(MBX, DY + 0.18, MBZ + 0.06);
         scene.add(mbLight);
 
         // Rim — separates person from background
@@ -564,6 +1485,40 @@
         const lampLight = new THREE.PointLight(0xff8833, 4.0, 0);
         lampLight.position.set(LX, 1.62, LZ);
         scene.add(lampLight);
+
+        // Lamp spotlight — shadow-casting warm cone onto the floor
+        const lampSpot = new THREE.SpotLight(0xff8833, 6.0, 5.0, Math.PI * 0.40, 0.55, 1.1);
+        lampSpot.position.set(LX, 1.68, LZ);
+        lampSpot.target.position.set(LX, 0, LZ);
+        lampSpot.castShadow = true;
+        lampSpot.shadow.mapSize.set(512, 512);
+        lampSpot.shadow.bias = -0.003;
+        scene.add(lampSpot);
+        scene.add(lampSpot.target);
+
+        // ── Dust motes drifting through the air ──
+        const DUST_N = 110;
+        const dustPos = new Float32Array(DUST_N * 3);
+        const dustBase = [], dustPhase = [];
+        for (let i = 0; i < DUST_N; i++) {
+            // Cluster a third of them near the lamp's warm cone
+            const nearLamp = i % 3 === 0;
+            const bx = nearLamp ? LX + (Math.random() - 0.5) * 0.7 : (Math.random() - 0.5) * 5.2;
+            const bz = nearLamp ? LZ + (Math.random() - 0.5) * 0.7 : (Math.random() - 0.5) * 4.6;
+            dustBase.push(bx, bz);
+            dustPhase.push(Math.random());
+            dustPos[i*3] = bx;
+            dustPos[i*3+1] = 0.05 + Math.random() * 3.0;
+            dustPos[i*3+2] = bz;
+        }
+        const dustGeo = new THREE.BufferGeometry();
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+        const dustMat = new THREE.PointsMaterial({
+            color: 0xaab2cc, size: 0.013, transparent: true, opacity: 0.20,
+            sizeAttenuation: true,
+        });
+        const dustPoints = new THREE.Points(dustGeo, dustMat);
+        scene.add(dustPoints);
 
         // ═══════════════════════════════
         //  UI CONTROLS
@@ -585,7 +1540,7 @@
         });
 
         // Base intensities (before multipliers)
-        const BASE = { hemi: 5.0, fill: 3.5, mon: 7.0, mb: 2.8, rim: 3.0, lamp: 4.0, kb: 1.5 };
+        const BASE = { hemi: 5.0, fill: 3.5, mon: 7.0, mb: 2.8, rim: 3.0, lamp: 4.0, lampSpot: 6.0, kb: 1.5, moon: 2.2 };
 
         // Scene color endpoints: cool blue → warm amber
         const coolSky    = new THREE.Color(0x2233aa);
@@ -615,11 +1570,118 @@
 
         const clock = new THREE.Clock();
 
+        let _lastT = 0;
         function animate() {
             requestAnimationFrame(animate);
             const t = clock.getElapsedTime();
+            const dt = Math.min(t - _lastT, 0.1);
+            _lastT = t;
             const b = params.brightness;
             const c = params.color;
+
+            // ── Dog AI/animation ──
+            const ds = dogState;
+            let moveTarget = null;
+            const speed = 0.55;
+            if (ds.mode === 'walking') {
+                moveTarget = ds.waypoints[ds.wpIndex];
+                if (t > ds.walkUntil) {
+                    ds.mode = 'goingToBed';
+                    ds.modeStart = t;
+                }
+            } else if (ds.mode === 'goingToBed') {
+                moveTarget = [BEDX, BEDZ];
+                const dx = moveTarget[0] - ds.pos[0], dz = moveTarget[1] - ds.pos[1];
+                if (Math.hypot(dx, dz) < 0.04) {
+                    ds.mode = 'inBed';
+                    ds.modeStart = t;
+                    ds.bedUntil = t + 28 + Math.random() * 18;
+                    ds.pos[0] = BEDX; ds.pos[1] = BEDZ;
+                    ds.facing = Math.PI * 0.6;
+                    moveTarget = null;
+                }
+            } else if (ds.mode === 'inBed') {
+                moveTarget = null;
+                if (t > ds.bedUntil) {
+                    ds.mode = 'walking';
+                    ds.modeStart = t;
+                    ds.wpIndex = 0;
+                    ds.walkUntil = t + 25 + Math.random() * 20;
+                }
+            } else if (ds.mode === 'sniffing') {
+                moveTarget = null;
+                if (t > ds.sniffUntil) {
+                    ds.mode = 'walking';
+                    ds.modeStart = t;
+                }
+            }
+            if (moveTarget) {
+                const dx = moveTarget[0] - ds.pos[0], dz = moveTarget[1] - ds.pos[1];
+                const dist = Math.hypot(dx, dz);
+                if (dist < 0.08 && ds.mode === 'walking') {
+                    ds.wpIndex = (ds.wpIndex + 1) % ds.waypoints.length;
+                    // Something smells interesting here…
+                    if (Math.random() < 0.45) {
+                        ds.mode = 'sniffing';
+                        ds.sniffUntil = t + 1.4 + Math.random() * 2.4;
+                    }
+                } else if (dist > 0.01) {
+                    ds.pos[0] += (dx / dist) * speed * dt;
+                    ds.pos[1] += (dz / dist) * speed * dt;
+                    const targetFacing = Math.atan2(dx, dz);
+                    let df = targetFacing - ds.facing;
+                    while (df > Math.PI) df -= 2 * Math.PI;
+                    while (df < -Math.PI) df += 2 * Math.PI;
+                    ds.facing += df * Math.min(1, dt * 6);
+                }
+            }
+            dogGroup.position.x = ds.pos[0];
+            dogGroup.position.z = ds.pos[1];
+            dogGroup.rotation.y = ds.facing;
+
+            const isMoving = (ds.mode === 'walking' || ds.mode === 'goingToBed');
+            const lerpK = Math.min(1, dt * 5);
+            let headPitch = 0, headYaw = 0;
+            if (isMoving) {
+                const sw = Math.sin(t * 9) * 0.55;
+                legFL.rotation.x = sw;
+                legBR.rotation.x = sw;
+                legFR.rotation.x = -sw;
+                legBL.rotation.x = -sw;
+                dogGroup.position.y = Math.abs(Math.sin(t * 9)) * 0.012;
+                tail.rotation.y = Math.sin(t * 12) * 0.4;
+                // Ears flop with the trot, slight head bob
+                earL.rotation.x = Math.sin(t * 9) * 0.16;
+                earR.rotation.x = Math.sin(t * 9 + 0.6) * 0.16;
+                headPitch = Math.sin(t * 9 * 2) * 0.04;
+            } else if (ds.mode === 'sniffing') {
+                // Nose to the ground, sweeping side to side
+                const tuckK = Math.min(1, dt * 4);
+                [legFL, legFR, legBL, legBR].forEach(l => l.rotation.x += (0 - l.rotation.x) * tuckK);
+                dogGroup.position.y += (0 - dogGroup.position.y) * lerpK;
+                headPitch = 0.85 + Math.sin(t * 5.2) * 0.07;
+                headYaw = Math.sin(t * 2.3) * 0.30;
+                tail.rotation.y = Math.sin(t * 8) * 0.32;        // excited wag
+                earL.rotation.x = Math.sin(t * 5.2) * 0.10;
+                earR.rotation.x = Math.sin(t * 5.2 + 0.5) * 0.10;
+            } else if (ds.mode === 'inBed') {
+                // Curl up: legs tuck forward, body settles into the cushion
+                const tuckK = Math.min(1, dt * 3);
+                [legFL, legFR, legBL, legBR].forEach(l => l.rotation.x += (1.45 - l.rotation.x) * tuckK);
+                dogGroup.position.y += (-0.040 - dogGroup.position.y) * tuckK;
+                headPitch = 0.32 + Math.sin(t * 1.9) * 0.015;    // resting, gentle breathing
+                tail.rotation.y = Math.sin(t * 1.5) * 0.15;
+                earL.rotation.x += (0 - earL.rotation.x) * tuckK;
+                earR.rotation.x += (0 - earR.rotation.x) * tuckK;
+                dogBody.scale.y = 1 + Math.sin(t * 2.1) * 0.035;
+            } else {
+                [legFL, legFR, legBL, legBR].forEach(l => l.rotation.x += (0 - l.rotation.x) * lerpK);
+                dogGroup.position.y += (0 - dogGroup.position.y) * lerpK;
+                tail.rotation.y = 0;
+            }
+            if (ds.mode !== 'inBed') dogBody.scale.y += (1 - dogBody.scale.y) * lerpK;
+            dogHeadGrp.rotation.x += (headPitch - dogHeadGrp.rotation.x) * lerpK;
+            dogHeadGrp.rotation.y += (headYaw - dogHeadGrp.rotation.y) * lerpK;
 
             tintColor.copy(coolMon).lerp(warmMon, c);
 
@@ -651,13 +1713,72 @@
             lampTint.copy(lampWarm).lerp(lampCool, params.lampColor);
             lampLight.intensity = BASE.lamp * params.lampBrightness;
             lampLight.color.copy(lampTint);
+            lampSpot.intensity = BASE.lampSpot * params.lampBrightness;
+            lampSpot.color.copy(lampTint);
             lampShadeMat.emissive.copy(lampTint).multiplyScalar(0.25 * params.lampBrightness);
+
+            // Moonlight follows overall brightness
+            moonLight.intensity = BASE.moon * Math.min(b, 1.4);
+
+            // Steam animation — layer 1: tight rising wisps
+            const mugTopY = mugBase + mugH;
+            const sp = steamPoints.geometry.attributes.position.array;
+            for (let i = 0; i < STEAM_N; i++) {
+                const phase = (steamPhases[i] + t * 0.33) % 1;
+                const spread = 0.008 + phase * 0.028;
+                sp[i*3]   = CFX + steamXZ[i*2]   + Math.sin(t * 0.60 + i * 0.92) * spread;
+                sp[i*3+1] = mugTopY + phase * 0.26;
+                sp[i*3+2] = CFZ + steamXZ[i*2+1] + Math.cos(t * 0.50 + i * 1.15) * spread * 0.7;
+            }
+            steamPoints.geometry.attributes.position.needsUpdate = true;
+
+            // Steam animation — layer 2: high diffuse fade
+            const sp2 = steamPoints2.geometry.attributes.position.array;
+            for (let i = 0; i < STEAM_N2; i++) {
+                const phase = (steamPhases2[i] + t * 0.27) % 1;
+                const spread = 0.020 + phase * 0.038;
+                sp2[i*3]   = CFX + steamXZ2[i*2]   + Math.sin(t * 0.42 + i * 1.30) * spread;
+                sp2[i*3+1] = mugTopY + 0.13 + phase * 0.22;
+                sp2[i*3+2] = CFZ + steamXZ2[i*2+1] + Math.cos(t * 0.37 + i * 0.78) * spread * 0.8;
+            }
+            steamPoints2.geometry.attributes.position.needsUpdate = true;
 
             // Keyboard RGB — slow hue cycle
             const kbHue = (t * 0.04) % 1;
             kbKeyMat.emissive.setHSL(kbHue, 0.90, 0.32);
             kbLight.color.setHSL(kbHue, 0.90, 0.50);
             kbLight.intensity = BASE.kb * b;
+
+            // ── Person idle animation ──
+            const breath = (Math.sin(t * 1.25) + 1) * 0.5;
+            torso.scale.y = 1 + 0.012 * breath;
+            torso.scale.z = 1 + 0.035 * breath;
+            // Glances between the monitor, the MacBook, and back
+            headGroup.rotation.y = Math.sin(t * 0.16) * 0.20 + Math.sin(t * 0.047) * 0.11;
+            headGroup.rotation.x = 0.16 + Math.sin(t * 0.30) * 0.018 + 0.010 * breath;
+            // Fingers pecking at the keys
+            for (let i = 0; i < fingerMeshes.length; i++) {
+                const f = fingerMeshes[i];
+                f.position.y = f.userData.baseY - Math.max(0, Math.sin(t * 12.5 + i * 1.93)) * 0.0075;
+            }
+
+            // ── Monitor screen: cursor blink + terminal output (2 fps redraw) ──
+            if (t - monLastDraw > 0.5) {
+                monLastDraw = t;
+                drawMonitor(t);
+                monTex.needsUpdate = true;
+            }
+            monScrMat.color.copy(scrCool).lerp(scrWarm, c);
+
+            // ── Dust motes — slow rise with lateral drift ──
+            const dp = dustPoints.geometry.attributes.position.array;
+            for (let i = 0; i < DUST_N; i++) {
+                const ph = (dustPhase[i] + t * 0.009) % 1;
+                dp[i*3]   = dustBase[i*2]   + Math.sin(t * 0.10 + i * 1.37) * 0.09;
+                dp[i*3+1] = 0.05 + ph * 3.0;
+                dp[i*3+2] = dustBase[i*2+1] + Math.cos(t * 0.085 + i * 0.71) * 0.09;
+            }
+            dustPoints.geometry.attributes.position.needsUpdate = true;
 
             controls.update();
             renderer.render(scene, camera);
