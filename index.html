@@ -174,7 +174,7 @@
                 <input type="range" id="color-slider" min="0" max="1" step="0.01" value="0.1">
             </div>
             <div class="ctrl-row hidden" id="time-row">
-                <label for="time-slider">time</label>
+                <label for="time-slider" id="time-label">time</label>
                 <input type="range" id="time-slider" min="0" max="1" step="0.01" value="1.0">
             </div>
             <div class="ctrl-sep"></div>
@@ -222,8 +222,11 @@
         const roomGroup = new THREE.Group();
         const forestGroup = new THREE.Group();
         forestGroup.visible = false;
+        const northPoleGroup = new THREE.Group();
+        northPoleGroup.visible = false;
         scene.add(roomGroup);
         scene.add(forestGroup);
+        scene.add(northPoleGroup);
         let addTarget = scene; // construction target; switched per section below
 
         // ── Camera ──
@@ -1718,6 +1721,221 @@
         const grDay    = new THREE.Color(0x2a4022);
 
         // ═══════════════════════════════
+        //  NORTH POLE THEME
+        // ═══════════════════════════════
+        addTarget = northPoleGroup;
+
+        // ── Snowy tundra ground ──
+        const npgCanvas = document.createElement('canvas');
+        npgCanvas.width = 256; npgCanvas.height = 256;
+        const npgc = npgCanvas.getContext('2d');
+        npgc.fillStyle = '#d8e8f8'; npgc.fillRect(0, 0, 256, 256);
+        const npSnowTones = ['#c4d4e8', '#ddeeff', '#ccdaea', '#b8cede', '#e4f0ff'];
+        for (let i = 0; i < 1400; i++) {
+            npgc.fillStyle = npSnowTones[(Math.random() * npSnowTones.length) | 0];
+            npgc.fillRect(Math.random()*256, Math.random()*256, 2+Math.random()*5, 2+Math.random()*4);
+        }
+        for (let i = 0; i < 18; i++) {
+            npgc.strokeStyle = `rgba(80,120,200,${0.05 + Math.random()*0.07})`;
+            npgc.lineWidth = 1;
+            npgc.beginPath();
+            const x0 = Math.random()*256, y0 = Math.random()*256;
+            npgc.moveTo(x0, y0);
+            npgc.lineTo(x0+(Math.random()-0.5)*70, y0+(Math.random()-0.5)*70);
+            npgc.stroke();
+        }
+        const npgTex = new THREE.CanvasTexture(npgCanvas);
+        npgTex.wrapS = npgTex.wrapT = THREE.RepeatWrapping;
+        npgTex.repeat.set(5, 5);
+        const npGround = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
+            new THREE.MeshLambertMaterial({ map: npgTex }));
+        npGround.rotation.x = -Math.PI / 2;
+        npGround.receiveShadow = true;
+        addTarget.add(npGround);
+
+        // ── Snow-laden spruce trees ──
+        const npSnowCapMat = lm(0xcee4f8);
+        const npTrunkMat   = lm(0x2a1c10);
+        const npFoliageMat = lm(0x1a2a18);
+        const spruce = (x, z, s) => {
+            const trk = new THREE.Mesh(new THREE.CylinderGeometry(0.045*s, 0.085*s, 0.85*s, 6), npTrunkMat);
+            trk.position.set(x, 0.425*s, z);
+            trk.castShadow = true;
+            addTarget.add(trk);
+            [[0.52, 0.72, 1.05], [0.38, 0.62, 1.62], [0.24, 0.52, 2.18], [0.12, 0.38, 2.60]].forEach(([r, h, y]) => {
+                const dark = new THREE.Mesh(new THREE.ConeGeometry(r*s, h*s, 7), npFoliageMat);
+                dark.position.set(x, y*s, z);
+                dark.castShadow = dark.receiveShadow = true;
+                addTarget.add(dark);
+                const snow = new THREE.Mesh(new THREE.ConeGeometry(r*s*0.80, h*s*0.28, 7), npSnowCapMat);
+                snow.position.set(x, y*s + h*s*0.38, z);
+                snow.castShadow = true;
+                addTarget.add(snow);
+            });
+        };
+        for (let i = 0; i < 28; i++) {
+            const a = (i / 28)*Math.PI*2 + Math.random()*0.32;
+            const r = 3.9 + Math.random()*3.6;
+            spruce(Math.sin(a)*r, Math.cos(a)*r, 0.80 + Math.random()*1.15);
+        }
+
+        // ── Igloo ──
+        const npIglooMat    = lm(0xcad8ee);
+        const npIglooRimMat = lm(0xb2c6df);
+        const npIglooGeo    = new THREE.SphereGeometry(0.88, 12, 8, 0, Math.PI*2, 0, Math.PI*0.54);
+        const npIgloo = new THREE.Mesh(npIglooGeo, npIglooMat);
+        npIgloo.position.set(-2.9, 0.0, -2.2);
+        npIgloo.castShadow = npIgloo.receiveShadow = true;
+        addTarget.add(npIgloo);
+        const npIglooBase = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.06, 12), npIglooRimMat);
+        npIglooBase.position.set(-2.9, 0.03, -2.2);
+        addTarget.add(npIglooBase);
+        const npTunnelMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.52, 8), npIglooRimMat);
+        npTunnelMesh.rotation.z = Math.PI / 2;
+        npTunnelMesh.rotation.y = -0.68;
+        npTunnelMesh.position.set(-2.9 + 0.88, 0.33, -2.2 + 0.60);
+        addTarget.add(npTunnelMesh);
+        const npHole = new THREE.Mesh(new THREE.CircleGeometry(0.21, 8), lm(0x040610));
+        npHole.position.set(-2.9 + 1.16, 0.33, -2.2 + 0.79);
+        npHole.rotation.y = 0.88;
+        addTarget.add(npHole);
+
+        // ── Ice boulders and snowdrifts ──
+        const npIceMat   = lm(0xaac4e0);
+        const npDriftMat = lm(0xcce0f8);
+        for (let i = 0; i < 10; i++) {
+            const a = Math.random()*Math.PI*2, r = 2.6 + Math.random()*3.8;
+            const s = 0.11 + Math.random()*0.24;
+            const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), npIceMat);
+            boulder.position.set(Math.sin(a)*r, s*0.4, Math.cos(a)*r);
+            boulder.rotation.set(Math.random()*3, Math.random()*3, 0);
+            boulder.castShadow = boulder.receiveShadow = true;
+            addTarget.add(boulder);
+            const snCap = new THREE.Mesh(new THREE.SphereGeometry(s*0.72, 6, 4, 0, Math.PI*2, 0, Math.PI*0.44), npSnowCapMat);
+            snCap.position.set(Math.sin(a)*r, s*0.88, Math.cos(a)*r);
+            addTarget.add(snCap);
+        }
+        [[1.9, -1.4, 0.65], [-1.5, -2.4, 0.50], [3.0, 0.6, 0.58], [-0.8, 3.2, 0.52]].forEach(([x, z, s]) => {
+            const drift = new THREE.Mesh(new THREE.SphereGeometry(s, 8, 5, 0, Math.PI*2, 0, Math.PI*0.46), npDriftMat);
+            drift.scale.y = 0.35;
+            drift.position.set(x, 0.02, z);
+            drift.receiveShadow = true;
+            addTarget.add(drift);
+        });
+
+        // ── Dog's snowy mat (same BEDX/BEDZ so nap state machine still works) ──
+        const npBed = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.065, 9), lm(0x7a8eaa));
+        npBed.position.set(BEDX, 0.032, BEDZ);
+        npBed.receiveShadow = true;
+        addTarget.add(npBed);
+        const npBedRim = new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.058, 6, 12), npSnowCapMat);
+        npBedRim.position.set(BEDX, 0.066, BEDZ);
+        npBedRim.rotation.x = Math.PI / 2;
+        addTarget.add(npBedRim);
+
+        // ── Lantern post (shares lamp slider, relabeled "lantern") ──
+        const LNPX = 1.75, LNPZ = 1.7;
+        const npLanternPost = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.030, 1.10, 6), lm(0x18181e));
+        npLanternPost.position.set(LNPX, 0.55, LNPZ);
+        addTarget.add(npLanternPost);
+        box(0.13, 0.15, 0.13, lm(0x141418), LNPX, 1.17, LNPZ);
+        const npLanternGlowMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.08),
+            new THREE.MeshBasicMaterial({ color: 0xfff0a8, fog: false }));
+        npLanternGlowMesh.position.set(LNPX, 1.17, LNPZ);
+        addTarget.add(npLanternGlowMesh);
+        const npLanternLight = new THREE.PointLight(0xffe090, 0, 9, 2.0);
+        npLanternLight.position.set(LNPX, 1.26, LNPZ);
+        addTarget.add(npLanternLight);
+
+        // ── Aurora borealis — undulating curtain ribbons ──
+        const auroraRibbons = [];
+        const auroraHues = [0.38, 0.50, 0.78, 0.42, 0.55, 0.34, 0.62, 0.46];
+        for (let ri = 0; ri < 8; ri++) {
+            const baseH = auroraHues[ri];
+            const ht = 7.2 + ri * 0.8;
+            const wid = 15 + Math.random() * 7;
+            const dep = 0.6 + Math.random() * 1.0;
+            const aGeo = new THREE.PlaneGeometry(wid, dep, 14, 1);
+            const apos = aGeo.attributes.position;
+            for (let vi = 0; vi < apos.count; vi++) {
+                const xv = apos.getX(vi);
+                apos.setZ(vi, apos.getZ(vi) + Math.sin(xv * 0.55 + ri * 1.3) * 0.35);
+            }
+            aGeo.computeVertexNormals();
+            const aMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(baseH, 0.90, 0.55),
+                transparent: true, opacity: 0.0,
+                side: THREE.DoubleSide, fog: false, depthWrite: false,
+            });
+            const ribbon = new THREE.Mesh(aGeo, aMat);
+            ribbon.position.set((Math.random()-0.5)*5, ht, (Math.random()-0.5)*5 - 1.5);
+            ribbon.rotation.x = Math.PI / 2 + (Math.random()-0.5)*0.12;
+            ribbon.rotation.z = (Math.random()-0.5)*0.25;
+            ribbon.userData.phase  = Math.random() * Math.PI * 2;
+            ribbon.userData.baseY  = ht;
+            ribbon.userData.baseH  = baseH;
+            auroraRibbons.push(ribbon);
+            addTarget.add(ribbon);
+        }
+
+        // ── Star dome (polar night — always visible) ──
+        const NP_ST_N = 420;
+        const npStPos = new Float32Array(NP_ST_N * 3);
+        for (let i = 0; i < NP_ST_N; i++) {
+            const az = Math.random()*Math.PI*2;
+            const el = Math.random()*Math.PI*0.52 + 0.04;
+            npStPos[i*3]   = Math.cos(el)*Math.sin(az)*14;
+            npStPos[i*3+1] = Math.sin(el)*14;
+            npStPos[i*3+2] = Math.cos(el)*Math.cos(az)*14;
+        }
+        const npStGeo = new THREE.BufferGeometry();
+        npStGeo.setAttribute('position', new THREE.BufferAttribute(npStPos, 3));
+        const npStarMat = new THREE.PointsMaterial({ color: 0xe4eeff, size: 0.055, transparent: true, opacity: 0.88, fog: false });
+        const npStarPoints = new THREE.Points(npStGeo, npStarMat);
+        addTarget.add(npStarPoints);
+
+        // ── Permanent moon disc ──
+        const npMoonDisc = new THREE.Mesh(new THREE.CircleGeometry(0.70, 20),
+            new THREE.MeshBasicMaterial({ color: 0xeef4ff, transparent: true, opacity: 0.96, fog: false }));
+        npMoonDisc.position.set(6.0, 7.6, -8.5);
+        addTarget.add(npMoonDisc);
+
+        // ── Snowfall particles ──
+        const SNOW_N = 300;
+        const snowfallPos = new Float32Array(SNOW_N * 3);
+        const snowfallBase = [], snowfallPhase = [];
+        for (let i = 0; i < SNOW_N; i++) {
+            const sx = (Math.random()-0.5)*13;
+            const sy = Math.random()*5.8;
+            const sz = (Math.random()-0.5)*13;
+            snowfallBase.push(sx, sz);
+            snowfallPhase.push(Math.random());
+            snowfallPos[i*3] = sx; snowfallPos[i*3+1] = sy; snowfallPos[i*3+2] = sz;
+        }
+        const snowfallGeo = new THREE.BufferGeometry();
+        snowfallGeo.setAttribute('position', new THREE.BufferAttribute(snowfallPos, 3));
+        const snowfallMat = new THREE.PointsMaterial({ color: 0xeef4ff, size: 0.048, transparent: true, opacity: 0.78, fog: false });
+        const snowfallPoints = new THREE.Points(snowfallGeo, snowfallMat);
+        addTarget.add(snowfallPoints);
+
+        // ── North pole moonlight ──
+        const npMoonLight = new THREE.DirectionalLight(0x88aae0, 1.8);
+        npMoonLight.position.set(6.0, 7.6, -8.5);
+        npMoonLight.castShadow = true;
+        npMoonLight.shadow.mapSize.set(1024, 1024);
+        npMoonLight.shadow.camera.left = -9; npMoonLight.shadow.camera.right = 9;
+        npMoonLight.shadow.camera.top  =  9; npMoonLight.shadow.camera.bottom = -9;
+        npMoonLight.shadow.camera.near = 1;  npMoonLight.shadow.camera.far = 32;
+        npMoonLight.shadow.bias = -0.002;
+        addTarget.add(npMoonLight);
+        addTarget.add(npMoonLight.target);
+
+        // Arctic sky palette
+        const npSkyDeep  = new THREE.Color(0x010614);
+        const npSkyGlow  = new THREE.Color(0x06141e);
+        const npSkyColor = new THREE.Color();
+
+        // ═══════════════════════════════
         //  LIGHTING
         // ═══════════════════════════════
 
@@ -1804,16 +2022,35 @@
         const themeBtn = document.getElementById('theme-btn');
         const setTheme = th => {
             theme = th;
-            const forest = th === 'forest';
-            roomGroup.visible = !forest;
-            forestGroup.visible = forest;
-            document.getElementById('time-row').classList.toggle('hidden', !forest);
-            document.getElementById('color-row').classList.toggle('hidden', forest);
-            document.getElementById('lamp-tint-row').classList.toggle('hidden', forest);
-            document.getElementById('lamp-label').textContent = forest ? 'campfire' : 'lamp';
-            themeBtn.textContent = forest ? 'back inside' : 'enter the woods';
+            const isRoom   = th === 'room';
+            const isForest = th === 'forest';
+            const isNP     = th === 'northPole';
+            roomGroup.visible      = isRoom;
+            forestGroup.visible    = isForest;
+            northPoleGroup.visible = isNP;
+            document.getElementById('time-row').classList.toggle('hidden', isRoom);
+            document.getElementById('color-row').classList.toggle('hidden', !isRoom);
+            document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
+            if (isForest) {
+                document.getElementById('lamp-label').textContent = 'campfire';
+                document.getElementById('time-label').textContent = 'time';
+            } else if (isNP) {
+                document.getElementById('lamp-label').textContent = 'lantern';
+                document.getElementById('time-label').textContent = 'aurora';
+                params.time = 0.75;
+                document.getElementById('time-slider').value = 0.75;
+            } else {
+                document.getElementById('lamp-label').textContent = 'lamp';
+            }
+            if (isRoom) themeBtn.textContent = 'enter the woods';
+            else if (isForest) themeBtn.textContent = 'north pole ❄';
+            else themeBtn.textContent = 'back inside';
         };
-        themeBtn.addEventListener('click', () => setTheme(theme === 'room' ? 'forest' : 'room'));
+        themeBtn.addEventListener('click', () => {
+            if (theme === 'room') setTheme('forest');
+            else if (theme === 'forest') setTheme('northPole');
+            else setTheme('room');
+        });
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
             params.brightness = parseFloat(e.target.value);
@@ -1987,7 +2224,7 @@
                 // Directional fill — broad even illumination, color-shifted
                 fillLight.intensity = BASE.fill * b;
                 fillLight.color.copy(coolFill).lerp(warmFill, c);
-            } else {
+            } else if (theme === 'forest') {
                 // ── Forest day/night cycle (time slider: 0 night → 1 noon) ──
                 const td = params.time;
                 if (td < 0.5) skyCol.copy(skyNight).lerp(skyDusk, td * 2);
@@ -2043,6 +2280,51 @@
                     f.rotation.y = t * (1.2 + i * 0.5);
                 }
                 ember.material.color.setHSL(0.03, 1.0, 0.10 + 0.14 * Math.min(fb, 1.5) + Math.sin(t * 7) * 0.03);
+            } else if (theme === 'northPole') {
+                // ── North Pole: deep polar night with aurora borealis ──
+                const auroraStr = params.time;
+                npSkyColor.copy(npSkyDeep).lerp(npSkyGlow, auroraStr * 0.45);
+                scene.background.copy(npSkyColor);
+                scene.fog.color.copy(npSkyColor);
+                scene.fog.density = 0.018;
+
+                // Cold arctic ambient — snow bounce gives a brighter ground fill
+                hemiLight.intensity = 2.2 * b;
+                hemiLight.color.setHex(0x334488);
+                hemiLight.groundColor.setHex(0x8899bb);
+                fillLight.intensity = 1.3 * b;
+                fillLight.color.setHex(0x4466aa);
+
+                // Aurora ribbons — ripple, pulse, slowly shift hue
+                for (let ri = 0; ri < auroraRibbons.length; ri++) {
+                    const rb = auroraRibbons[ri];
+                    const wave = Math.sin(t * 0.55 + rb.userData.phase) * 0.5 + 0.5;
+                    rb.material.opacity = auroraStr * (0.14 + wave * 0.34);
+                    const hShift = Math.sin(t * 0.22 + rb.userData.phase * 0.7) * 0.06;
+                    rb.material.color.setHSL(rb.userData.baseH + hShift, 0.90, 0.55);
+                    rb.position.y = rb.userData.baseY + Math.sin(t * 0.20 + rb.userData.phase) * 0.38;
+                    rb.rotation.z = Math.sin(t * 0.14 + rb.userData.phase * 0.5) * 0.07;
+                }
+
+                // Moon always faces camera
+                npMoonDisc.lookAt(camera.position);
+                npMoonLight.intensity = 1.8 * b;
+
+                // Lantern — gentle slow flicker
+                const nplb = params.lampBrightness;
+                const nlFlick = Math.sin(t * 8.7) * 0.09 + Math.sin(t * 19.1) * 0.055;
+                npLanternLight.intensity = Math.max(0, (0.85 + nlFlick) * nplb * 2.6);
+                npLanternGlowMesh.material.color.setHSL(0.13, 0.90, 0.54 + nlFlick * 0.12);
+
+                // Snowfall — flakes drift down with gentle lateral sway
+                const sfp = snowfallPoints.geometry.attributes.position.array;
+                for (let i = 0; i < SNOW_N; i++) {
+                    const ph = (snowfallPhase[i] + t * 0.042) % 1;
+                    sfp[i*3]   = snowfallBase[i*2]   + Math.sin(t * 0.11 + i * 1.05) * 0.28;
+                    sfp[i*3+1] = 5.8 * (1.0 - ph);
+                    sfp[i*3+2] = snowfallBase[i*2+1] + Math.cos(t * 0.09 + i * 0.73) * 0.22;
+                }
+                snowfallPoints.geometry.attributes.position.needsUpdate = true;
             }
 
             // Monitor flicker × brightness
