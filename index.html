@@ -2806,12 +2806,15 @@
             const inR = 1 - THREE.MathUtils.smoothstep(x, RIV.x1 - 0.4, RIV.x1 + 0.9);
             const carve = Math.min(inL, inR);
             let h = carve * RIV.bed;
-            if (x > 3.2) h += (x - 3.2) * 0.11 * (0.8 + 0.2 * Math.sin(z * 0.6));
-            if (x < RIV.x0 - 0.6) h += (RIV.x0 - 0.6 - x) * 0.17;
+            // high wooded bluffs climb away from the water on both sides
+            if (x > 3.2) h += (x - 3.2) * 0.20 * (0.8 + 0.2 * Math.sin(z * 0.6));
+            if (x < RIV.x0 - 0.6) h += (RIV.x0 - 0.6 - x) * 0.28;
             if (z < RIV.damZ - 0.5) h = Math.max(h, RIV.bed * 0.35);
+            // valley walls rise upstream past the dam
+            if (z < RIV.damZ - 1) h += (RIV.damZ - 1 - z) * 0.085;
             return h + Math.sin(x * 2.1) * Math.cos(z * 1.7) * 0.02;
         };
-        const rvgGeo = new THREE.PlaneGeometry(30, 30, 110, 110);
+        const rvgGeo = new THREE.PlaneGeometry(44, 44, 140, 140);
         const rvgPos = rvgGeo.attributes.position;
         for (let i = 0; i < rvgPos.count; i++) {
             rvgPos.setZ(i, rivH(rvgPos.getX(i), -rvgPos.getY(i)));
@@ -2833,7 +2836,7 @@
         // autumn leaf litter on the grass
         for (let i = 0; i < 500; i++) {
             const lx = Math.random() * 1024;
-            if (lx > 230 && lx < 600) continue;
+            if (lx > 310 && lx < 590) continue;
             rvg.fillStyle = ['#a5591f', '#b8731f', '#8a4419', '#c08a2c'][(Math.random() * 4) | 0];
             rvg.globalAlpha = 0.5 + Math.random() * 0.4;
             rvg.fillRect(lx, Math.random() * 1024, 2.5, 2);
@@ -2854,20 +2857,20 @@
             }
             rvg.globalAlpha = 1;
         };
-        gravel(236, 300);   // far shore strip
-        gravel(408, 600);   // near gravel bar (desk + dog live here)
+        gravel(318, 350);   // far shore strip
+        gravel(456, 578);   // near gravel bar (desk + dog live here)
         // wet river bed between the bars
-        rvg.fillStyle = '#43423e'; rvg.fillRect(300, 0, 108, 1024);
+        rvg.fillStyle = '#43423e'; rvg.fillRect(350, 0, 106, 1024);
         for (let i = 0; i < 700; i++) {
             const t2 = 58 + Math.random() * 46 | 0;
             rvg.fillStyle = `rgb(${t2},${t2},${t2 - 4})`;
             rvg.beginPath();
-            rvg.ellipse(300 + Math.random() * 108, Math.random() * 1024, 1.4 + Math.random() * 3, 1 + Math.random() * 2.2, Math.random() * 3, 0, Math.PI * 2);
+            rvg.ellipse(350 + Math.random() * 106, Math.random() * 1024, 1.4 + Math.random() * 3, 1 + Math.random() * 2.2, Math.random() * 3, 0, Math.PI * 2);
             rvg.fill();
         }
         // dark waterline stains at both bed edges
         rvg.fillStyle = 'rgba(30,30,28,0.55)';
-        rvg.fillRect(294, 0, 12, 1024); rvg.fillRect(402, 0, 12, 1024);
+        rvg.fillRect(344, 0, 12, 1024); rvg.fillRect(450, 0, 12, 1024);
         const rvgTex = new THREE.CanvasTexture(rvgCv);
         rvgTex.colorSpace = THREE.SRGBColorSpace;
         rvgTex.anisotropy = MAX_ANISO;
@@ -2899,13 +2902,13 @@
         rivTex.repeat.set(2, 5);
         rivTex.anisotropy = MAX_ANISO;
         const riverWater = new THREE.Mesh(
-            new THREE.PlaneGeometry(5.3, 17.5),
+            new THREE.PlaneGeometry(5.3, 22),
             new THREE.MeshStandardMaterial({
                 map: rivTex, transparent: true, opacity: 0.92,
                 roughness: 0.13, metalness: 0.22, color: 0xbfd8d4,
             }));
         riverWater.rotation.x = -Math.PI / 2;
-        riverWater.position.set((RIV.x0 + RIV.x1) / 2, RIV.water, RIV.damZ + 8.75);
+        riverWater.position.set((RIV.x0 + RIV.x1) / 2, RIV.water, RIV.damZ + 11);
         addTarget.add(riverWater);
 
         // ── Churned white water below the spillway ──
@@ -2931,7 +2934,7 @@
             new THREE.MeshBasicMaterial({ map: rapidsTex, transparent: true, opacity: 0.9, depthWrite: false }));
         rapids.rotation.x = -Math.PI / 2;
         rapids.renderOrder = 2;
-        rapids.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.02, RIV.damZ + 2.35);
+        rapids.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.02, RIV.damZ + 3.5);
         addTarget.add(rapids);
         const rapids2Tex = foamCanvas(0.55);
         rapids2Tex.repeat.set(3, 1);
@@ -2940,7 +2943,7 @@
             new THREE.MeshBasicMaterial({ map: rapids2Tex, transparent: true, opacity: 0.4, depthWrite: false }));
         rapids2.rotation.x = -Math.PI / 2;
         rapids2.renderOrder = 2;
-        rapids2.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.015, RIV.damZ + 4.3);
+        rapids2.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.015, RIV.damZ + 5.6);
         addTarget.add(rapids2);
 
         // ── Still reservoir behind the dam ──
@@ -2957,10 +2960,10 @@
         const resTex = new THREE.CanvasTexture(resCv);
         resTex.wrapS = resTex.wrapT = THREE.RepeatWrapping;
         const reservoir = new THREE.Mesh(
-            new THREE.PlaneGeometry(10.5, 4.6),
+            new THREE.PlaneGeometry(13.5, 7.2),
             new THREE.MeshStandardMaterial({ map: resTex, roughness: 0.1, metalness: 0.3, color: 0x9ab8bc }));
         reservoir.rotation.x = -Math.PI / 2;
-        reservoir.position.set(-2.9, 1.26, RIV.damZ - 2.5);
+        reservoir.position.set(-3.9, 2.55, RIV.damZ - 3.7);
         addTarget.add(reservoir);
 
         // ── Concrete dam: stepped spillway, piers, crest walkway ──
@@ -2984,50 +2987,86 @@
         const concMat = new THREE.MeshStandardMaterial({ map: concTex, roughness: 0.9 });
         const concDark = lm(0x8a867c, 0, 0, 0.92);
 
-        const DAM = { xL: -8.4, xR: 0.9, crest: 1.62 };
+        const DAM = { xL: -9.6, xR: 1.0, crest: 3.05 };
         const damCX = (DAM.xL + DAM.xR) / 2, damW = DAM.xR - DAM.xL;
-        // upstream wall
-        box(damW, 2.3, 0.5, concMat, damCX, 0.55, RIV.damZ - 0.28);
+        // upstream wall holds back the pond
+        box(damW, 4.1, 0.55, concMat, damCX, 1.05, RIV.damZ - 0.30);
         // stepped spillway face — only across the river channel
         const chanCX = (RIV.x0 + RIV.x1) / 2, chanW = RIV.x1 - RIV.x0 + 0.7;
-        for (let s = 0; s < 5; s++) {
-            box(chanW, 0.37, 0.5 + s * 0.34, concMat, chanCX, 1.42 - s * 0.36, RIV.damZ + s * 0.165);
+        for (let s = 0; s < 8; s++) {
+            box(chanW, 0.38, 0.5 + s * 0.30, concMat, chanCX, 2.86 - s * 0.36, RIV.damZ + s * 0.15);
         }
         // solid gravity sections tie the spillway into both abutments
-        box(2.7, 2.35, 1.1, concMat, -0.65, 0.52, RIV.damZ + 0.05);
-        box(1.5, 2.35, 1.1, concMat, -7.85, 0.52, RIV.damZ + 0.05);
-        // buttress piers over the spill bays
+        box(2.7, 4.0, 1.3, concMat, -0.65, 1.05, RIV.damZ + 0.1);
+        box(2.4, 4.0, 1.3, concMat, -8.35, 1.05, RIV.damZ + 0.1);
+        // buttress piers run the full face, capped in darker concrete
         const pierXs = [-6.85, -5.72, -4.6, -3.48, -2.36];
-        pierXs.forEach(px => box(0.26, 2.35, 2.0, concMat, px, 0.72, RIV.damZ + 0.42));
+        pierXs.forEach(px => {
+            box(0.30, 4.15, 3.2, concMat, px, 1.05, RIV.damZ + 0.85);
+            box(0.42, 0.14, 3.3, concDark, px, 3.19, RIV.damZ + 0.85);
+        });
         // crest walkway + steel railing
-        box(damW + 0.3, 0.12, 0.85, concDark, damCX, DAM.crest + 0.06, RIV.damZ - 0.05);
+        box(damW + 0.3, 0.14, 0.95, concDark, damCX, DAM.crest + 0.07, RIV.damZ - 0.08);
         const railMat = lm(0x2e3236, 0, 0, 0.5, 0.7);
         for (let rx2 = DAM.xL + 0.2; rx2 < DAM.xR; rx2 += 0.62) {
-            box(0.03, 0.30, 0.03, railMat, rx2, DAM.crest + 0.27, RIV.damZ + 0.32);
+            box(0.03, 0.32, 0.03, railMat, rx2, DAM.crest + 0.29, RIV.damZ + 0.34);
         }
-        box(damW + 0.2, 0.025, 0.03, railMat, damCX, DAM.crest + 0.42, RIV.damZ + 0.32);
-        box(damW + 0.2, 0.02, 0.025, railMat, damCX, DAM.crest + 0.30, RIV.damZ + 0.32);
-        // powerhouse — tan brick block at the right abutment
+        box(damW + 0.2, 0.025, 0.03, railMat, damCX, DAM.crest + 0.45, RIV.damZ + 0.34);
+        box(damW + 0.2, 0.02, 0.025, railMat, damCX, DAM.crest + 0.32, RIV.damZ + 0.34);
+        // gantry crane parked over the second bay
+        const gantryMat = lm(0x2e4038, 0, 0, 0.6, 0.5);
+        const gantryX = (pierXs[1] + pierXs[2]) / 2;
+        [-0.62, 0.62].forEach(gx => {
+            box(0.09, 1.3, 0.09, gantryMat, gantryX + gx, DAM.crest + 0.72, RIV.damZ - 0.32);
+            box(0.09, 1.3, 0.09, gantryMat, gantryX + gx, DAM.crest + 0.72, RIV.damZ + 0.22);
+            box(0.09, 0.08, 0.66, gantryMat, gantryX + gx, DAM.crest + 1.33, RIV.damZ - 0.05);
+        });
+        box(1.7, 0.16, 0.72, gantryMat, gantryX, DAM.crest + 1.44, RIV.damZ - 0.05);
+        box(0.30, 0.34, 0.30, lm(0x4a4e52, 0, 0, 0.5, 0.7), gantryX, DAM.crest + 1.10, RIV.damZ - 0.05);
+        // crest service lights
+        [-7.4, -4.6, -1.8].forEach(lx2 => {
+            box(0.035, 0.58, 0.035, railMat, lx2, DAM.crest + 0.43, RIV.damZ - 0.40);
+            box(0.10, 0.07, 0.10, lm(0x443320, 0xffcc88, 1.1), lx2, DAM.crest + 0.75, RIV.damZ - 0.40);
+        });
+        // powerhouse — tall tan brick block at the right abutment
         const brickMat = lm(0xa9855c, 0, 0, 0.85);
-        box(2.0, 1.95, 1.7, brickMat, 1.7, 0.97, RIV.damZ + 0.35);
-        box(2.16, 0.16, 1.86, concDark, 1.7, 2.0, RIV.damZ + 0.35);   // parapet
-        for (let wi = 0; wi < 3; wi++) {  // tall arched-window strips
-            box(0.30, 1.0, 0.03, lm(0x1c2a30, 0x223844, 0.5), 1.15 + wi * 0.56, 1.05, RIV.damZ + 1.21);
+        box(3.0, 2.9, 2.3, brickMat, 2.1, 1.45, RIV.damZ + 0.5);
+        box(3.2, 0.18, 2.5, concDark, 2.1, 2.97, RIV.damZ + 0.5);   // parapet
+        box(0.6, 0.3, 0.5, concDark, 1.4, 3.2, RIV.damZ + 0.2);     // rooftop vents
+        box(0.4, 0.42, 0.4, concDark, 2.9, 3.25, RIV.damZ + 0.8);
+        for (let wi = 0; wi < 4; wi++) {  // tall arched-window strips
+            box(0.34, 1.5, 0.03, lm(0x1c2a30, 0x223844, 0.5), 1.05 + wi * 0.7, 1.6, RIV.damZ + 1.66);
         }
+        box(0.55, 0.95, 0.03, lm(0x2a2622, 0, 0, 0.8), 3.1, 0.62, RIV.damZ + 1.66);  // steel door
         // wing walls into the banks
-        box(1.6, 1.7, 0.35, concMat, DAM.xL - 0.6, 0.55, RIV.damZ + 0.15, 0, 0.5, 0);
-        box(1.2, 1.5, 0.35, concMat, DAM.xR + 0.4, 0.45, RIV.damZ + 0.2, 0, -0.5, 0);
+        box(2.0, 3.2, 0.4, concMat, DAM.xL - 0.7, 1.0, RIV.damZ + 0.15, 0, 0.5, 0);
+        box(1.6, 3.0, 0.4, concMat, DAM.xR + 0.5, 0.9, RIV.damZ + 0.2, 0, -0.5, 0);
+        // safety buoy line strung across the pond
+        for (let bi = 0; bi < 9; bi++) {
+            const bx2 = RIV.x0 + 0.2 + bi * ((RIV.x1 - RIV.x0 + 1.6) / 8);
+            const buoy = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), lm(0xd84a10, 0xd84a10, 0.25));
+            buoy.position.set(bx2, 2.60, RIV.damZ - 1.5);
+            addTarget.add(buoy);
+        }
 
         // ── White water sheets pouring down the spill bays ──
         const spillCv = mkCanvas(128, 256);
         const spc = spillCv.getContext('2d');
-        spc.fillStyle = 'rgba(225,240,240,0.55)'; spc.fillRect(0, 0, 128, 256);
-        for (let i = 0; i < 90; i++) {
-            spc.strokeStyle = Math.random() < 0.7 ? '#ffffff' : '#cfe8e6';
-            spc.globalAlpha = 0.25 + Math.random() * 0.5;
-            spc.lineWidth = 1 + Math.random() * 2.4;
+        spc.fillStyle = '#e4f2f0'; spc.fillRect(0, 0, 128, 256);
+        for (let i = 0; i < 160; i++) {
+            spc.strokeStyle = Math.random() < 0.6 ? '#ffffff' : '#9cc4c0';
+            spc.globalAlpha = 0.3 + Math.random() * 0.55;
+            spc.lineWidth = 1.5 + Math.random() * 3;
             const sx = Math.random() * 128;
             spc.beginPath(); spc.moveTo(sx, 0); spc.lineTo(sx + (Math.random() - 0.5) * 10, 256); spc.stroke();
+        }
+        // frothy churn where the sheet hits the basin
+        for (let i = 0; i < 70; i++) {
+            spc.fillStyle = '#ffffff';
+            spc.globalAlpha = 0.35 + Math.random() * 0.5;
+            spc.beginPath();
+            spc.ellipse(Math.random() * 128, 210 + Math.random() * 46, 4 + Math.random() * 9, 2.5 + Math.random() * 5, 0, 0, Math.PI * 2);
+            spc.fill();
         }
         spc.globalAlpha = 1;
         const spillSheets = [];
@@ -3036,22 +3075,23 @@
             const sTex = new THREE.CanvasTexture(spillCv);
             sTex.wrapS = sTex.wrapT = THREE.RepeatWrapping;
             const sheet = new THREE.Mesh(
-                new THREE.PlaneGeometry(0.92, 2.5),
-                new THREE.MeshBasicMaterial({ map: sTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+                new THREE.PlaneGeometry(0.95, 3.6),
+                new THREE.MeshBasicMaterial({ map: sTex, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
             sheet.renderOrder = 3;
-            sheet.position.set(bx, 0.68, RIV.damZ + 1.10);
-            sheet.rotation.x = -0.58;
+            // matched to the stepped face slope so the water rides proud of the concrete
+            sheet.position.set(bx, 1.62, RIV.damZ + 1.58);
+            sheet.rotation.x = -0.686;
             addTarget.add(sheet);
             spillSheets.push(sheet);
         }
 
         // ── Spray mist rising off the stilling basin ──
-        const MIST_N = 46;
+        const MIST_N = 70;
         const mistPos = new Float32Array(MIST_N * 3);
         const mistBase = [];
         for (let i = 0; i < MIST_N; i++) {
             const mx = RIV.x0 + 0.3 + Math.random() * (RIV.x1 - RIV.x0 - 0.6);
-            const mz = RIV.damZ + 0.2 + Math.random() * 1.6;
+            const mz = RIV.damZ + 0.3 + Math.random() * 2.6;
             mistBase.push(mx, mz, Math.random());
             mistPos[i * 3] = mx; mistPos[i * 3 + 1] = 0.2; mistPos[i * 3 + 2] = mz;
         }
@@ -3142,17 +3182,53 @@
                 addTarget.add(c);
             }
         };
-        // near bank, behind the desk
-        [[4.6, -3.2, 1.5], [6.2, -1.0, 1.9], [5.4, 1.8, 1.3], [7.2, 3.6, 1.7], [4.9, 5.4, 1.2],
-         [8.4, -4.2, 2.0], [7.8, 7.0, 1.5], [3.9, 8.2, 1.1]].forEach(([x, z, s]) =>
-            Math.random() < 0.5 ? maple(x, z, s) : pine(x, z, s));
-        // far bank across the river
-        [[-9.4, -2.5, 1.6], [-10.6, 0.4, 2.0], [-9.0, 2.8, 1.3], [-11.4, 4.6, 1.7],
-         [-9.8, 7.2, 1.4], [-8.8, 5.0, 1.1]].forEach(([x, z, s]) =>
-            Math.random() < 0.6 ? maple(x, z, s) : pine(x, z, s));
-        // crowns peeking over the dam on both abutments
-        [[-9.6, -7.4, 1.8], [3.4, -7.2, 1.6], [5.2, -6.4, 1.3], [-8.6, -6.8, 1.2]].forEach(([x, z, s]) =>
-            Math.random() < 0.5 ? maple(x, z, s) : pine(x, z, s));
+        // pines that follow the terrain (the forest pine assumes flat ground)
+        const rPine = (x, z, s) => {
+            const gy = rivH(x, z);
+            const mat = pineMats[(Math.random() * pineMats.length) | 0];
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.10 * s, 0.8 * s, 6), trunkMat);
+            trunk.position.set(x, gy + 0.4 * s, z);
+            trunk.castShadow = trunk.receiveShadow = true;
+            addTarget.add(trunk);
+            [[0.62, 0.95, 0.95], [0.46, 0.85, 1.55], [0.30, 0.75, 2.10]].forEach(([r, h2, y2]) => {
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(r * s, h2 * s, 7), mat);
+                cone.position.set(x, gy + y2 * s, z);
+                cone.castShadow = cone.receiveShadow = true;
+                addTarget.add(cone);
+            });
+        };
+        const treeAt = (x, z, s) => Math.random() < 0.5 ? maple(x, z, s) : rPine(x, z, s);
+        // dense wooded bluff behind the desk
+        for (let i = 0; i < 16; i++)
+            treeAt(4.2 + Math.random() * 7.5, -9 + Math.random() * 19, 1.3 + Math.random() * 1.3);
+        // far bank climbs into solid forest
+        for (let i = 0; i < 15; i++)
+            treeAt(-9.0 - Math.random() * 5.5, -9 + Math.random() * 18, 1.4 + Math.random() * 1.4);
+        // forest crowding the pond shores above the dam
+        for (let i = 0; i < 12; i++) {
+            const left = Math.random() < 0.5;
+            treeAt(left ? -13.5 + Math.random() * 3.5 : 2.4 + Math.random() * 6,
+                   RIV.damZ - 1.6 - Math.random() * 6.5, 1.5 + Math.random() * 1.3);
+        }
+        // distant ridge line, silhouetted in the haze
+        for (let i = 0; i < 13; i++)
+            treeAt(-19 + i * 3 + Math.random() * 2, -14.5 - Math.random() * 4, 2.4 + Math.random() * 1.4);
+        // downstream treelines closing off both sides of the valley
+        for (let i = 0; i < 8; i++)
+            treeAt(Math.random() < 0.5 ? 9 + Math.random() * 5 : -11 - Math.random() * 5,
+                   9 + Math.random() * 8, 1.8 + Math.random() * 1.4);
+        // shrubs hugging the gravel bars
+        for (let i = 0; i < 10; i++) {
+            const sx = Math.random() < 0.5 ? -2.45 + Math.random() * 0.55 : RIV.x0 - 1.0 + Math.random();
+            const sz = -4 + Math.random() * 11;
+            const shrub = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(0.14 + Math.random() * 0.15, 0),
+                lm([0x2e4a26, 0x3c5530, 0x59512e][(Math.random() * 3) | 0], 0, 0, 1.0));
+            shrub.position.set(sx, rivH(sx, sz) + 0.10, sz);
+            shrub.scale.y = 0.7;
+            shrub.castShadow = shrub.receiveShadow = true;
+            addTarget.add(shrub);
+        }
 
         // ── Boulders on the bars, a snagged driftwood log ──
         for (let i = 0; i < 9; i++) {
@@ -3184,8 +3260,8 @@
         const riverSun = new THREE.DirectionalLight(0xffe8c0, 0);
         riverSun.castShadow = true;
         riverSun.shadow.mapSize.set(2048, 2048);
-        riverSun.shadow.camera.left = -11; riverSun.shadow.camera.right = 11;
-        riverSun.shadow.camera.top = 11;   riverSun.shadow.camera.bottom = -11;
+        riverSun.shadow.camera.left = -14; riverSun.shadow.camera.right = 14;
+        riverSun.shadow.camera.top = 14;   riverSun.shadow.camera.bottom = -14;
         riverSun.shadow.camera.near = 1;   riverSun.shadow.camera.far = 40;
         riverSun.shadow.bias = -0.0015;
         addTarget.add(riverSun);
