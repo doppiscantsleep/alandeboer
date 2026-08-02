@@ -4273,9 +4273,116 @@
             box(0.02, s3 * 0.5, 0.02, lm(0x4a5a2a, 0, 0, 0.9), px3, py3 + s3 * 1.55, pz3, 0, 0, 0.2);
         };
         pumpkin(FPX2 + 0.35, 1.47, FPZ2 + 0.28, 0.07);
-        pumpkin(2.6, 0, -2.3, 0.2);
         pumpkin(2.25, 0, -2.55, 0.13);
-        pumpkin(-2.6, 0, -0.4, 0.16);
+        // jack-o'-lanterns: carved faces flickering with candlelight inside
+        const jacks = [];
+        const jackOLantern = (jx, jz, s3, ry3) => {
+            const g = new THREE.Group();
+            g.position.set(jx, 0, jz);
+            g.rotation.y = ry3;
+            addTarget.add(g);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(s3, 12, 9), lm(0xd86818, 0, 0, 0.75));
+            body.scale.y = 0.78;
+            body.position.y = s3 * 0.75;
+            body.castShadow = true;
+            g.add(body);
+            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.02, s3 * 0.5, 0.02), lm(0x4a5a2a, 0, 0, 0.9));
+            stem.position.y = s3 * 1.55;
+            stem.rotation.z = 0.2;
+            g.add(stem);
+            const faceMat = lm(0x3a1400, 0xffb838, 1.8);
+            const fz2 = s3 * 0.88;
+            [[-0.38, 0.15], [0.38, 0.15]].forEach(([ex2, ey2]) => {   // triangle-ish eyes
+                const eye = new THREE.Mesh(new THREE.ConeGeometry(s3 * 0.18, s3 * 0.3, 3), faceMat);
+                eye.position.set(ex2 * s3, s3 * (0.85 + ey2), fz2);
+                g.add(eye);
+            });
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(s3 * 0.8, s3 * 0.14, 0.01), faceMat);
+            mouth.position.set(0, s3 * 0.55, fz2);
+            g.add(mouth);
+            [[-0.28, 1], [0, -1], [0.28, 1]].forEach(([tx2, dir2]) => {   // jagged teeth
+                const tooth = new THREE.Mesh(new THREE.BoxGeometry(s3 * 0.13, s3 * 0.12, 0.01), faceMat);
+                tooth.position.set(tx2 * s3, s3 * (0.55 + dir2 * 0.11), fz2);
+                g.add(tooth);
+            });
+            const jl = new THREE.PointLight(0xff9830, 0.6, 1.6);
+            jl.position.set(0, s3 * 0.85, s3 * 0.4);
+            g.add(jl);
+            jacks.push({ l: jl, ph: Math.random() * 9 });
+        };
+        jackOLantern(2.6, -2.3, 0.2, -0.7);
+        jackOLantern(-2.6, -0.4, 0.16, 1.1);
+
+        // ── Mounted deer head on a wooden shield, left of the hearth ──
+        const deer = new THREE.Group();
+        deer.position.set(-0.6, 2.1, -2.92);
+        addTarget.add(deer);
+        const plaque = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 10), oakMat);
+        plaque.rotation.x = Math.PI / 2;
+        deer.add(plaque);
+        const deerMat = lm(0x7a5a38, 0, 0, 0.9);
+        const dP2 = (w, h, d, m, x, y, z, rz4 = 0) => {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+            mesh.position.set(x, y, z);
+            mesh.rotation.z = rz4;
+            mesh.castShadow = true;
+            deer.add(mesh);
+            return mesh;
+        };
+        dP2(0.17, 0.19, 0.16, deerMat, 0, 0.06, 0.12);         // head
+        dP2(0.09, 0.10, 0.12, deerMat, 0, -0.04, 0.22);        // muzzle
+        dP2(0.045, 0.035, 0.03, lm(0x141210, 0, 0, 0.5), 0, -0.06, 0.29);  // nose
+        dP2(0.06, 0.09, 0.03, deerMat, -0.11, 0.14, 0.10, 0.5);  // ears
+        dP2(0.06, 0.09, 0.03, deerMat, 0.11, 0.14, 0.10, -0.5);
+        [[-1, 0], [1, 0]].forEach(([side]) => {               // antlers, three tines each
+            const antMat = lm(0xc8b898, 0, 0, 0.85);
+            dP2(0.035, 0.30, 0.035, antMat, side * 0.10, 0.30, 0.06, side * -0.35);
+            dP2(0.03, 0.16, 0.03, antMat, side * 0.19, 0.38, 0.06, side * -0.9);
+            dP2(0.028, 0.13, 0.028, antMat, side * 0.06, 0.44, 0.06, side * 0.25);
+        });
+
+        // ── Tabby asleep on the bar top, tail curled round ──
+        const catMat = lm(0x585048, 0, 0, 0.9);
+        const catDark = lm(0x3a342e, 0, 0, 0.9);
+        const cat = new THREE.Group();
+        cat.position.set(2.68, 0.97, 0.55);
+        cat.rotation.y = -0.6;
+        addTarget.add(cat);
+        const catBody = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), catMat);
+        catBody.scale.set(1, 0.62, 0.85);
+        catBody.position.y = 0.075;
+        catBody.castShadow = true;
+        cat.add(catBody);
+        [[-0.05, 0.02], [0.04, -0.01]].forEach(([sx3, sz3]) => {  // tabby stripes
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.2), catDark);
+            stripe.position.set(sx3, 0.09, sz3);
+            cat.add(stripe);
+        });
+        const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.065, 9, 7), catMat);
+        catHead.position.set(0.10, 0.06, 0.06);
+        catHead.castShadow = true;
+        cat.add(catHead);
+        [[-1], [1]].forEach(([side]) => {
+            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.04, 4), catDark);
+            ear.position.set(0.10 + side * 0.035, 0.125, 0.06);
+            cat.add(ear);
+        });
+        const catTail = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 6, 14, Math.PI * 1.3), catDark);
+        catTail.rotation.x = -Math.PI / 2;
+        catTail.position.set(-0.01, 0.025, 0.01);
+        cat.add(catTail);
+
+        // ── Rain streaking down the window pane ──
+        const rainStreaks = [];
+        for (let i = 0; i < 9; i++) {
+            const streak = new THREE.Mesh(
+                new THREE.BoxGeometry(0.004, 0.05 + Math.random() * 0.09, 0.006),
+                new THREE.MeshBasicMaterial({ color: 0x9ab8d8, transparent: true, opacity: 0.4 }));
+            streak.position.set(-3.0, 1.7, 1.0);
+            streak.userData = { z0: 0.62 + Math.random() * 0.8, sp: 0.35 + Math.random() * 0.5, ph: Math.random() };
+            addTarget.add(streak);
+            rainStreaks.push(streak);
+        }
 
         // ── The cauldron: black pot, green brew, rising bubbles ──
         const CAX = -2.05, CAZ = -2.1;
@@ -5587,6 +5694,21 @@
                 if (soundOn && audioCtx && t > tvNextGloop) {
                     tvNextGloop = t + 1.2 + Math.random() * 2.8;
                     gloop();
+                }
+
+                // jack-o'-lanterns gutter like real candle stubs
+                for (const j of jacks) {
+                    j.l.intensity = (0.45 + Math.sin(t * 9 + j.ph) * 0.15 + Math.sin(t * 27 + j.ph * 3) * 0.10) * b;
+                }
+                // the bar cat breathes; one ear twitches now and then
+                catBody.scale.y = 0.62 + Math.sin(t * 1.6) * 0.025;
+                catHead.position.y = 0.06 + Math.sin(t * 1.6) * 0.004;
+                // rain slides down the pane
+                for (const rs of rainStreaks) {
+                    const p3 = (rs.userData.ph + t * rs.userData.sp) % 1;
+                    rs.position.y = 2.18 - p3 * 0.95;
+                    rs.position.z = rs.userData.z0;
+                    rs.material.opacity = 0.15 + (1 - p3) * 0.3;
                 }
             }
 
