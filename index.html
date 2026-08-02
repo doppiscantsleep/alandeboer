@@ -1895,6 +1895,42 @@
             mc.fillText('⚡ deployed: alandeboer.computer', W - 14, H - 9);
             mc.textAlign = 'left';
         }
+        // ── About page: shown when a visitor clicks the monitor ──
+        const aboutLines = [
+            ['$ whoami', '#7ee787'],
+            ['Alan DeBoer', '#e6edf3'],
+            ['', ''],
+            ['$ cat about.txt', '#7ee787'],
+            ['I build small worlds and the software around them.', '#9aa4b2'],
+            ['Michigan — salmon rivers, storm coasts, long winters.', '#9aa4b2'],
+            ['', ''],
+            ['$ ls links/', '#7ee787'],
+            ['github.com/doppiscantsleep', '#79c0ff'],
+            ['alandeboer.computer  (you are here)', '#79c0ff'],
+            ['', ''],
+            ['$ clark --status', '#7ee787'],
+            ['● beagle detected: nearby, probably sniffing', '#ffa657'],
+        ];
+        function drawAbout(elapsed) {
+            const W = 1024, H = 440;
+            mc.textAlign = 'left';
+            mc.fillStyle = '#0d1117'; mc.fillRect(0, 0, W, H);
+            mc.fillStyle = '#10141b'; mc.fillRect(0, 0, W, 30);
+            mc.fillStyle = '#8a93a3'; mc.font = '13px monospace';
+            mc.fillText('alan@computer — ~/about', 18, 20);
+            mc.font = '19px monospace';
+            const shown = Math.min(aboutLines.length, 1 + Math.floor(elapsed * 5));
+            for (let i = 0; i < shown; i++) {
+                const [line, col] = aboutLines[i];
+                if (!line) continue;
+                mc.fillStyle = col;
+                mc.fillText(line, 34, 72 + i * 27);
+            }
+            if (Math.floor(elapsed * 2.5) % 2 === 0) {
+                mc.fillStyle = '#e6edf3';
+                mc.fillRect(34, 72 + shown * 27 - 14, 10, 18);
+            }
+        }
         drawMonitor(0);
         const monTex = new THREE.CanvasTexture(monCanvas);
         const monScrMat = new THREE.MeshBasicMaterial({ map: monTex });
@@ -1902,6 +1938,10 @@
         monScr.position.set(MOX, MOY, MOZ + 0.008);
         addTarget.add(monScr);
         let monLastDraw = 0;
+        // click-to-zoom state: fly in to read, click anywhere to fly back
+        let monZoom = false, monZoomStart = 0, zoomSaved = null;
+        const zoomCamTo = new THREE.Vector3(MOX, MOY + 0.01, MOZ + 0.86);
+        const zoomTgtTo = new THREE.Vector3(MOX, MOY, MOZ);
         // Screen tint endpoints for color slider
         const scrCool = new THREE.Color(0xdfe8ff);
         const scrWarm = new THREE.Color(0xffd9ae);
@@ -2503,401 +2543,364 @@
         // ═══════════════════════════════
         addTarget = spaceshipGroup;
 
-        // ── Canvas textures ──
+        // ═══════════════════════════════
+        //  SPACESHIP — orbital module interior, ISS-style
+        // ═══════════════════════════════
 
-        // Metal deck grating
-        const spDkCv = document.createElement('canvas');
-        spDkCv.width = spDkCv.height = 256;
-        const spdk = spDkCv.getContext('2d');
-        spdk.fillStyle = '#181c22'; spdk.fillRect(0, 0, 256, 256);
-        const GS = 32;
-        for (let i = 0; i <= 256; i += GS) {
-            spdk.strokeStyle = '#262e3c'; spdk.lineWidth = 1.5;
-            spdk.beginPath(); spdk.moveTo(i,0); spdk.lineTo(i,256); spdk.stroke();
-            spdk.beginPath(); spdk.moveTo(0,i); spdk.lineTo(256,i); spdk.stroke();
-            spdk.strokeStyle = '#1c2230'; spdk.lineWidth = 0.5;
-            if (i + GS/2 <= 256) {
-                spdk.beginPath(); spdk.moveTo(i+GS/2,0); spdk.lineTo(i+GS/2,256); spdk.stroke();
-                spdk.beginPath(); spdk.moveTo(0,i+GS/2); spdk.lineTo(256,i+GS/2); spdk.stroke();
+        // ── Canvas textures ──
+        // Quilted acoustic padding, off-white with seam grid and wear
+        const padCv = mkCanvas(512, 512);
+        {
+            const pc2 = padCv.getContext('2d');
+            pc2.fillStyle = '#dedbd2'; pc2.fillRect(0, 0, 512, 512);
+            const Q = 64;
+            for (let qy = 0; qy < 512; qy += Q) for (let qx = 0; qx < 512; qx += Q) {
+                const g2 = pc2.createRadialGradient(qx + Q/2, qy + Q/2, 4, qx + Q/2, qy + Q/2, Q * 0.72);
+                g2.addColorStop(0, 'rgba(255,255,255,0.16)');
+                g2.addColorStop(1, 'rgba(70,68,60,0.14)');
+                pc2.fillStyle = g2; pc2.fillRect(qx, qy, Q, Q);
             }
+            pc2.strokeStyle = 'rgba(90,88,80,0.5)'; pc2.lineWidth = 2;
+            for (let i = 0; i <= 512; i += Q) {
+                pc2.beginPath(); pc2.moveTo(i, 0); pc2.lineTo(i, 512); pc2.stroke();
+                pc2.beginPath(); pc2.moveTo(0, i); pc2.lineTo(512, i); pc2.stroke();
+            }
+            for (let i = 0; i <= 512; i += Q) for (let j = 0; j <= 512; j += Q) {
+                pc2.fillStyle = '#8a877e';
+                pc2.beginPath(); pc2.arc(i, j, 3, 0, Math.PI * 2); pc2.fill();
+            }
+            speckle(pc2, 512, 512, 1800, 0.05, '#ffffff', '#6a675e');
         }
-        for (let x = 0; x <= 256; x += GS) for (let y = 0; y <= 256; y += GS) {
-            spdk.fillStyle = '#303848'; spdk.beginPath(); spdk.arc(x,y,2.5,0,Math.PI*2); spdk.fill();
-            spdk.fillStyle = '#404858'; spdk.beginPath(); spdk.arc(x-0.5,y-0.5,1,0,Math.PI*2); spdk.fill();
-        }
-        for (let xi = 4; xi < 256; xi += GS) for (let yi = 4; yi < 256; yi += GS) {
-            spdk.fillStyle = 'rgba(255,255,255,0.012)'; spdk.fillRect(xi, yi, GS-8, GS-8);
+        const padTex = new THREE.CanvasTexture(padCv);
+        padTex.wrapS = padTex.wrapT = THREE.RepeatWrapping;
+        padTex.repeat.set(6, 2.5);
+        padTex.colorSpace = THREE.SRGBColorSpace;
+        const padMat = new THREE.MeshStandardMaterial({ map: padTex, roughness: 0.92, side: THREE.BackSide });
+
+        // Light aluminum deck grid
+        const spDkCv = mkCanvas(256, 256);
+        {
+            const dk = spDkCv.getContext('2d');
+            dk.fillStyle = '#9a9da2'; dk.fillRect(0, 0, 256, 256);
+            for (let i = 0; i <= 256; i += 32) {
+                dk.strokeStyle = '#7e8288'; dk.lineWidth = 2;
+                dk.beginPath(); dk.moveTo(i, 0); dk.lineTo(i, 256); dk.stroke();
+                dk.beginPath(); dk.moveTo(0, i); dk.lineTo(256, i); dk.stroke();
+            }
+            for (let x = 16; x < 256; x += 32) for (let y = 16; y < 256; y += 32) {
+                dk.fillStyle = '#84888e';
+                dk.beginPath(); dk.arc(x, y, 5, 0, Math.PI * 2); dk.fill();
+                dk.fillStyle = '#b0b4ba';
+                dk.beginPath(); dk.arc(x - 1, y - 1, 2, 0, Math.PI * 2); dk.fill();
+            }
+            speckle(dk, 256, 256, 1400, 0.08, '#c2c6cc', '#5e6268');
         }
         const spDkTex = new THREE.CanvasTexture(spDkCv);
-        spDkTex.wrapS = spDkTex.wrapT = THREE.RepeatWrapping; spDkTex.repeat.set(5, 5);
+        spDkTex.wrapS = spDkTex.wrapT = THREE.RepeatWrapping;
+        spDkTex.repeat.set(3, 5);
+        spDkTex.colorSpace = THREE.SRGBColorSpace;
 
-        // Bulkhead wall panels
-        const spWlCv = document.createElement('canvas');
-        spWlCv.width = spWlCv.height = 512;
-        const spwl = spWlCv.getContext('2d');
-        spwl.fillStyle = '#12151c'; spwl.fillRect(0, 0, 512, 512);
-        for (let px = 0; px < 4; px++) for (let py = 0; py < 4; py++) {
-            const bx = px*128, by = py*128;
-            spwl.fillStyle = `rgba(255,255,255,${0.006+Math.random()*0.004})`;
-            spwl.fillRect(bx+4, by+4, 120, 120);
-            spwl.strokeStyle = '#080b10'; spwl.lineWidth = 2; spwl.strokeRect(bx+2, by+2, 124, 124);
-            spwl.strokeStyle = '#1a2030'; spwl.lineWidth = 1; spwl.strokeRect(bx+9, by+9, 110, 110);
+        // Porthole view: Earth's limb below, stars above — the cupola shot
+        const portCv = mkCanvas(512, 512);
+        {
+            const po = portCv.getContext('2d');
+            po.fillStyle = '#000106'; po.fillRect(0, 0, 512, 512);
+            for (let i = 0; i < 260; i++) {
+                po.fillStyle = `rgba(235,240,255,${0.25 + Math.random() * 0.7})`;
+                const sz = Math.random() < 0.06 ? 2 : 1;
+                po.fillRect(Math.random() * 512, Math.random() * 330, sz, sz);
+            }
+            // Earth fills the lower part — deep ocean blue with cloud swirls
+            const eg = po.createRadialGradient(256, 780, 300, 256, 780, 470);
+            eg.addColorStop(0, '#1e4f8a'); eg.addColorStop(0.75, '#2a6ab0'); eg.addColorStop(1, '#4a90d8');
+            po.fillStyle = eg;
+            po.beginPath(); po.arc(256, 780, 460, 0, Math.PI * 2); po.fill();
+            // landmass hints
+            po.fillStyle = 'rgba(90,120,60,0.55)';
+            [[180, 420, 70, 26], [330, 460, 90, 30], [120, 480, 50, 20]].forEach(([x, y, rx, ry]) => {
+                po.beginPath(); po.ellipse(x, y, rx, ry, 0.4, 0, Math.PI * 2); po.fill();
+            });
+            // cloud streets
+            po.fillStyle = 'rgba(255,255,255,0.5)';
+            for (let i = 0; i < 46; i++) {
+                const cx2 = Math.random() * 512, cy2 = 360 + Math.random() * 150;
+                po.globalAlpha = 0.2 + Math.random() * 0.4;
+                po.beginPath(); po.ellipse(cx2, cy2, 14 + Math.random() * 42, 4 + Math.random() * 8, Math.random() * 0.6 - 0.3, 0, Math.PI * 2); po.fill();
+            }
+            po.globalAlpha = 1;
+            // thin cyan atmosphere line on the limb
+            po.strokeStyle = 'rgba(120,200,255,0.85)'; po.lineWidth = 5;
+            po.beginPath(); po.arc(256, 780, 462, 0, Math.PI * 2); po.stroke();
+            po.strokeStyle = 'rgba(120,200,255,0.25)'; po.lineWidth = 14;
+            po.beginPath(); po.arc(256, 780, 466, 0, Math.PI * 2); po.stroke();
         }
-        spwl.strokeStyle = '#06080f'; spwl.lineWidth = 3;
-        for (let i = 0; i <= 512; i += 128) {
-            spwl.beginPath(); spwl.moveTo(i,0); spwl.lineTo(i,512); spwl.stroke();
-            spwl.beginPath(); spwl.moveTo(0,i); spwl.lineTo(512,i); spwl.stroke();
-        }
-        for (let x = 0; x <= 512; x += 128) for (let y = 0; y <= 512; y += 128) {
-            spwl.fillStyle = '#222c3a'; spwl.beginPath(); spwl.arc(x,y,5,0,Math.PI*2); spwl.fill();
-        }
-        const spWlTex = new THREE.CanvasTexture(spWlCv);
-        spWlTex.wrapS = spWlTex.wrapT = THREE.RepeatWrapping;
+        const portTex = new THREE.CanvasTexture(portCv);
+        portTex.colorSpace = THREE.SRGBColorSpace;
 
-        // Space viewport view — deep space with gas giant
-        const spSpCv = document.createElement('canvas');
-        spSpCv.width = spSpCv.height = 512;
-        const spsp = spSpCv.getContext('2d');
-        const spDeepG = spsp.createRadialGradient(256,256,40,256,256,320);
-        spDeepG.addColorStop(0,'#020412'); spDeepG.addColorStop(1,'#000104');
-        spsp.fillStyle = spDeepG; spsp.fillRect(0,0,512,512);
-        for (let i = 0; i < 700; i++) {
-            const sx = Math.random()*512, sy = Math.random()*512;
-            const br = 0.15 + Math.random()*0.85;
-            const sz = Math.random()<0.03 ? 2.5 : Math.random()<0.12 ? 1.5 : 1;
-            spsp.fillStyle = `rgba(${200+Math.random()*55|0},${215+Math.random()*40|0},255,${br})`;
-            spsp.beginPath(); spsp.arc(sx, sy, sz, 0, Math.PI*2); spsp.fill();
+        // Laptop telemetry screen
+        const lapCv = mkCanvas(256, 160);
+        {
+            const lc2 = lapCv.getContext('2d');
+            lc2.fillStyle = '#0a1420'; lc2.fillRect(0, 0, 256, 160);
+            lc2.fillStyle = '#12283c'; lc2.fillRect(0, 0, 256, 22);
+            lc2.fillStyle = '#7ab8e8'; lc2.font = 'bold 11px monospace';
+            lc2.fillText('ORBITAL OPS — ALAN.EXP-6', 8, 15);
+            lc2.strokeStyle = '#1c3850';
+            for (let i = 0; i < 256; i += 24) { lc2.beginPath(); lc2.moveTo(i, 22); lc2.lineTo(i, 160); lc2.stroke(); }
+            const graph = (y0, col, amp) => {
+                lc2.strokeStyle = col; lc2.lineWidth = 1.6; lc2.beginPath();
+                for (let x = 0; x < 240; x++) {
+                    const yy = y0 + Math.sin(x * 0.09) * amp + Math.sin(x * 0.31) * amp * 0.4;
+                    x === 0 ? lc2.moveTo(x + 8, yy) : lc2.lineTo(x + 8, yy);
+                }
+                lc2.stroke();
+            };
+            graph(52, '#5ad8a0', 9);
+            graph(88, '#e8b85a', 6);
+            graph(122, '#7ab8e8', 12);
+            lc2.fillStyle = '#5ad8a0'; lc2.font = '9px monospace';
+            lc2.fillText('O2 20.9%   CO2 0.3%   CABIN 21.2°C   ΔV NOMINAL', 8, 152);
         }
-        // Milky Way band
-        const mwG = spsp.createLinearGradient(0,80,512,430);
-        mwG.addColorStop(0,'rgba(120,140,200,0)'); mwG.addColorStop(0.35,'rgba(120,140,200,0.07)');
-        mwG.addColorStop(0.5,'rgba(150,165,230,0.11)'); mwG.addColorStop(0.65,'rgba(120,140,200,0.07)');
-        mwG.addColorStop(1,'rgba(120,140,200,0)');
-        spsp.fillStyle = mwG; spsp.fillRect(0,0,512,512);
-        // Gas giant
-        const gpX=340,gpY=155,gpR=88;
-        const gpG = spsp.createRadialGradient(gpX-gpR*.28,gpY-gpR*.28,gpR*.04,gpX,gpY,gpR);
-        gpG.addColorStop(0,'#90b8e8'); gpG.addColorStop(0.25,'#5080d0'); gpG.addColorStop(0.6,'#2a50a0');
-        gpG.addColorStop(0.88,'#142070'); gpG.addColorStop(1,'rgba(5,10,40,0)');
-        spsp.fillStyle=gpG; spsp.beginPath(); spsp.arc(gpX,gpY,gpR,0,Math.PI*2); spsp.fill();
-        // Cloud bands
-        [0.28,0.44,0.58,0.71].forEach(f=>{
-            const by2=gpY-gpR+f*gpR*2, hw=Math.sqrt(Math.max(0,gpR*gpR-(by2-gpY)*(by2-gpY)));
-            spsp.fillStyle='rgba(110,170,230,0.13)'; spsp.fillRect(gpX-hw,by2-2.5,hw*2,5);
+        const lapTex = new THREE.CanvasTexture(lapCv);
+        lapTex.colorSpace = THREE.SRGBColorSpace;
+
+        // ── Module hull: horizontal cylinder, padded inside ──
+        const SPR = 2.4, SPCY = 1.15, SPLEN = 7.2;
+        const hull = new THREE.Mesh(new THREE.CylinderGeometry(SPR, SPR, SPLEN, 22, 1, true), padMat);
+        hull.rotation.x = Math.PI / 2;
+        hull.position.y = SPCY;
+        hull.receiveShadow = true;
+        addTarget.add(hull);
+        // opaque outer skin so the module reads as a hull from outside
+        const skinMat = lm(0x14161c, 0, 0, 0.6, 0.5);
+        const skin = new THREE.Mesh(new THREE.CylinderGeometry(SPR + 0.07, SPR + 0.07, SPLEN + 0.1, 22, 1, true), skinMat);
+        skin.rotation.x = Math.PI / 2;
+        skin.position.y = SPCY;
+        addTarget.add(skin);
+        [-3.67, 3.66].forEach(cz => {
+            const capDisc = new THREE.Mesh(new THREE.CircleGeometry(SPR + 0.07, 26), skinMat);
+            capDisc.position.set(0, SPCY, cz);
+            if (cz > 0) capDisc.rotation.y = 0; else capDisc.rotation.y = Math.PI;
+            addTarget.add(capDisc);
         });
-        // Ring system
-        spsp.strokeStyle='rgba(180,205,245,0.22)'; spsp.lineWidth=4;
-        spsp.beginPath(); spsp.ellipse(gpX,gpY+gpR*.04,gpR*1.58,gpR*.22,-0.12,0,Math.PI*2); spsp.stroke();
-        spsp.strokeStyle='rgba(180,205,245,0.10)'; spsp.lineWidth=7;
-        spsp.beginPath(); spsp.ellipse(gpX,gpY+gpR*.04,gpR*1.75,gpR*.28,-0.12,0,Math.PI*2); spsp.stroke();
-        // Planet atmosphere
-        const atmG = spsp.createRadialGradient(gpX,gpY,gpR*.82,gpX,gpY,gpR*1.28);
-        atmG.addColorStop(0,'rgba(80,130,255,0)'); atmG.addColorStop(0.5,'rgba(80,130,255,0.14)'); atmG.addColorStop(1,'rgba(80,130,255,0)');
-        spsp.fillStyle=atmG; spsp.beginPath(); spsp.arc(gpX,gpY,gpR*1.28,0,Math.PI*2); spsp.fill();
-        // Distant sun (lens-flare point)
-        const spSunG = spsp.createRadialGradient(55,70,0,55,70,65);
-        spSunG.addColorStop(0,'rgba(255,255,220,1)'); spSunG.addColorStop(0.03,'rgba(255,245,190,0.9)');
-        spSunG.addColorStop(0.12,'rgba(255,225,140,0.28)'); spSunG.addColorStop(0.4,'rgba(255,200,100,0.06)'); spSunG.addColorStop(1,'rgba(0,0,0,0)');
-        spsp.fillStyle=spSunG; spsp.fillRect(0,0,130,150);
-        // Nebula wisps
-        [[180,300,80,40,'rgba(120,50,180,0.07)'],[90,350,60,30,'rgba(50,120,200,0.06)'],
-         [380,420,100,50,'rgba(180,60,100,0.05)']].forEach(([nx,ny,nrx,nry,nc])=>{
-            const nG=spsp.createRadialGradient(nx,ny,5,nx,ny,nrx);
-            nG.addColorStop(0,nc); nG.addColorStop(1,'rgba(0,0,0,0)');
-            spsp.fillStyle=nG; spsp.beginPath(); spsp.ellipse(nx,ny,nrx,nry,0,0,Math.PI*2); spsp.fill();
-        });
-        const spSpTex = new THREE.CanvasTexture(spSpCv);
+        // structural ribs every 1.2m
+        const ribMat = lm(0x6a6e76, 0, 0, 0.5, 0.7);
+        for (let rz = -3; rz <= 3; rz += 1.2) {
+            const rib = new THREE.Mesh(new THREE.TorusGeometry(SPR - 0.06, 0.045, 8, 26), ribMat);
+            rib.position.set(0, SPCY, rz);
+            addTarget.add(rib);
+        }
+        // ceiling LED light troughs between ribs
+        const spLedMat = lm(0xf2f4f8, 0xe8ecf4, 1.1);
+        for (let rz = -2.4; rz <= 2.4; rz += 1.2) {
+            box(0.5, 0.03, 0.9, spLedMat, 0, SPCY + SPR - 0.10, rz);
+        }
 
-        // Holographic status readout
-        const spScCv = document.createElement('canvas');
-        spScCv.width=256; spScCv.height=512;
-        const spsc2 = spScCv.getContext('2d');
-        spsc2.fillStyle='#020a10'; spsc2.fillRect(0,0,256,512);
-        spsc2.strokeStyle='rgba(0,200,100,0.07)'; spsc2.lineWidth=1;
-        for (let i=0;i<256;i+=16){spsc2.beginPath();spsc2.moveTo(i,0);spsc2.lineTo(i,512);spsc2.stroke();}
-        for (let i=0;i<512;i+=16){spsc2.beginPath();spsc2.moveTo(0,i);spsc2.lineTo(256,i);spsc2.stroke();}
-        spsc2.fillStyle='rgba(0,200,100,0.18)'; spsc2.fillRect(4,4,248,24);
-        spsc2.fillStyle='#00ff88'; spsc2.font='bold 9px monospace';
-        spsc2.fillText('SHIP STATUS  ::  NOMINAL',8,20);
-        ['LIFE SUPPORT','THRUST','SHIELDS','POWER','COMMS'].forEach((lbl,i)=>{
-            const sy=50+i*52;
-            spsc2.fillStyle='rgba(0,200,100,0.65)'; spsc2.font='8px monospace'; spsc2.fillText(lbl,8,sy);
-            const bw=55+Math.random()*130;
-            spsc2.fillStyle=lbl==='SHIELDS'?'rgba(255,120,0,0.75)':'rgba(0,255,140,0.75)';
-            spsc2.fillRect(8,sy+6,bw,9);
-            spsc2.strokeStyle='rgba(0,200,100,0.25)'; spsc2.lineWidth=1; spsc2.strokeRect(8,sy+6,210,9);
-            spsc2.fillStyle='#00cc66'; spsc2.font='7px monospace';
-            spsc2.fillText(`${(25+Math.random()*70)|0}%`,220,sy+14);
-        });
-        spsc2.strokeStyle='#00ff88'; spsc2.lineWidth=1.2; spsc2.beginPath();
-        for(let x=0;x<240;x++){const wy=320+Math.sin(x*.14)*20+Math.sin(x*.41)*9;x===0?spsc2.moveTo(x+8,wy):spsc2.lineTo(x+8,wy);}
-        spsc2.stroke();
-        spsc2.fillStyle='#007a44'; spsc2.font='7px monospace';
-        ['X: 2847.3 AU','Y: -193.7 AU','Z: 4421.0 AU','VEL: 12.4 km/s','HDG: 047.3°'].forEach((txt,i)=>spsc2.fillText(txt,8,380+i*14));
-        const spScTex = new THREE.CanvasTexture(spScCv);
-
-        // ── Ship structure ──
-        const spMetalMat  = new THREE.MeshStandardMaterial({ map: spWlTex, roughness: 0.48, metalness: 0.6 });
-        const spDeckMat   = new THREE.MeshStandardMaterial({ map: spDkTex, roughness: 0.4, metalness: 0.75 });
-        const spTrimMat   = lm(0x1e2530);
-        const spAlertMat  = lm(0x1a0000, 0xff1100, 0.55);
-        const spLedMat    = lm(0xaaccff, 0x88aaff, 0.70);
-        const spHazMat    = lm(0x1a1000, 0xffaa00, 0.40);
-
-        // Floor deck
-        const spFloor = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), spDeckMat);
-        spFloor.rotation.x = -Math.PI/2; spFloor.receiveShadow = true;
+        // ── Deck: aluminum grid floor with amber caution strips ──
+        const spDeckMat = new THREE.MeshStandardMaterial({ map: spDkTex, roughness: 0.45, metalness: 0.6 });
+        const spFloor = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.09, SPLEN), spDeckMat);
+        spFloor.position.y = -0.045;
+        spFloor.receiveShadow = true;
         addTarget.add(spFloor);
+        const spAlertMat = lm(0x2a1c00, 0xffaa00, 0.4);
+        box(0.06, 0.02, SPLEN - 0.2, spAlertMat, -2.02, 0.012, 0);
+        box(0.06, 0.02, SPLEN - 0.2, spAlertMat,  2.02, 0.012, 0);
 
-        // Ceiling
-        const spCeil = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), spMetalMat);
-        spCeil.rotation.x = Math.PI/2; spCeil.position.y = 3.55;
-        addTarget.add(spCeil);
-
-        // Ceiling LED strips along the edges (4 strips)
-        [[-4.0,3.54,0,0],[4.0,3.54,0,0],[0,3.54,-4.0,Math.PI/2],[0,3.54,4.0,Math.PI/2]].forEach(([x,y,z,ry])=>{
-            const strip = new THREE.Mesh(new THREE.BoxGeometry(8.0,0.025,0.10), spLedMat);
-            strip.position.set(x,y,z); strip.rotation.y=ry; addTarget.add(strip);
-        });
-        // Central ceiling LED cross
-        box(7.5, 0.020, 0.08, spLedMat, 0, 3.53, 0);
-        box(0.08, 0.020, 7.5, spLedMat, 0, 3.53, 0);
-
-        // ── Back bulkhead wall (z = -3.5) with large hex viewport ──
-        const BZ = -3.5;
-        // Wall panels surrounding the viewport (4 sections: left, right, top strip, bottom strip)
-        [
-            [-2.6, 1.75, 0.10, 3.55, BZ+0.02, false],  // left panel
-            [ 2.6, 1.75, 0.10, 3.55, BZ+0.02, false],  // right panel
-            [ 0, 3.10, 8.0, 0.75, BZ+0.02, false],     // top strip
-            [ 0, 0.28, 8.0, 0.55, BZ+0.02, false],     // bottom strip
-            // Centre gap (viewport area 2.9w × 2.1h at y=1.75 not filled)
-        ].forEach(([x,y,w,h,z])=>{
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,0.06), spMetalMat);
-            m.position.set(x,y,z); m.receiveShadow=true; addTarget.add(m);
-        });
-        // Space view circle
-        const spViewMesh = new THREE.Mesh(new THREE.CircleGeometry(1.35, 40), new THREE.MeshBasicMaterial({ map: spSpTex, fog: false }));
-        spViewMesh.position.set(0, 1.75, BZ+0.04); addTarget.add(spViewMesh);
-        // Hex viewport frame (6-sided torus cross-section)
-        const spViewFrame = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.055, 6, 48), lm(0x283040));
-        spViewFrame.position.set(0, 1.75, BZ+0.06); spViewFrame.castShadow=true; addTarget.add(spViewFrame);
-        // Inner rim glow
-        const spViewRimGlow = new THREE.Mesh(new THREE.TorusGeometry(1.28, 0.018, 6, 48), lm(0x2244aa, 0x3366ff, 0.5));
-        spViewRimGlow.position.set(0, 1.75, BZ+0.07); addTarget.add(spViewRimGlow);
-        // Viewport viewport — subtle blue reflection layer
-        const spViewGlass = new THREE.Mesh(new THREE.CircleGeometry(1.34, 40),
-            new THREE.MeshBasicMaterial({ color: 0x223355, transparent: true, opacity: 0.08, fog: false }));
-        spViewGlass.position.set(0, 1.75, BZ+0.09); addTarget.add(spViewGlass);
-
-        // Small engine thruster port (bottom right of back wall)
-        const spThrusterMesh = new THREE.Mesh(new THREE.CircleGeometry(0.18, 8), new THREE.MeshBasicMaterial({ color: 0xff6600, fog: false }));
-        spThrusterMesh.position.set(2.2, 0.55, BZ+0.05); addTarget.add(spThrusterMesh);
-        const spThrusterRing = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.030, 6, 24), lm(0x303840));
-        spThrusterRing.position.set(2.2, 0.55, BZ+0.06); addTarget.add(spThrusterRing);
-        const spThrusterRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.030, 6, 24), lm(0x303840));
-        spThrusterRing2.position.set(-2.2, 0.55, BZ+0.06); addTarget.add(spThrusterRing2);
-        const spThrusterMesh2 = new THREE.Mesh(new THREE.CircleGeometry(0.18, 8), new THREE.MeshBasicMaterial({ color: 0x0044ff, fog: false }));
-        spThrusterMesh2.position.set(-2.2, 0.55, BZ+0.05); addTarget.add(spThrusterMesh2);
-
-        // ── Side walls ──
-        const WX = 3.5;
-        // Right wall (x=+WX): control station
-        const spRWall = new THREE.Mesh(new THREE.BoxGeometry(0.07, 3.55, 9.0), spMetalMat);
-        spRWall.position.set(WX, 1.775, 0); spRWall.receiveShadow=true; addTarget.add(spRWall);
-        // Left wall (x=-WX): equipment racks
-        const spLWall = new THREE.Mesh(new THREE.BoxGeometry(0.07, 3.55, 9.0), spMetalMat);
-        spLWall.position.set(-WX, 1.775, 0); spLWall.receiveShadow=true; addTarget.add(spLWall);
-
-        // ── Control station (right wall) ──
-        // Main console body
-        box(0.22, 2.0, 2.2, lm(0x141820), WX-0.14, 1.6, -0.3);
-        // Status screen
-        const spStatScreen = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.6, 1.8),
-            new THREE.MeshLambertMaterial({ map: spScTex, emissive: new THREE.Color(0x002211), emissiveIntensity: 0.4 }));
-        spStatScreen.position.set(WX-0.22, 1.65, -0.3); addTarget.add(spStatScreen);
-        // Button rows
-        const spBtnColors = [0xff3300,0xffaa00,0x00ff88,0x0088ff,0xffff00,0xff00aa,0x00ffff,0xffffff];
-        for (let bi=0; bi<16; bi++) {
-            const bz = -1.3 + bi*0.18;
-            const btn = new THREE.Mesh(new THREE.BoxGeometry(0.02,0.055,0.055),
-                lm(spBtnColors[bi%8], spBtnColors[bi%8], bi%3===0?1.2:0.4));
-            btn.position.set(WX-0.30, 0.75, bz); addTarget.add(btn);
+        // ── Aft bulkhead with airlock hatch ──
+        const AFT = -3.55;
+        const aftWall = new THREE.Mesh(new THREE.CircleGeometry(SPR - 0.02, 26), padMat);
+        aftWall.position.set(0, SPCY, AFT);
+        aftWall.rotation.y = Math.PI;   // BackSide material faces the cabin
+        aftWall.receiveShadow = true;
+        addTarget.add(aftWall);
+        // hatch ring + door
+        const hatchY = 1.15;
+        const hatchRing = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.085, 10, 30), ribMat);
+        hatchRing.position.set(0, hatchY, AFT + 0.10);
+        addTarget.add(hatchRing);
+        const hatchMat = lm(0xb8bcc2, 0, 0, 0.4, 0.75);
+        const hatchDoor = new THREE.Mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.10, 26), hatchMat);
+        hatchDoor.rotation.x = Math.PI / 2;
+        hatchDoor.position.set(0, hatchY, AFT + 0.07);
+        hatchDoor.castShadow = true;
+        addTarget.add(hatchDoor);
+        // latch dogs around the rim
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            box(0.09, 0.05, 0.07, ribMat, Math.sin(a) * 0.62, hatchY + Math.cos(a) * 0.62, AFT + 0.13);
         }
-        // Toggle switches
-        for (let ti=0; ti<6; ti++) {
-            box(0.020, 0.08, 0.025, lm(0x404858), WX-0.30, 1.25 + ti*0.14, -1.1);
-            box(0.015, 0.040, 0.022, lm(0xccddee, 0x8899bb, 0.3), WX-0.30, 1.28 + ti*0.14, -1.1);
-        }
-        // Status LED column
-        const spStatusColors = [0x00ff00,0xffaa00,0x00ff00,0x00ff00,0xff0000,0x00ff00,0xffaa00,0x00ff00];
+        // hatch wheel
+        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.024, 8, 20), lm(0xc8a028, 0, 0, 0.45, 0.7));
+        wheel.position.set(0, hatchY, AFT + 0.16);
+        addTarget.add(wheel);
+        [0, 1.047, 2.094].forEach(a =>
+            box(0.02, 0.38, 0.02, ribMat, 0, hatchY, AFT + 0.155, 0, 0, a));
+        // small hatch window with engine glow visible beyond
+        const hatchWin = new THREE.Mesh(new THREE.CircleGeometry(0.16, 18),
+            new THREE.MeshBasicMaterial({ color: 0x02040a }));
+        hatchWin.position.set(0, hatchY + 0.38, AFT + 0.125);
+        addTarget.add(hatchWin);
+        const spThrusterMesh = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff6600, fog: false }));
+        spThrusterMesh.position.set(-0.05, hatchY + 0.36, AFT + 0.128);
+        addTarget.add(spThrusterMesh);
+        const spThrusterMesh2 = new THREE.Mesh(new THREE.CircleGeometry(0.045, 12),
+            new THREE.MeshBasicMaterial({ color: 0x2244ff, fog: false }));
+        spThrusterMesh2.position.set(0.06, hatchY + 0.40, AFT + 0.128);
+        addTarget.add(spThrusterMesh2);
+        // status LEDs on the hatch frame
         const spStatusLEDs = [];
-        for (let li=0; li<8; li++) {
-            const led = new THREE.Mesh(new THREE.BoxGeometry(0.016,0.016,0.016),
-                lm(spStatusColors[li], spStatusColors[li], li===4 ? 1.8 : 0.9));
-            led.position.set(WX-0.28, 2.35-li*0.14, -1.38);
-            led.userData.blinkRate = li===4 ? 2.2 : li%2===0 ? 0.4 : 0.7;
-            spStatusLEDs.push(led);
+        [[-0.55, 0.55, 0x33ff66], [0, 0.78, 0xffaa00], [0.55, 0.55, 0x33aaff]].forEach(([lx, ly, lc3]) => {
+            const led = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), lm(0x111111, lc3, 1.2));
+            led.position.set(lx, hatchY + ly + 0.3, AFT + 0.12);
+            led.userData.blinkRate = 0.7 + Math.random() * 2.2;
             addTarget.add(led);
-        }
-        // Small circular porthole on right wall
-        const spRPort = new THREE.Mesh(new THREE.CircleGeometry(0.28, 20), new THREE.MeshBasicMaterial({ map: spSpTex, fog: false }));
-        spRPort.position.set(WX-0.04, 2.2, 1.8); spRPort.rotation.y = -Math.PI/2; addTarget.add(spRPort);
-        const spRPortFrame = new THREE.Mesh(new THREE.TorusGeometry(0.28,0.040,8,32), lm(0x283040));
-        spRPortFrame.position.set(WX-0.06, 2.2, 1.8); spRPortFrame.rotation.y = -Math.PI/2; addTarget.add(spRPortFrame);
-
-        // ── Equipment racks (left wall) ──
-        // Main rack structure
-        box(0.20, 2.8, 3.5, lm(0x1a1e28), -WX+0.12, 1.4, -0.5);
-        // Rack shelves
-        for (let si=0; si<5; si++) {
-            box(0.24, 0.025, 3.4, lm(0x242c3c), -WX+0.14, 0.4+si*0.5, -0.5);
-        }
-        // Equipment boxes on shelves
-        const spEqColors = [lm(0x303848), lm(0x283028), lm(0x382828), lm(0x1e2838), lm(0x303030)];
-        [[0.11,0.20,0.14],[0.14,0.18,0.18],[0.09,0.14,0.20],[0.16,0.16,0.12],[0.10,0.12,0.24],
-         [0.18,0.10,0.14],[0.12,0.20,0.16],[0.14,0.16,0.20]].forEach(([w,h,d],i)=>{
-            const eq=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), spEqColors[i%5]);
-            eq.position.set(-WX+0.12, 0.44+Math.floor(i/3)*0.5+h/2, -1.2+(i%3)*0.55);
-            eq.castShadow=true; addTarget.add(eq);
-            // LED indicator on each box
-            const ind=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.012,0.012),
-                lm(i%3===0?0xff4400:0x00ff88, i%3===0?0xff4400:0x00ff88, 0.8));
-            ind.position.set(-WX+0.03, 0.44+Math.floor(i/3)*0.5+h*0.3, -1.2+(i%3)*0.55);
-            addTarget.add(ind);
-        });
-        // Left porthole
-        const spLPort = new THREE.Mesh(new THREE.CircleGeometry(0.28, 20), new THREE.MeshBasicMaterial({ map: spSpTex, fog: false }));
-        spLPort.position.set(-WX+0.04, 2.2, 1.8); spLPort.rotation.y = Math.PI/2; addTarget.add(spLPort);
-        const spLPortFrame = new THREE.Mesh(new THREE.TorusGeometry(0.28,0.040,8,32), lm(0x283040));
-        spLPortFrame.position.set(-WX+0.06, 2.2, 1.8); spLPortFrame.rotation.y = Math.PI/2; addTarget.add(spLPortFrame);
-
-        // ── Overhead grip rail (zero-g handhold) ──
-        const spRailMat = lm(0x303848);
-        const spRailYellow = lm(0x1a1400, 0xffcc00, 0.35);
-        // Longitudinal rails
-        [[-1.5,3.2],[0,3.2],[1.5,3.2]].forEach(([rx,rz_unused])=>{
-            box(0.035, 0.035, 7.5, spRailMat, rx, 3.2, 0);
-        });
-        // Cross-bars every 1.5 units
-        for (let zi=-3; zi<=3; zi+=1.5) {
-            box(3.2, 0.035, 0.035, spRailMat, 0, 3.2, zi);
-            // Hazard tape on rails
-            box(0.040, 0.040, 0.06, spRailYellow, -1.5, 3.2, zi);
-            box(0.040, 0.040, 0.06, spRailYellow, 0, 3.2, zi);
-            box(0.040, 0.040, 0.06, spRailYellow, 1.5, 3.2, zi);
-        }
-
-        // ── Emergency lighting strips (floor level, pulsing red) ──
-        const spAlertStrip = new THREE.Mesh(new THREE.BoxGeometry(8.5,0.022,0.055), spAlertMat);
-        spAlertStrip.position.set(0,0.012,-3.3); addTarget.add(spAlertStrip);
-        const spAlertStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.022,8.5), spAlertMat);
-        spAlertStrip2.position.set(3.3,0.012,0); addTarget.add(spAlertStrip2);
-        const spAlertStrip3 = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.022,8.5), spAlertMat);
-        spAlertStrip3.position.set(-3.3,0.012,0); addTarget.add(spAlertStrip3);
-        // Hazard stripe pairs on floor
-        for (let zi=-3.5; zi<=3.5; zi+=1.2) {
-            box(0.08, 0.005, 0.4, spHazMat, WX-0.12, 0.003, zi);
-            box(0.08, 0.005, 0.4, spHazMat, -WX+0.12, 0.003, zi);
-        }
-
-        // ── Conduit pipes on back wall ──
-        const spConduitMat = lm(0x28303c);
-        const spConduit = (pts, r=0.025) => {
-            const curve = new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));
-            const m = new THREE.Mesh(new THREE.TubeGeometry(curve,20,r,6), spConduitMat);
-            m.castShadow=true; addTarget.add(m);
-        };
-        spConduit([[-3.2,0.3,BZ+0.08],[-3.2,1.4,BZ+0.08],[-1.5,1.4,BZ+0.08]]);
-        spConduit([[ 3.2,0.3,BZ+0.08],[ 3.2,1.4,BZ+0.08],[ 1.5,1.4,BZ+0.08]]);
-        spConduit([[-3.2,2.8,BZ+0.08],[-3.2,3.3,BZ+0.08],[3.2,3.3,BZ+0.08],[3.2,2.8,BZ+0.08]]);
-        spConduit([[WX-0.04,0.5,-3.0],[WX-0.04,0.5,-1.0],[WX-0.04,0.5,1.0]], 0.018);
-        spConduit([[-WX+0.04,2.8,-3.0],[-WX+0.04,2.8,1.0]], 0.018);
-        // Conduit junction boxes
-        [[-3.2,1.4,BZ+0.10],[3.2,1.4,BZ+0.10]].forEach(([x,y,z])=>{
-            box(0.09,0.09,0.06, lm(0x303848), x, y, z);
+            spStatusLEDs.push(led);
         });
 
-        // ── Dog's zero-g sleeping cradle (same BEDX/BEDZ) ──
-        const spCradleMat = lm(0x2a3040);
-        const spCradlePad  = lm(0x1e3048, 0x223366, 0.20);
-        // Cradle frame
-        box(0.72, 0.06, 0.82, spCradleMat, BEDX, 0.04, BEDZ);
-        for (let side of [[-0.35,0.22],[0.35,0.22]]) {
-            box(0.06, 0.46, 0.80, spCradleMat, BEDX+side[0], side[1], BEDZ);
-        }
-        box(0.70, 0.06, 0.06, spCradleMat, BEDX, 0.22, BEDZ-0.40);
-        box(0.70, 0.06, 0.06, spCradleMat, BEDX, 0.22, BEDZ+0.40);
-        // Padded interior
-        box(0.60, 0.06, 0.70, spCradlePad, BEDX, 0.075, BEDZ);
-        // Tether strap
-        box(0.60, 0.010, 0.015, lm(0xcc6600, 0xff8800, 0.4), BEDX, 0.30, BEDZ);
+        // ── Forward end: the module continues into shadow ──
+        const fwdDisc = new THREE.Mesh(new THREE.CircleGeometry(SPR - 0.02, 26),
+            new THREE.MeshBasicMaterial({ color: 0x080a10 }));
+        fwdDisc.position.set(0, SPCY, 3.58);
+        addTarget.add(fwdDisc);
+        const fwdRing = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.07, 8, 26), ribMat);
+        fwdRing.position.set(0, SPCY, 3.5);
+        addTarget.add(fwdRing);
 
-        // ── Floating objects (tracked for zero-g animation) ──
+        // ── Portholes: big Earth window portside, small one starboard ──
+        const portRim = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.09, 10, 28), ribMat);
+        portRim.position.set(-2.16, 1.5, -0.6);
+        portRim.rotation.y = Math.PI / 2;
+        portRim.castShadow = true;
+        addTarget.add(portRim);
+        const portView = new THREE.Mesh(new THREE.CircleGeometry(0.585, 28),
+            new THREE.MeshBasicMaterial({ map: portTex, fog: false }));
+        portView.position.set(-2.14, 1.5, -0.6);
+        portView.rotation.y = Math.PI / 2;
+        addTarget.add(portView);
+        const stbRim = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.06, 8, 22), ribMat);
+        stbRim.position.set(2.16, 1.7, 1.4);
+        stbRim.rotation.y = -Math.PI / 2;
+        addTarget.add(stbRim);
+        const stbView = new THREE.Mesh(new THREE.CircleGeometry(0.30, 22),
+            new THREE.MeshBasicMaterial({ map: portTex, fog: false }));
+        stbView.position.set(2.14, 1.7, 1.4);
+        stbView.rotation.y = -Math.PI / 2;
+        stbView.material = stbView.material.clone();
+        stbView.material.map = portTex;
+        addTarget.add(stbView);
+        // cool Earthlight spilling in the big window
+        const earthLight = new THREE.PointLight(0x6a9fd8, 2.2, 7);
+        earthLight.position.set(-1.7, 1.5, -0.6);
+        addTarget.add(earthLight);
+
+        // ── Stowage lockers, starboard wall ──
+        const lockerMat = lm(0xd4d2ca, 0, 0, 0.8);
+        const latchMat = lm(0x5a5e66, 0, 0, 0.5, 0.6);
+        const labelCols = [0x4a90d8, 0xd8a832, 0x5ad8a0, 0xc85a48];
+        for (let row = 0; row < 2; row++) for (let col = 0; col < 4; col++) {
+            const lz = -2.6 + col * 0.62, ly = 0.42 + row * 0.56;
+            box(0.14, 0.5, 0.56, lockerMat, 1.94, ly, lz);
+            box(0.02, 0.07, 0.16, latchMat, 1.86, ly + 0.12, lz);
+            box(0.015, 0.05, 0.22, lm(labelCols[(row * 4 + col) % 4], 0, 0, 0.8), 1.858, ly - 0.14, lz);
+        }
+
+        // ── Laptop workstations on articulated arms ──
+        const spLapMat = new THREE.MeshBasicMaterial({ map: lapTex });
+        [[-1.85, 1.5, 1.6, 0.9], [1.8, 1.35, 2.6, -1.0]].forEach(([lx, ly, lz, ry]) => {
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.5, 8), ribMat);
+            arm.position.set(lx, ly - 0.2, lz);
+            arm.rotation.z = 0.5 * Math.sign(lx);
+            addTarget.add(arm);
+            box(0.34, 0.24, 0.02, lm(0x2a2c30, 0, 0, 0.6), lx * 0.88, ly, lz, 0, ry, 0);
+            const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.19), spLapMat);
+            scr.position.set(lx * 0.88, ly, lz);
+            scr.rotation.y = ry + (lx > 0 ? Math.PI : 0);
+            scr.translateZ(0.012);
+            addTarget.add(scr);
+        });
+
+        // ── Handrails (astronaut mobility) + cable bundles + vent ──
+        const railBlue = lm(0x3a6a9c, 0, 0, 0.5, 0.4);
+        [[-1.9, 0.9, -1.8, 0], [-1.95, 2.0, 0.8, 0], [1.9, 0.9, 0.4, 0], [0, SPCY + SPR - 0.4, 1.6, Math.PI / 2], [0, SPCY + SPR - 0.4, -1.2, Math.PI / 2]].forEach(([hx, hy, hz, rz2]) => {
+            const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 8), railBlue);
+            rail.position.set(hx, hy, hz);
+            rail.rotation.x = Math.PI / 2;
+            rail.rotation.z = rz2;
+            rail.castShadow = true;
+            addTarget.add(rail);
+        });
+        const spCableMat = lm(0xb8b4aa, 0, 0, 0.8);
+        [[[-1.6, 2.9, -3.2], [-1.2, 3.15, -1.0], [-1.5, 3.0, 1.2], [-1.1, 3.2, 3.0]],
+         [[1.7, 2.8, -3.0], [1.3, 3.05, -0.6], [1.6, 2.9, 1.8], [1.2, 3.1, 3.2]]].forEach(pts => {
+            const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+            const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.028, 6), spCableMat);
+            addTarget.add(tube);
+        });
+        // air return grille
+        box(0.5, 0.34, 0.05, lm(0x7e8288, 0, 0, 0.5, 0.5), -1.96, 0.5, 2.4);
+        for (let i = 0; i < 5; i++) box(0.44, 0.03, 0.055, lm(0x3a3e44, 0, 0, 0.6), -1.96, 0.38 + i * 0.06, 2.4);
+
+        // ── Clark's zero-g sleep nook (padded ring, same BEDX/BEDZ) ──
+        const nookMat = lm(0xc9c6bc, 0, 0, 0.95);
+        const nook = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.09, 10, 22), nookMat);
+        nook.rotation.x = -Math.PI / 2;
+        nook.position.set(BEDX, 0.06, BEDZ);
+        nook.castShadow = nook.receiveShadow = true;
+        addTarget.add(nook);
+        box(0.5, 0.03, 0.55, lm(0x8a9cb8, 0, 0, 0.95), BEDX, 0.035, BEDZ);
+
+        // ── Floating gear (zero-g) ──
         const spFloatItems = [];
-        const spMakeFloat = (x, y, z, phase) => {
+        const floatItem = (build, fx, fy, fz) => {
             const g = new THREE.Group();
-            g.position.set(x, y, z);
-            g.userData = { floatBase: y, floatPhase: phase };
-            spFloatItems.push(g);
+            g.position.set(fx, fy, fz);
+            g.userData.floatBase = fy;
+            g.userData.floatPhase = Math.random() * 9;
+            build(g);
+            g.traverse(o => { o.castShadow = true; });
             addTarget.add(g);
-            return g;
+            spFloatItems.push(g);
         };
-        // Floating coffee mug (above desk, near original mug position)
-        const spMugGrp = spMakeFloat(CFX + 0.15, DY + 0.52, CFZ + 0.18, 0.0);
-        const spMugBody = new THREE.Mesh(new THREE.CylinderGeometry(mugR, mugR*.88, mugH, 10, 1, true), lm(0x222230));
-        spMugGrp.add(spMugBody);
-        const spMugBot = new THREE.Mesh(new THREE.CylinderGeometry(mugR*.88, mugR*.88, 0.008, 10), lm(0x222230));
-        spMugBot.position.y = -mugH/2 + 0.004; spMugGrp.add(spMugBot);
-        const spMugLiq = new THREE.Mesh(new THREE.CylinderGeometry(mugR*.90, mugR*.90, 0.008, 10), lm(0x1a0e00, 0x441e00, 0.5));
-        spMugLiq.position.y = mugH/2 - 0.010; spMugGrp.add(spMugLiq);
-        const spMugHandle = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.008, 5, 12, Math.PI), lm(0x222230));
-        spMugHandle.rotation.y = Math.PI/2; spMugHandle.position.set(mugR+0.010, 0, 0); spMugGrp.add(spMugHandle);
-        // Floating data tablet
-        const spTabGrp = spMakeFloat(-0.55, DY + 0.68, 0.15, 1.8);
-        const spTabBody = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.26, 0.012), lm(0x1c2230));
-        spTabGrp.add(spTabBody);
-        const spTabScr = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.22, 0.002),
-            new THREE.MeshLambertMaterial({ color: 0x0a1828, emissive: new THREE.Color(0x1144aa), emissiveIntensity: 0.85 }));
-        spTabScr.position.z = 0.007; spTabGrp.add(spTabScr);
-        // Tablet screen lines
-        for (let ti=0; ti<5; ti++) {
-            const tl = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.008, 0.001),
-                new THREE.MeshBasicMaterial({ color: 0x2255aa }));
-            tl.position.set(-0.012, 0.07-ti*0.04, 0.008); spTabGrp.add(tl);
-        }
-        // Floating stylus
-        const spPenGrp = spMakeFloat(0.38, DY + 0.60, -0.08, 3.2);
-        spPenGrp.rotation.z = 0.38;
-        const spPenBody = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.19, 6), lm(0x383c48));
-        spPenGrp.add(spPenBody);
-        const spPenTip = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.018, 6), lm(0x606878));
-        spPenTip.position.y = -0.104; spPenGrp.add(spPenTip);
-        const spPenClip = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.08, 0.004), lm(0x888898));
-        spPenClip.position.set(0.007, 0.055, 0); spPenGrp.add(spPenClip);
-        // Floating ration pack
-        const spRatGrp = spMakeFloat(-0.95, DY + 0.78, 0.42, 5.1);
-        const spRatBody = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.025), lm(0x3a4230));
-        spRatGrp.add(spRatBody);
-        const spRatLabel = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.046, 0.001),
-            lm(0x88aa66, 0x99bb77, 0.45));
-        spRatLabel.position.z = 0.013; spRatGrp.add(spRatLabel);
+        floatItem(g => {   // silver drink pouch with straw
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.035), lm(0xb8bcc4, 0, 0, 0.35, 0.8)));
+            const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.1, 6), lm(0xd84a10, 0, 0, 0.6));
+            straw.position.set(0.03, 0.09, 0);
+            straw.rotation.z = -0.3;
+            g.add(straw);
+        }, -1.2, 1.6, 0.9);
+        floatItem(g => {   // checklist card
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.10, 0.006), lm(0xe8e4da, 0, 0, 0.9)));
+            for (let i = 0; i < 3; i++) {
+                const ln = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.008, 0.007), lm(0x5a6068, 0, 0, 0.9));
+                ln.position.y = 0.025 - i * 0.022;
+                g.add(ln);
+            }
+        }, 0.9, 1.9, -1.5);
+        floatItem(g => {   // pen
+            g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), lm(0x2a2c30, 0, 0, 0.4, 0.6)));
+        }, 1.3, 1.3, 1.9);
+        floatItem(g => {   // wrench
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.13, 0.015), lm(0x9a9ea4, 0, 0, 0.35, 0.8)));
+            const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.015), lm(0x9a9ea4, 0, 0, 0.35, 0.8));
+            jaw.position.y = 0.075;
+            g.add(jaw);
+        }, -0.8, 2.1, 2.2);
+        floatItem(g => {   // Clark's red ball, drifting out of reach
+            g.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), lm(0xc83a28, 0, 0, 0.6)));
+        }, 0.4, 1.1, 2.8);
 
-        // ── Engine glow lights (thruster exhaust) ──
-        const spEngineLight  = new THREE.PointLight(0xff6600, 0, 12, 2.0);
-        spEngineLight.position.set(2.2, 0.55, BZ-0.3);
+        // ── Cabin + engine lights (animate loop drives intensities) ──
+        const spEngineLight = new THREE.PointLight(0xff6600, 0, 6, 2.0);
+        spEngineLight.position.set(0, hatchY + 0.4, AFT + 0.4);
         addTarget.add(spEngineLight);
-        const spEngineLight2 = new THREE.PointLight(0x2244ff, 0, 12, 2.0);
-        spEngineLight2.position.set(-2.2, 0.55, BZ-0.3);
+        const spEngineLight2 = new THREE.PointLight(0x2244ff, 0, 6, 2.0);
+        spEngineLight2.position.set(0, hatchY - 0.3, AFT + 0.5);
         addTarget.add(spEngineLight2);
-        // Cockpit ambient — cool blue overhead
-        const spCockpitLight = new THREE.PointLight(0x4466cc, 0, 14, 1.8);
-        spCockpitLight.position.set(0, 3.2, 0);
+        const spCockpitLight = new THREE.PointLight(0xf0f2f8, 0, 9, 1.6);
+        spCockpitLight.position.set(0, SPCY + SPR - 0.5, 0.4);
         addTarget.add(spCockpitLight);
 
-        // ═══════════════════════════════
-        //  DESERT THEME
-        // ═══════════════════════════════
         addTarget = riverGroup;
 
         // ═══════════════════════════════
@@ -3884,6 +3887,8 @@
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
             document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH));
+            // the module interior is tight — keep the camera inside its hull
+            controls.maxDistance = isSP ? 3.0 : 22;
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
 
@@ -4082,9 +4087,21 @@
         renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
         renderer.domElement.addEventListener('pointerup', e => {
             if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+            if (monZoom) {   // any click flies back out
+                monZoom = false;
+                return;
+            }
             pointerV.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointerV, camera);
             if (raycaster.intersectObject(dogGroup, true).length) { petDog(); return; }
+            if (raycaster.intersectObject(monScr).length) {
+                zoomSaved = { cam: camera.position.clone(), tgt: controls.target.clone(), auto: controls.autoRotate };
+                controls.enabled = false;
+                controls.autoRotate = false;
+                monZoom = true;
+                monZoomStart = clock.getElapsedTime();
+                return;
+            }
             if (theme === 'room') {
                 const hit = raycaster.intersectObject(roomGroup, true);
                 if (hit.length) {
@@ -4452,24 +4469,24 @@
                 }
                 snowfallPoints.geometry.attributes.position.needsUpdate = true;
             } else if (theme === 'spaceship') {
-                // ── Spaceship: deep space void ──
-                scene.background.setHex(0x00010a);
-                scene.fog.color.setHex(0x00010a);
-                scene.fog.density = 0.038;
+                // ── Spaceship: orbital module, clean white cabin light ──
+                scene.background.setHex(0x000208);
+                scene.fog.color.setHex(0x05070c);
+                scene.fog.density = 0.030;
 
-                // Cool white overhead LED cabin lighting
-                hemiLight.intensity = 4.2 * b;
-                hemiLight.color.setHex(0x4466bb);
-                hemiLight.groundColor.setHex(0x141c28);
-                fillLight.intensity = 2.8 * b;
-                fillLight.color.setHex(0x8899cc);
-                spCockpitLight.intensity = 2.2 * b;
+                // Even white LED cabin lighting with a soft cool bounce
+                hemiLight.intensity = 3.4 * b;
+                hemiLight.color.setHex(0xe8ecf4);
+                hemiLight.groundColor.setHex(0x6e7278);
+                fillLight.intensity = 1.7 * b;
+                fillLight.color.setHex(0xf4f6fa);
+                spCockpitLight.intensity = 2.4 * b;
 
                 // Engine thruster glow (lamp slider = "thrusters")
                 const thrStr = params.lampBrightness;
                 const thrFlick = Math.sin(t*11.3)*0.10 + Math.sin(t*23.7)*0.06 + Math.sin(t*7.1)*0.08;
-                spEngineLight.intensity  = Math.max(0, (1.4 + thrFlick) * thrStr * 5.5) * b;
-                spEngineLight2.intensity = Math.max(0, (1.1 + thrFlick*0.8) * thrStr * 3.5) * b;
+                spEngineLight.intensity  = Math.max(0, (1.4 + thrFlick) * thrStr * 1.8) * b;
+                spEngineLight2.intensity = Math.max(0, (1.1 + thrFlick*0.8) * thrStr * 1.2) * b;
                 // Pulse thruster mesh color
                 const thrBright = 0.4 + thrStr * 0.6 + thrFlick * 0.2;
                 spThrusterMesh.material.color.setHSL(0.06, 1.0, Math.min(0.65, thrBright));
@@ -4803,10 +4820,23 @@
                 f.position.y = f.userData.baseY - Math.max(0, Math.sin(t * 12.5 + i * 1.93)) * 0.0075;
             }
 
-            // ── Monitor screen: cursor blink + terminal output (2 fps redraw) ──
-            if (t - monLastDraw > 0.5) {
+            // ── Monitor: fly-in zoom, about page when close, code otherwise ──
+            if (monZoom) {
+                camera.position.lerp(zoomCamTo, Math.min(1, dt * 4));
+                controls.target.lerp(zoomTgtTo, Math.min(1, dt * 4));
+            } else if (zoomSaved) {
+                camera.position.lerp(zoomSaved.cam, Math.min(1, dt * 4));
+                controls.target.lerp(zoomSaved.tgt, Math.min(1, dt * 4));
+                if (camera.position.distanceTo(zoomSaved.cam) < 0.04) {
+                    controls.enabled = true;
+                    controls.autoRotate = zoomSaved.auto;
+                    zoomSaved = null;
+                }
+            }
+            if (t - monLastDraw > (monZoom ? 0.2 : 0.5)) {
                 monLastDraw = t;
-                drawMonitor(t);
+                if (monZoom || zoomSaved) drawAbout(t - monZoomStart);
+                else drawMonitor(t);
                 monTex.needsUpdate = true;
             }
             monScrMat.color.copy(scrCool).lerp(scrWarm, c);
@@ -4826,7 +4856,8 @@
             bloomPass.strength =
                 theme === 'room' ? 0.55 :
                 theme === 'northPole' ? 0.5 :
-                theme === 'spaceship' ? 0.5 :
+                theme === 'spaceship' ? 0.32 :
+                theme === 'lighthouse' ? 0.45 :
                 0.08 + (1 - params.time) * 0.3;
 
             controls.update();
