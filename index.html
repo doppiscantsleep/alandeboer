@@ -201,6 +201,51 @@
             margin: 2px 0;
         }
 
+        /* ── Sound toggle: appears only at the river ── */
+        #sound-btn {
+            position: absolute;
+            top: 74px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            pointer-events: all;
+            padding: 8px 13px;
+            background: rgba(9, 12, 26, 0.42);
+            border: 1px solid rgba(125, 150, 255, 0.14);
+            border-radius: 10px;
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            color: rgba(150, 170, 230, 0.5);
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 300;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        #sound-btn .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #5fc0d8;
+            box-shadow: 0 0 6px #5fc0d8;
+            opacity: 0.35;
+            transition: opacity 0.2s;
+        }
+        #sound-btn:hover { color: rgba(205, 220, 255, 0.92); }
+        #sound-btn:focus-visible {
+            outline: 1px solid rgba(160, 185, 255, 0.7);
+            outline-offset: 2px;
+        }
+        #sound-btn.on {
+            color: rgba(228, 236, 255, 0.95);
+            border-color: rgba(95, 192, 216, 0.4);
+        }
+        #sound-btn.on .dot { opacity: 1; }
+        #sound-btn.hidden { display: none; }
+
         @media (max-width: 860px) {
             #worlds {
                 left: 12px;
@@ -227,6 +272,11 @@
                 transform: none;
                 font-size: 9px;
                 letter-spacing: 3px;
+            }
+            #sound-btn {
+                top: auto;
+                bottom: 48px;
+                right: 12px;
             }
             #hint { display: none; }
         }
@@ -293,6 +343,7 @@
             <button class="world" data-world="spaceship"><span class="dot"></span>spaceship</button>
             <button class="world" data-world="river"><span class="dot"></span>the river</button>
         </nav>
+        <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
 
     <script type="importmap">
@@ -3165,6 +3216,36 @@
         angler(-5.45, 0.9, RIV.bed + 0.03, -0.55, 0x3a5a7a, 0x6a4a28);  // wading, blue jacket
         angler(-2.05, 2.8, -0.06, 0.95, 0xb9995a, 0x394428);            // on the gravel point
 
+        // ── Salmon leaping at the dam face during the run ──
+        const salmonBack  = lm(0x4a5842, 0, 0, 0.55);
+        const salmonSide  = lm(0xa8a89c, 0, 0, 0.5, 0.15);
+        const salmonFin   = lm(0x3a4636, 0, 0, 0.7);
+        const salmon = [];
+        for (let i = 0; i < 3; i++) {
+            const f = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.10, 0.34), salmonBack);
+            body.castShadow = true;
+            f.add(body);
+            const belly = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.05, 0.30), salmonSide);
+            belly.position.y = -0.032;
+            f.add(belly);
+            const tail = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.11, 0.09), salmonFin);
+            tail.position.set(0, 0, 0.20);
+            f.add(tail);
+            const dorsal = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.06, 0.08), salmonFin);
+            dorsal.position.set(0, 0.07, 0.02);
+            f.add(dorsal);
+            f.visible = false;
+            addTarget.add(f);
+            const splash = new THREE.Mesh(
+                new THREE.RingGeometry(0.07, 0.11, 22),
+                new THREE.MeshBasicMaterial({ color: 0xe4f4f2, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+            splash.rotation.x = -Math.PI / 2;
+            splash.visible = false;
+            addTarget.add(splash);
+            salmon.push({ f, splash, period: 6.5 + i * 2.8, phase: i * 3.7 });
+        }
+
         // ── Wooded banks: pines + autumn maples ──
         const mapleTrunk = lm(0x4a3826, 0, 0, 0.95);
         const mapleCols = [0xc96a1e, 0xd98a24, 0xa83b1c, 0xe0a832, 0xb5551d];
@@ -3391,8 +3472,63 @@
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
+            document.getElementById('sound-btn').classList.toggle('hidden', !isRiver);
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
+
+        // ── River soundscape: synthesized, no audio files ──
+        // Brown noise through a lowpass = the constant spillway rush;
+        // short descending oscillator sweeps = songbirds on the banks.
+        let audioCtx = null, rushGain = null, soundOn = false;
+        const buildAudio = () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const len = audioCtx.sampleRate * 2;
+            const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+            const d = buf.getChannelData(0);
+            let last = 0;
+            for (let i = 0; i < len; i++) {
+                const w = Math.random() * 2 - 1;
+                last = (last + 0.02 * w) / 1.02;
+                d[i] = last * 3.5;
+            }
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.loop = true;
+            const lp = audioCtx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 650;
+            lp.Q.value = 0.4;
+            rushGain = audioCtx.createGain();
+            rushGain.gain.value = 0;
+            src.connect(lp).connect(rushGain).connect(audioCtx.destination);
+            src.start();
+        };
+        const chirp = () => {
+            if (!audioCtx) return;
+            const t0 = audioCtx.currentTime;
+            const notes = 2 + (Math.random() * 3 | 0);
+            for (let i = 0; i < notes; i++) {
+                const st = t0 + i * (0.16 + Math.random() * 0.1);
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                const f0 = 2400 + Math.random() * 1400;
+                o.frequency.setValueAtTime(f0, st);
+                o.frequency.exponentialRampToValueAtTime(f0 * (0.6 + Math.random() * 0.25), st + 0.12);
+                g.gain.setValueAtTime(0, st);
+                g.gain.linearRampToValueAtTime(0.045, st + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.001, st + 0.15);
+                o.connect(g).connect(audioCtx.destination);
+                o.start(st);
+                o.stop(st + 0.17);
+            }
+        };
+        const soundBtn = document.getElementById('sound-btn');
+        soundBtn.addEventListener('click', () => {
+            soundOn = !soundOn;
+            if (soundOn && !audioCtx) buildAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            soundBtn.classList.toggle('on', soundOn);
+        });
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
         const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', room: 'room' }[location.hash.slice(1).toLowerCase()];
@@ -3786,17 +3922,60 @@
                 mistMat.opacity = 0.16 + (1 - td) * 0.22;
 
                 // Anglers: rods bob with the drift, an occasional recast flick,
-                // take-ripples blooming where the line lands
+                // and every so often a fish on — rod slams down and shakes
                 for (let i = 0; i < anglers.length; i++) {
                     const a = anglers[i];
-                    const bob = Math.sin(t * 1.25 + a.phase) * 0.045;
-                    const cp = (t + a.phase * 2.3) % 12;
-                    const flick = cp < 0.85 ? Math.sin((cp / 0.85) * Math.PI) * 0.55 : 0;
-                    a.rodGrp.rotation.x = a.baseRX + bob + flick;
+                    const hk = (t + a.phase * 4.1) % 27;
+                    if (hk < 2.6) {
+                        a.rodGrp.rotation.x = a.baseRX + 0.5 + Math.sin(t * 16) * 0.07;
+                    } else {
+                        const bob = Math.sin(t * 1.25 + a.phase) * 0.045;
+                        const cp = (t + a.phase * 2.3) % 12;
+                        const flick = cp < 0.85 ? Math.sin((cp / 0.85) * Math.PI) * 0.55 : 0;
+                        a.rodGrp.rotation.x = a.baseRX + bob + flick;
+                    }
                     const rp = ((t * 0.6 + a.phase) % 1.9) / 1.9;
                     a.ring.scale.setScalar(0.4 + rp * 2.6);
                     a.ring.material.opacity = (1 - rp) * 0.45;
                 }
+
+                // Salmon leap at the dam, wriggle, and splash back in
+                const LEAP = 1.0;
+                for (let i = 0; i < salmon.length; i++) {
+                    const s = salmon[i];
+                    const cyc = (t + s.phase) % s.period;
+                    const cycleIdx = Math.floor((t + s.phase) / s.period);
+                    const h1 = Math.abs(Math.sin(cycleIdx * 12.9898 + i * 78.233));
+                    const lx = RIV.x0 + 0.7 + h1 * (RIV.x1 - RIV.x0 - 1.4);
+                    const lz = RIV.damZ + 2.7 + Math.abs(Math.sin(cycleIdx * 3.7 + i)) * 1.7;
+                    if (cyc < LEAP) {
+                        const p = cyc / LEAP;
+                        s.f.visible = true;
+                        s.f.position.set(lx, RIV.water - 0.16 + Math.sin(p * Math.PI) * 1.05, lz - p * 0.55);
+                        s.f.rotation.x = 0.95 - p * 2.0;      // nose-up out of the water, over, nose-down in
+                        s.f.rotation.z = Math.sin(p * 17) * 0.14;   // mid-air wriggle
+                    } else {
+                        s.f.visible = false;
+                    }
+                    const spT = (cyc - LEAP) / 0.7;
+                    if (spT >= 0 && spT < 1) {
+                        s.splash.visible = true;
+                        s.splash.position.set(lx, RIV.water + 0.018, lz - 0.55);
+                        s.splash.scale.setScalar(0.4 + spT * 3.0);
+                        s.splash.material.opacity = (1 - spT) * 0.65;
+                    } else {
+                        s.splash.visible = false;
+                    }
+                }
+
+                // Dawn chorus — sparse songbird phrases, thickest in the mist
+                if (soundOn && audioCtx && Math.random() < dt * (0.08 + (1 - td) * 0.3)) chirp();
+            }
+
+            // Spillway rush fades in only while the river is on screen
+            if (rushGain) {
+                const target = (soundOn && theme === 'river') ? 0.55 : 0;
+                rushGain.gain.value += (target - rushGain.gain.value) * Math.min(1, dt * 2.5);
             }
 
             // Monitor flicker × brightness
