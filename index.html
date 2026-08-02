@@ -193,7 +193,7 @@
         .world[data-world="forest"]    { --wc: #6fd07a; }
         .world[data-world="northPole"] { --wc: #7ce8ff; }
         .world[data-world="spaceship"] { --wc: #ff8d5c; }
-        .world[data-world="desert"]    { --wc: #ffcf6e; }
+        .world[data-world="river"]     { --wc: #5fc0d8; }
 
         .ctrl-sep {
             height: 1px;
@@ -291,7 +291,7 @@
             <button class="world" data-world="forest"><span class="dot"></span>the woods</button>
             <button class="world" data-world="northPole"><span class="dot"></span>north pole</button>
             <button class="world" data-world="spaceship"><span class="dot"></span>spaceship</button>
-            <button class="world" data-world="desert"><span class="dot"></span>desert</button>
+            <button class="world" data-world="river"><span class="dot"></span>the river</button>
         </nav>
     </div>
 
@@ -334,13 +334,13 @@
         northPoleGroup.visible = false;
         const spaceshipGroup = new THREE.Group();
         spaceshipGroup.visible = false;
-        const desertGroup = new THREE.Group();
-        desertGroup.visible = false;
+        const riverGroup = new THREE.Group();
+        riverGroup.visible = false;
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
         scene.add(spaceshipGroup);
-        scene.add(desertGroup);
+        scene.add(riverGroup);
         let addTarget = scene; // construction target; switched per section below
 
         // ── Camera ──
@@ -2790,559 +2790,415 @@
         // ═══════════════════════════════
         //  DESERT THEME
         // ═══════════════════════════════
-        addTarget = desertGroup;
+        addTarget = riverGroup;
 
-        // ── Terrain height field: flat core, rolling dunes, dune ring ──
-        const terrainH = (x, z) => {
-            const r = Math.hypot(x, z);
-            const mask = Math.min(1, Math.max(0, (r - 2.2) / 1.6));
-            let h = Math.sin(x*0.5 + 0.6) * Math.cos(z*0.45 - 0.3) * 0.16
-                  + Math.sin(x*0.22 - 1.1) * Math.sin(z*0.30 + 0.7) * 0.22;
-            h *= mask;
-            const rim = Math.max(0, r - 4.3);
-            h += rim * rim * 0.085;
-            return Math.min(h, 2.7);
+        // ═══════════════════════════════
+        //  RIVER — tailwater below a concrete dam, Tippy Dam style
+        // ═══════════════════════════════
+
+        // Channel runs along the left side so the desk keeps dry ground;
+        // dam spans the back, river flows toward the camera.
+        const RIV = { x0: -7.0, x1: -2.35, bed: -0.45, water: -0.16, damZ: -5.7 };
+
+        // ── Banks + carved channel height field ──
+        const rivH = (x, z) => {
+            const inL = THREE.MathUtils.smoothstep(x, RIV.x0 - 0.9, RIV.x0 + 0.4);
+            const inR = 1 - THREE.MathUtils.smoothstep(x, RIV.x1 - 0.4, RIV.x1 + 0.9);
+            const carve = Math.min(inL, inR);
+            let h = carve * RIV.bed;
+            if (x > 3.2) h += (x - 3.2) * 0.11 * (0.8 + 0.2 * Math.sin(z * 0.6));
+            if (x < RIV.x0 - 0.6) h += (RIV.x0 - 0.6 - x) * 0.17;
+            if (z < RIV.damZ - 0.5) h = Math.max(h, RIV.bed * 0.35);
+            return h + Math.sin(x * 2.1) * Math.cos(z * 1.7) * 0.02;
         };
+        const rvgGeo = new THREE.PlaneGeometry(30, 30, 110, 110);
+        const rvgPos = rvgGeo.attributes.position;
+        for (let i = 0; i < rvgPos.count; i++) {
+            rvgPos.setZ(i, rivH(rvgPos.getX(i), -rvgPos.getY(i)));
+        }
+        rvgGeo.computeVertexNormals();
 
-        // ── Sun-baked sand: fine grain + wind ripples (canvas texture) ──
-        const dsgCanvas = document.createElement('canvas');
-        dsgCanvas.width = 512; dsgCanvas.height = 512;
-        const dsgc = dsgCanvas.getContext('2d');
-        dsgc.fillStyle = '#e3bf81'; dsgc.fillRect(0, 0, 512, 512);
-        const sandTones = ['#d9b069', '#e7c98e', '#d2a85e', '#ecd5a0', '#cba75f', '#dcb874'];
-        for (let i = 0; i < 5200; i++) {           // grain speckle
-            dsgc.fillStyle = sandTones[(Math.random() * sandTones.length) | 0];
-            dsgc.globalAlpha = 0.5 + Math.random()*0.5;
-            dsgc.fillRect(Math.random()*512, Math.random()*512, 1+Math.random()*3, 1+Math.random()*3);
+        // Ground paint: forest floor, gravel bars along both shores, wet bed
+        const rvgCv = mkCanvas(1024, 1024);
+        const rvg = rvgCv.getContext('2d');
+        rvg.fillStyle = '#4d5433'; rvg.fillRect(0, 0, 1024, 1024);
+        for (let i = 0; i < 900; i++) {  // mossy/leafy mottling
+            rvg.fillStyle = ['#57603a', '#454c2c', '#5d5432', '#4a5a3a'][(Math.random() * 4) | 0];
+            rvg.globalAlpha = 0.25 + Math.random() * 0.3;
+            rvg.beginPath();
+            rvg.ellipse(Math.random() * 1024, Math.random() * 1024, 6 + Math.random() * 22, 5 + Math.random() * 16, Math.random() * 3, 0, Math.PI * 2);
+            rvg.fill();
         }
-        dsgc.globalAlpha = 1;
-        for (let i = 0; i < 60; i++) {             // wind ripple crests with shadowed troughs
-            const ry = Math.random()*512;
-            const amp = (Math.random()-0.5)*60;
-            dsgc.strokeStyle = `rgba(120,86,46,${0.06 + Math.random()*0.07})`;
-            dsgc.lineWidth = 2.2;
-            dsgc.beginPath(); dsgc.moveTo(0, ry);
-            dsgc.bezierCurveTo(170, ry+amp, 340, ry-amp, 512, ry+amp*0.4); dsgc.stroke();
-            dsgc.strokeStyle = `rgba(255,246,214,${0.05 + Math.random()*0.06})`;  // sunlit highlight
-            dsgc.beginPath(); dsgc.moveTo(0, ry-2.5);
-            dsgc.bezierCurveTo(170, ry+amp-2.5, 340, ry-amp-2.5, 512, ry+amp*0.4-2.5); dsgc.stroke();
+        rvg.globalAlpha = 1;
+        // autumn leaf litter on the grass
+        for (let i = 0; i < 500; i++) {
+            const lx = Math.random() * 1024;
+            if (lx > 230 && lx < 600) continue;
+            rvg.fillStyle = ['#a5591f', '#b8731f', '#8a4419', '#c08a2c'][(Math.random() * 4) | 0];
+            rvg.globalAlpha = 0.5 + Math.random() * 0.4;
+            rvg.fillRect(lx, Math.random() * 1024, 2.5, 2);
         }
-        for (let i = 0; i < 30; i++) {             // soft patch variation
-            dsgc.fillStyle = `rgba(150,110,60,${0.04 + Math.random()*0.05})`;
-            dsgc.beginPath();
-            dsgc.arc(Math.random()*512, Math.random()*512, 20+Math.random()*60, 0, Math.PI*2);
-            dsgc.fill();
-        }
-        const dsgTex = new THREE.CanvasTexture(dsgCanvas);
-        dsgTex.wrapS = dsgTex.wrapT = THREE.RepeatWrapping;
-        dsgTex.repeat.set(6, 6);
-        const dsgGeo = new THREE.PlaneGeometry(38, 38, 120, 120);
-        const dsgPos = dsgGeo.attributes.position;
-        for (let i = 0; i < dsgPos.count; i++) {
-            dsgPos.setZ(i, terrainH(dsgPos.getX(i), -dsgPos.getY(i)));
-        }
-        dsgGeo.computeVertexNormals();
-        dsgTex.colorSpace = THREE.SRGBColorSpace;
-        dsgTex.anisotropy = MAX_ANISO;
-        const desertGround = new THREE.Mesh(dsgGeo,
-            new THREE.MeshStandardMaterial({ map: dsgTex, roughness: 1.0 }));
-        desertGround.rotation.x = -Math.PI / 2;
-        desertGround.receiveShadow = true;
-        addTarget.add(desertGround);
-
-        // ── Gradient sky domes (day + dusk cross-fade by the sun slider) ──
-        const mkSkyTex = (stops) => {
-            const sc = document.createElement('canvas');
-            sc.width = 8; sc.height = 256;
-            const sx = sc.getContext('2d');
-            const g = sx.createLinearGradient(0, 0, 0, 256);   // canvas top = zenith
-            stops.forEach(([o, c]) => g.addColorStop(o, c));
-            sx.fillStyle = g; sx.fillRect(0, 0, 8, 256);
-            return new THREE.CanvasTexture(sc);
+        rvg.globalAlpha = 1;
+        // gravel bars: left shore, then the broad access bar the desk sits on
+        const gravel = (px0, px1) => {
+            const gGrad = rvg.createLinearGradient(px0, 0, px1, 0);
+            gGrad.addColorStop(0, '#8b8578'); gGrad.addColorStop(1, '#9a9182');
+            rvg.fillStyle = gGrad; rvg.fillRect(px0, 0, px1 - px0, 1024);
+            for (let i = 0; i < (px1 - px0) * 14; i++) {
+                const t2 = 120 + Math.random() * 90 | 0;
+                rvg.fillStyle = `rgb(${t2},${t2 - 6},${t2 - 14})`;
+                rvg.globalAlpha = 0.5 + Math.random() * 0.5;
+                rvg.beginPath();
+                rvg.ellipse(px0 + Math.random() * (px1 - px0), Math.random() * 1024, 1 + Math.random() * 2.6, 1 + Math.random() * 2, Math.random() * 3, 0, Math.PI * 2);
+                rvg.fill();
+            }
+            rvg.globalAlpha = 1;
         };
-        const skyDomeGeo = new THREE.SphereGeometry(17, 32, 20);
-        const dDomeDay = new THREE.Mesh(skyDomeGeo, new THREE.MeshBasicMaterial({
-            map: mkSkyTex([[0,'#2f6fc4'],[0.45,'#5d9cd8'],[0.72,'#a9d0e8'],[1,'#e6ead0']]),
-            side: THREE.BackSide, fog: false, depthWrite: false, transparent: true, opacity: 1 }));
-        dDomeDay.renderOrder = -2;
-        addTarget.add(dDomeDay);
-        const dDomeDusk = new THREE.Mesh(skyDomeGeo, new THREE.MeshBasicMaterial({
-            map: mkSkyTex([[0,'#243a78'],[0.4,'#7a5aa0'],[0.62,'#c8662e'],[0.85,'#e89a4a'],[1,'#f3c27a']]),
-            side: THREE.BackSide, fog: false, depthWrite: false, transparent: true, opacity: 0 }));
-        dDomeDusk.renderOrder = -1;
-        addTarget.add(dDomeDusk);
+        gravel(236, 300);   // far shore strip
+        gravel(408, 600);   // near gravel bar (desk + dog live here)
+        // wet river bed between the bars
+        rvg.fillStyle = '#43423e'; rvg.fillRect(300, 0, 108, 1024);
+        for (let i = 0; i < 700; i++) {
+            const t2 = 58 + Math.random() * 46 | 0;
+            rvg.fillStyle = `rgb(${t2},${t2},${t2 - 4})`;
+            rvg.beginPath();
+            rvg.ellipse(300 + Math.random() * 108, Math.random() * 1024, 1.4 + Math.random() * 3, 1 + Math.random() * 2.2, Math.random() * 3, 0, Math.PI * 2);
+            rvg.fill();
+        }
+        // dark waterline stains at both bed edges
+        rvg.fillStyle = 'rgba(30,30,28,0.55)';
+        rvg.fillRect(294, 0, 12, 1024); rvg.fillRect(402, 0, 12, 1024);
+        const rvgTex = new THREE.CanvasTexture(rvgCv);
+        rvgTex.colorSpace = THREE.SRGBColorSpace;
+        rvgTex.anisotropy = MAX_ANISO;
+        const riverGround = new THREE.Mesh(rvgGeo,
+            new THREE.MeshStandardMaterial({ map: rvgTex, roughness: 1.0 }));
+        riverGround.rotation.x = -Math.PI / 2;
+        riverGround.receiveShadow = true;
+        addTarget.add(riverGround);
 
-        // ── Sculpted crescent (barchan) dunes on the horizon ──
-        const duneMats = [lm(0xd6ac63), lm(0xe0bd7a), lm(0xc99f57), lm(0xd9b46e)];
-        const duneShadeMat = lm(0xb38a4c);          // slip-face (shadow side)
-        for (let i = 0; i < 13; i++) {
-            const a = (i / 13) * Math.PI * 2 + Math.random() * 0.35;
-            const r = 7.5 + Math.random() * 5.0;
-            const s = 2.2 + Math.random() * 3.4;
-            const dg = new THREE.Group();
-            const sunlit = new THREE.Mesh(
-                new THREE.SphereGeometry(s, 18, 10, 0, Math.PI*2, 0, Math.PI*0.5),
-                duneMats[(Math.random()*duneMats.length)|0]);
-            sunlit.scale.set(1.5 + Math.random()*0.7, 0.30 + Math.random()*0.16, 1.0 + Math.random()*0.4);
-            sunlit.receiveShadow = true;
-            dg.add(sunlit);
-            const slip = new THREE.Mesh(                                    // steeper shaded leeward face
-                new THREE.SphereGeometry(s*0.92, 16, 8, 0, Math.PI*2, 0, Math.PI*0.5), duneShadeMat);
-            slip.scale.set(1.2, 0.30, 0.55);
-            slip.position.set(0, 0, -s*0.45);
-            dg.add(slip);
-            dg.position.set(Math.sin(a)*r, terrainH(Math.sin(a)*r, Math.cos(a)*r) - 0.1, Math.cos(a)*r);
-            dg.rotation.y = Math.random() * Math.PI * 2;
-            addTarget.add(dg);
+        // ── Flowing tailwater ──
+        const rivCv = mkCanvas(256, 512);
+        const rvc = rivCv.getContext('2d');
+        const rivGrad = rvc.createLinearGradient(0, 0, 256, 0);
+        rivGrad.addColorStop(0, '#173c40'); rivGrad.addColorStop(0.5, '#1d4a4e'); rivGrad.addColorStop(1, '#173c40');
+        rvc.fillStyle = rivGrad; rvc.fillRect(0, 0, 256, 512);
+        for (let i = 0; i < 130; i++) {   // current streaks, elongated with the flow
+            const sx = Math.random() * 256, ln = 40 + Math.random() * 120;
+            rvc.strokeStyle = Math.random() < 0.6 ? '#2e6a6a' : '#78b8b0';
+            rvc.globalAlpha = 0.05 + Math.random() * 0.13;
+            rvc.lineWidth = 1 + Math.random() * 2;
+            rvc.beginPath();
+            const sy = Math.random() * 512;
+            rvc.moveTo(sx, sy); rvc.quadraticCurveTo(sx + 6, sy + ln * 0.5, sx, sy + ln);
+            rvc.stroke();
+        }
+        rvc.globalAlpha = 1;
+        const rivTex = new THREE.CanvasTexture(rivCv);
+        rivTex.wrapS = rivTex.wrapT = THREE.RepeatWrapping;
+        rivTex.repeat.set(2, 5);
+        rivTex.anisotropy = MAX_ANISO;
+        const riverWater = new THREE.Mesh(
+            new THREE.PlaneGeometry(5.3, 17.5),
+            new THREE.MeshStandardMaterial({
+                map: rivTex, transparent: true, opacity: 0.92,
+                roughness: 0.13, metalness: 0.22, color: 0xbfd8d4,
+            }));
+        riverWater.rotation.x = -Math.PI / 2;
+        riverWater.position.set((RIV.x0 + RIV.x1) / 2, RIV.water, RIV.damZ + 8.75);
+        addTarget.add(riverWater);
+
+        // ── Churned white water below the spillway ──
+        const foamCanvas = (softness) => {
+            const cv = mkCanvas(256, 256), g = cv.getContext('2d');
+            g.fillStyle = '#cfe4e2'; g.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 240; i++) {
+                g.fillStyle = Math.random() < 0.65 ? '#ffffff' : '#a8ccc8';
+                g.globalAlpha = (0.25 + Math.random() * 0.5) * softness;
+                g.beginPath();
+                g.ellipse(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 20, 2 + Math.random() * 7, Math.random() * 3, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalAlpha = 1;
+            const t = new THREE.CanvasTexture(cv);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            return t;
+        };
+        const rapidsTex = foamCanvas(1.0);
+        rapidsTex.repeat.set(3, 1);
+        const rapids = new THREE.Mesh(
+            new THREE.PlaneGeometry(5.3, 1.9),
+            new THREE.MeshBasicMaterial({ map: rapidsTex, transparent: true, opacity: 0.9, depthWrite: false }));
+        rapids.rotation.x = -Math.PI / 2;
+        rapids.renderOrder = 2;
+        rapids.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.02, RIV.damZ + 2.35);
+        addTarget.add(rapids);
+        const rapids2Tex = foamCanvas(0.55);
+        rapids2Tex.repeat.set(3, 1);
+        const rapids2 = new THREE.Mesh(
+            new THREE.PlaneGeometry(5.3, 2.2),
+            new THREE.MeshBasicMaterial({ map: rapids2Tex, transparent: true, opacity: 0.4, depthWrite: false }));
+        rapids2.rotation.x = -Math.PI / 2;
+        rapids2.renderOrder = 2;
+        rapids2.position.set((RIV.x0 + RIV.x1) / 2, RIV.water + 0.015, RIV.damZ + 4.3);
+        addTarget.add(rapids2);
+
+        // ── Still reservoir behind the dam ──
+        const resCv = mkCanvas(256, 256);
+        const rsc = resCv.getContext('2d');
+        rsc.fillStyle = '#132e35'; rsc.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 60; i++) {
+            rsc.strokeStyle = '#1e4850'; rsc.globalAlpha = 0.3;
+            rsc.lineWidth = 1;
+            const ry = Math.random() * 256;
+            rsc.beginPath(); rsc.moveTo(0, ry); rsc.lineTo(256, ry + (Math.random() - 0.5) * 6); rsc.stroke();
+        }
+        rsc.globalAlpha = 1;
+        const resTex = new THREE.CanvasTexture(resCv);
+        resTex.wrapS = resTex.wrapT = THREE.RepeatWrapping;
+        const reservoir = new THREE.Mesh(
+            new THREE.PlaneGeometry(10.5, 4.6),
+            new THREE.MeshStandardMaterial({ map: resTex, roughness: 0.1, metalness: 0.3, color: 0x9ab8bc }));
+        reservoir.rotation.x = -Math.PI / 2;
+        reservoir.position.set(-2.9, 1.26, RIV.damZ - 2.5);
+        addTarget.add(reservoir);
+
+        // ── Concrete dam: stepped spillway, piers, crest walkway ──
+        const concCv = mkCanvas(256, 256);
+        const cg2 = concCv.getContext('2d');
+        cg2.fillStyle = '#a8a49a'; cg2.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 18; i++) {  // water stains bleeding down
+            const sx = Math.random() * 256, sw = 5 + Math.random() * 18;
+            const stain = cg2.createLinearGradient(0, 0, 0, 256);
+            stain.addColorStop(0, 'rgba(70,72,66,0.35)'); stain.addColorStop(1, 'rgba(70,72,66,0.02)');
+            cg2.fillStyle = stain; cg2.fillRect(sx, 0, sw, 256);
+        }
+        cg2.strokeStyle = 'rgba(60,60,56,0.35)';  // form lines
+        for (let i = 32; i < 256; i += 32) {
+            cg2.beginPath(); cg2.moveTo(0, i); cg2.lineTo(256, i); cg2.stroke();
+        }
+        speckle(cg2, 256, 256, 2600, 0.10, '#c4c0b6', '#6a685f');
+        const concTex = new THREE.CanvasTexture(concCv);
+        concTex.wrapS = concTex.wrapT = THREE.RepeatWrapping;
+        concTex.colorSpace = THREE.SRGBColorSpace;
+        const concMat = new THREE.MeshStandardMaterial({ map: concTex, roughness: 0.9 });
+        const concDark = lm(0x8a867c, 0, 0, 0.92);
+
+        const DAM = { xL: -8.4, xR: 0.9, crest: 1.62 };
+        const damCX = (DAM.xL + DAM.xR) / 2, damW = DAM.xR - DAM.xL;
+        // upstream wall
+        box(damW, 2.3, 0.5, concMat, damCX, 0.55, RIV.damZ - 0.28);
+        // stepped spillway face — only across the river channel
+        const chanCX = (RIV.x0 + RIV.x1) / 2, chanW = RIV.x1 - RIV.x0 + 0.7;
+        for (let s = 0; s < 5; s++) {
+            box(chanW, 0.37, 0.5 + s * 0.34, concMat, chanCX, 1.42 - s * 0.36, RIV.damZ + s * 0.165);
+        }
+        // solid gravity sections tie the spillway into both abutments
+        box(2.7, 2.35, 1.1, concMat, -0.65, 0.52, RIV.damZ + 0.05);
+        box(1.5, 2.35, 1.1, concMat, -7.85, 0.52, RIV.damZ + 0.05);
+        // buttress piers over the spill bays
+        const pierXs = [-6.85, -5.72, -4.6, -3.48, -2.36];
+        pierXs.forEach(px => box(0.26, 2.35, 2.0, concMat, px, 0.72, RIV.damZ + 0.42));
+        // crest walkway + steel railing
+        box(damW + 0.3, 0.12, 0.85, concDark, damCX, DAM.crest + 0.06, RIV.damZ - 0.05);
+        const railMat = lm(0x2e3236, 0, 0, 0.5, 0.7);
+        for (let rx2 = DAM.xL + 0.2; rx2 < DAM.xR; rx2 += 0.62) {
+            box(0.03, 0.30, 0.03, railMat, rx2, DAM.crest + 0.27, RIV.damZ + 0.32);
+        }
+        box(damW + 0.2, 0.025, 0.03, railMat, damCX, DAM.crest + 0.42, RIV.damZ + 0.32);
+        box(damW + 0.2, 0.02, 0.025, railMat, damCX, DAM.crest + 0.30, RIV.damZ + 0.32);
+        // powerhouse — tan brick block at the right abutment
+        const brickMat = lm(0xa9855c, 0, 0, 0.85);
+        box(2.0, 1.95, 1.7, brickMat, 1.7, 0.97, RIV.damZ + 0.35);
+        box(2.16, 0.16, 1.86, concDark, 1.7, 2.0, RIV.damZ + 0.35);   // parapet
+        for (let wi = 0; wi < 3; wi++) {  // tall arched-window strips
+            box(0.30, 1.0, 0.03, lm(0x1c2a30, 0x223844, 0.5), 1.15 + wi * 0.56, 1.05, RIV.damZ + 1.21);
+        }
+        // wing walls into the banks
+        box(1.6, 1.7, 0.35, concMat, DAM.xL - 0.6, 0.55, RIV.damZ + 0.15, 0, 0.5, 0);
+        box(1.2, 1.5, 0.35, concMat, DAM.xR + 0.4, 0.45, RIV.damZ + 0.2, 0, -0.5, 0);
+
+        // ── White water sheets pouring down the spill bays ──
+        const spillCv = mkCanvas(128, 256);
+        const spc = spillCv.getContext('2d');
+        spc.fillStyle = 'rgba(225,240,240,0.55)'; spc.fillRect(0, 0, 128, 256);
+        for (let i = 0; i < 90; i++) {
+            spc.strokeStyle = Math.random() < 0.7 ? '#ffffff' : '#cfe8e6';
+            spc.globalAlpha = 0.25 + Math.random() * 0.5;
+            spc.lineWidth = 1 + Math.random() * 2.4;
+            const sx = Math.random() * 128;
+            spc.beginPath(); spc.moveTo(sx, 0); spc.lineTo(sx + (Math.random() - 0.5) * 10, 256); spc.stroke();
+        }
+        spc.globalAlpha = 1;
+        const spillSheets = [];
+        for (let bay = 0; bay < 4; bay++) {
+            const bx = (pierXs[bay] + pierXs[bay + 1]) / 2;
+            const sTex = new THREE.CanvasTexture(spillCv);
+            sTex.wrapS = sTex.wrapT = THREE.RepeatWrapping;
+            const sheet = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.92, 2.5),
+                new THREE.MeshBasicMaterial({ map: sTex, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+            sheet.renderOrder = 3;
+            sheet.position.set(bx, 0.68, RIV.damZ + 1.10);
+            sheet.rotation.x = -0.58;
+            addTarget.add(sheet);
+            spillSheets.push(sheet);
         }
 
-        // ── Palm trees with pinnate (feathered) fronds ──
-        const barkCanvas = document.createElement('canvas');
-        barkCanvas.width = 64; barkCanvas.height = 64;
-        const bkc = barkCanvas.getContext('2d');
-        bkc.fillStyle = '#8a6334'; bkc.fillRect(0, 0, 64, 64);
-        for (let i = 0; i < 6; i++) {                 // diamond frond-scar bands
-            const by = i * 11;
-            bkc.fillStyle = i % 2 ? '#6f4d28' : '#9a7140';
-            for (let j = 0; j < 6; j++) {
-                bkc.beginPath();
-                bkc.moveTo(j*11, by+5); bkc.lineTo(j*11+5, by); bkc.lineTo(j*11+11, by+5); bkc.lineTo(j*11+5, by+10);
-                bkc.closePath(); bkc.fill();
-            }
+        // ── Spray mist rising off the stilling basin ──
+        const MIST_N = 46;
+        const mistPos = new Float32Array(MIST_N * 3);
+        const mistBase = [];
+        for (let i = 0; i < MIST_N; i++) {
+            const mx = RIV.x0 + 0.3 + Math.random() * (RIV.x1 - RIV.x0 - 0.6);
+            const mz = RIV.damZ + 0.2 + Math.random() * 1.6;
+            mistBase.push(mx, mz, Math.random());
+            mistPos[i * 3] = mx; mistPos[i * 3 + 1] = 0.2; mistPos[i * 3 + 2] = mz;
         }
-        const barkTex = new THREE.CanvasTexture(barkCanvas);
-        barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping; barkTex.repeat.set(1, 4);
-        barkTex.colorSpace = THREE.SRGBColorSpace;
-        const palmTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95 });
-        const palmLeafMats = [
-            new THREE.MeshLambertMaterial({ color: 0x4f8f3a, side: THREE.DoubleSide }),
-            new THREE.MeshLambertMaterial({ color: 0x3f7d31, side: THREE.DoubleSide }),
-            new THREE.MeshLambertMaterial({ color: 0x5aa043, side: THREE.DoubleSide }),
-        ];
-        const leafletGeo = new THREE.PlaneGeometry(1, 1);
-        const palmFronds = [];   // crowns, swayed in the render loop
-        const mkFrond = (L, mat) => {        // a single feathered leaf along +X, drooping in -Y
-            const g = new THREE.Group();
-            const segN = 8;
-            let prev = new THREE.Vector3(0, 0, 0);
-            const up = new THREE.Vector3(0, 1, 0);
-            for (let i = 1; i <= segN; i++) {
-                const tt = i / segN;
-                const cur = new THREE.Vector3(tt*L, -0.62*L*tt*tt, 0);
-                const dir = cur.clone().sub(prev);
-                const len = dir.length();
-                const rod = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.022*(1-tt)+0.004, 0.022*(1-tt*0.8)+0.005, len, 5),
-                    palmTrunkMat);
-                rod.position.copy(prev).add(cur).multiplyScalar(0.5);
-                rod.quaternion.setFromUnitVectors(up, dir.clone().normalize());
-                g.add(rod);
-                const leafLen = 0.42*L*(1 - tt*0.55);
-                const leafW   = 0.07*L*(1 - tt*0.3);
-                [-1, 1].forEach(sgn => {
-                    const blade = new THREE.Mesh(leafletGeo, mat);
-                    blade.scale.set(leafLen, leafW, 1);
-                    blade.position.x = leafLen/2;
-                    blade.rotation.x = Math.PI/2;              // lay flat (face up)
-                    const holder = new THREE.Group();
-                    holder.add(blade);
-                    holder.position.copy(cur);
-                    holder.rotation.order = 'YXZ';
-                    holder.rotation.y = sgn*(Math.PI*0.5 - 0.55);   // splay sideways, swept to tip
-                    holder.rotation.z = 0.22;                       // lift into a shallow V
-                    g.add(holder);
-                });
-                prev = cur;
-            }
-            return g;
-        };
-        const palm = (x, z, s, lean, leanDir) => {
-            const baseY = terrainH(x, z);
-            const seg = 9;
-            const trunkGrp = new THREE.Group();
-            trunkGrp.position.set(x, baseY, z);
-            trunkGrp.rotation.y = leanDir;
-            let topLocal = new THREE.Vector3(0, 0, 0);
-            for (let i = 0; i < seg; i++) {
-                const tt = i / seg;
-                const rad = (0.10*s)*(1 - tt*0.45);
-                const ring = new THREE.Mesh(new THREE.CylinderGeometry(rad*0.92, rad, 0.30*s, 8), palmTrunkMat);
-                const bend = Math.pow(tt, 1.7) * lean * 1.3;
-                ring.position.set(bend, 0.15*s + i*0.29*s, 0);
-                ring.rotation.z = -lean * 0.22 * tt;
-                ring.castShadow = true;
-                trunkGrp.add(ring);
-                topLocal.set(bend, 0.15*s + i*0.29*s, 0);
-            }
-            addTarget.add(trunkGrp);
-            // crown sits on top of the leaning trunk
-            const crown = new THREE.Group();
-            crown.position.copy(topLocal).add(new THREE.Vector3(0, 0.12*s, 0));
-            crown.rotation.z = -lean * 0.3;
-            const nF = 11;
-            for (let i = 0; i < nF; i++) {
-                const ang = (i / nF) * Math.PI * 2;
-                const droop = new THREE.Group();
-                droop.rotation.order = 'YXZ';
-                droop.rotation.y = ang;
-                droop.rotation.z = -0.5 - (i % 3) * 0.18;     // outer ring droops more
-                const frond = mkFrond(1.15*s, palmLeafMats[i % palmLeafMats.length]);
-                droop.add(frond);
-                droop.userData.baseZ = droop.rotation.z;
-                droop.userData.phase = Math.random()*Math.PI*2;
-                crown.add(droop);
-            }
-            // coconut cluster
-            for (let i = 0; i < 5; i++) {
-                const co = new THREE.Mesh(new THREE.SphereGeometry(0.055*s, 7, 6), lm(0x553a22));
-                const a = (i/5)*Math.PI*2;
-                co.position.set(Math.sin(a)*0.09*s, -0.04*s, Math.cos(a)*0.09*s);
-                co.castShadow = true;
-                crown.add(co);
-            }
-            trunkGrp.add(crown);
-            crown.userData.phase = Math.random()*Math.PI*2;
-            palmFronds.push(crown);
-        };
-        palm(-3.6, -2.6, 1.5, 0.42, 0.6);
-        palm(3.9, -1.6, 1.75, 0.5, -1.1);
-        palm(2.7, 3.0, 1.3, 0.36, 2.3);
-        palm(-4.2, 1.7, 1.5, 0.46, -0.4);
-        palm(0.6, -4.6, 1.65, 0.3, 0.9);
-        palm(4.6, 1.4, 1.4, 0.4, 1.7);
-
-        // ── Shimmering horizon mirage (the "false water" illusion) ──
-        const mkMirageTex = () => {
-            const mc = document.createElement('canvas');
-            mc.width = 256; mc.height = 64;
-            const mx = mc.getContext('2d');
-            const g = mx.createLinearGradient(0, 0, 0, 64);        // top dissolves into sand
-            g.addColorStop(0.0, 'rgba(214,238,248,0.0)');
-            g.addColorStop(0.32, 'rgba(196,228,240,0.45)');
-            g.addColorStop(0.6, 'rgba(150,202,224,0.78)');
-            g.addColorStop(1.0, 'rgba(122,178,208,0.5)');
-            mx.fillStyle = g; mx.fillRect(0, 0, 256, 64);
-            for (let i = 0; i < 40; i++) {       // horizontal shimmer streaks
-                mx.fillStyle = `rgba(238,250,255,${0.08 + Math.random()*0.28})`;
-                mx.fillRect(Math.random()*256, 20 + Math.random()*44, 12 + Math.random()*60, 1);
-            }
-            const tex = new THREE.CanvasTexture(mc);
-            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-            return tex;
-        };
-        const mirages = [];
-        [[0, 7.4, 13, 1.7], [-6.2, 4.0, 7, 1.3], [6.0, 4.6, 7, 1.3], [-4.8, -6.0, 7, 1.2]].forEach(([mxp, mzp, w, h]) => {
-            const mMat = new THREE.MeshBasicMaterial({
-                map: mkMirageTex(), transparent: true, opacity: 0.6,
-                depthWrite: false, fog: true, side: THREE.DoubleSide });
-            const band = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mMat);
-            band.position.set(mxp, 0.55, mzp);     // floats just above the sand at the horizon
-            band.lookAt(0, 0.55, 0);
-            band.userData = { phase: Math.random()*Math.PI*2, kind: 'band' };
-            mirages.push(band);
-            addTarget.add(band);
+        const mistGeo = new THREE.BufferGeometry();
+        mistGeo.setAttribute('position', new THREE.BufferAttribute(mistPos, 3));
+        const mistMat = new THREE.PointsMaterial({
+            color: 0xe8f4f2, size: 0.09, transparent: true, opacity: 0.3, sizeAttenuation: true, depthWrite: false,
         });
+        const mistPoints = new THREE.Points(mistGeo, mistMat);
+        addTarget.add(mistPoints);
 
-        // ── Oasis pool: real water beneath the palms (depth + reflections) ──
-        const oasisCanvas = document.createElement('canvas');
-        oasisCanvas.width = 128; oasisCanvas.height = 128;
-        const oac = oasisCanvas.getContext('2d');
-        const og = oac.createRadialGradient(64, 64, 8, 64, 64, 64);
-        og.addColorStop(0, '#0f4a5e'); og.addColorStop(0.5, '#1f7f95'); og.addColorStop(0.85, '#4fb0c0'); og.addColorStop(1, '#86ccd6');
-        oac.fillStyle = og; oac.beginPath(); oac.arc(64, 64, 64, 0, Math.PI*2); oac.fill();
-        for (let i = 0; i < 60; i++) {        // ripple highlights
-            oac.strokeStyle = `rgba(220,245,250,${0.05 + Math.random()*0.18})`;
-            oac.lineWidth = 1;
-            oac.beginPath();
-            const yy = Math.random()*128;
-            oac.moveTo(10, yy); oac.quadraticCurveTo(64, yy+(Math.random()-0.5)*10, 118, yy); oac.stroke();
-        }
-        oac.fillStyle = 'rgba(30,70,40,0.35)';   // green palm reflection blobs
-        oac.beginPath(); oac.ellipse(46, 90, 10, 26, 0.3, 0, Math.PI*2); oac.fill();
-        oac.beginPath(); oac.ellipse(82, 96, 8, 20, -0.2, 0, Math.PI*2); oac.fill();
-        const oasisTex = new THREE.CanvasTexture(oasisCanvas);
-        oasisTex.wrapS = oasisTex.wrapT = THREE.RepeatWrapping;
-        const oasis = new THREE.Mesh(new THREE.CircleGeometry(1.7, 40),
-            new THREE.MeshBasicMaterial({ map: oasisTex, transparent: true, opacity: 0.94, fog: true }));
-        oasis.rotation.x = -Math.PI / 2;
-        oasis.position.set(3.4, 0.015, 2.2);
-        oasis.scale.set(1.25, 1, 1);
-        addTarget.add(oasis);
-        const oasisRim = new THREE.Mesh(new THREE.RingGeometry(1.62, 2.15, 40),  // dark wet sand
-            new THREE.MeshLambertMaterial({ color: 0x9c7536, transparent: true, opacity: 0.8 }));
-        oasisRim.rotation.x = -Math.PI / 2;
-        oasisRim.position.set(3.4, 0.008, 2.2);
-        oasisRim.scale.set(1.25, 1, 1);
-        oasisRim.receiveShadow = true;
-        addTarget.add(oasisRim);
-        // reeds around the water
-        const reedMat = lm(0x6b7d2a);
-        for (let i = 0; i < 22; i++) {
-            const a = Math.random()*Math.PI*2, rr = 2.0 + Math.random()*0.35;
-            const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.012, 0.32+Math.random()*0.2, 4), reedMat);
-            const rx = 3.4 + Math.cos(a)*rr*1.25, rz = 2.2 + Math.sin(a)*rr;
-            reed.position.set(rx, 0.16, rz);
-            reed.rotation.z = (Math.random()-0.5)*0.5;
-            reed.castShadow = true;
-            addTarget.add(reed);
-        }
-
-        // ── Saguaro cacti (ribbed, with arms + a bloom) ──
-        const cactusMat = lm(0x46763e);
-        const cactusRibMat = lm(0x386030);
-        const saguaro = (x, z, s) => {
-            const baseY = terrainH(x, z);
-            const col = new THREE.Mesh(new THREE.CylinderGeometry(0.13*s, 0.16*s, 1.5*s, 12), cactusMat);
-            col.position.set(x, baseY + 0.75*s, z);
-            col.castShadow = col.receiveShadow = true;
-            addTarget.add(col);
-            for (let k = 0; k < 8; k++) {           // vertical ribs
-                const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.018*s, 0.022*s, 1.45*s, 4), cactusRibMat);
-                const ra = (k/8)*Math.PI*2;
-                rib.position.set(x + Math.cos(ra)*0.13*s, baseY + 0.75*s, z + Math.sin(ra)*0.13*s);
-                addTarget.add(rib);
-            }
-            const cap = new THREE.Mesh(new THREE.SphereGeometry(0.13*s, 10, 8, 0, Math.PI*2, 0, Math.PI*0.55), cactusMat);
-            cap.position.set(x, baseY + 1.5*s, z);
-            addTarget.add(cap);
-            // bloom
-            const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.05*s, 7, 6), lm(0xe8d24a));
-            bloom.position.set(x, baseY + 1.55*s, z);
-            addTarget.add(bloom);
-            [[-1, 0.7, 0.95], [1, 0.55, 0.78]].forEach(([dir, ay, ah]) => {  // upcurved arms
-                const elbow = new THREE.Mesh(new THREE.CylinderGeometry(0.06*s, 0.075*s, 0.3*s, 8), cactusMat);
-                elbow.position.set(x + dir*0.2*s, baseY + ay*s, z);
-                elbow.rotation.z = -dir*0.9; elbow.castShadow = true;
-                addTarget.add(elbow);
-                const up = new THREE.Mesh(new THREE.CylinderGeometry(0.055*s, 0.06*s, 0.4*s, 8), cactusMat);
-                up.position.set(x + dir*0.33*s, baseY + (ay+0.28)*s, z);
-                up.castShadow = true;
-                addTarget.add(up);
-                const ucap = new THREE.Mesh(new THREE.SphereGeometry(0.055*s, 8, 6, 0, Math.PI*2, 0, Math.PI*0.55), cactusMat);
-                ucap.position.set(x + dir*0.33*s, baseY + (ay+0.48)*s, z);
-                addTarget.add(ucap);
-            });
+        // ── Anglers working the tailwater ──
+        const anglers = [];
+        const waderMat = lm(0x33402c, 0, 0, 0.8);
+        const skinMat2 = lm(0xc08a5c, 0, 0, 0.65);
+        const angler = (x, z, y, rotY, jacketHex, capHex) => {
+            const g = new THREE.Group();
+            g.position.set(x, y, z);
+            g.rotation.y = rotY;
+            addTarget.add(g);
+            const jacket = lm(jacketHex, 0, 0, 0.9);
+            const p = (w, h, d, m, px, py, pz, rx = 0, ry = 0, rz = 0) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+                mesh.position.set(px, py, pz);
+                mesh.rotation.set(rx, ry, rz);
+                mesh.castShadow = true;
+                g.add(mesh);
+                return mesh;
+            };
+            p(0.095, 0.44, 0.11, waderMat, -0.06, 0.22, 0);       // legs
+            p(0.095, 0.44, 0.11, waderMat,  0.06, 0.22, 0);
+            p(0.26, 0.34, 0.16, jacket, 0, 0.60, 0);              // jacket
+            p(0.20, 0.10, 0.14, waderMat, 0, 0.42, 0);            // wader bib
+            p(0.075, 0.26, 0.075, jacket, -0.165, 0.60, 0, 0.35, 0, 0.25);  // left arm relaxed
+            p(0.075, 0.26, 0.075, jacket, 0.16, 0.62, -0.10, -1.05, 0, -0.15); // right arm holds rod
+            p(0.13, 0.15, 0.135, skinMat2, 0, 0.86, 0);           // head
+            p(0.15, 0.05, 0.15, lm(capHex, 0, 0, 0.9), 0, 0.955, 0);       // cap
+            p(0.13, 0.02, 0.09, lm(capHex, 0, 0, 0.9), 0, 0.94, -0.11);    // bill
+            // rod, tip up over the water
+            const rodGrp = new THREE.Group();
+            rodGrp.position.set(0.17, 0.70, -0.12);
+            rodGrp.rotation.x = -1.02;
+            g.add(rodGrp);
+            const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.011, 1.35, 5), lm(0x2a2622, 0, 0, 0.5, 0.3));
+            rod.position.y = 0.62;
+            rodGrp.add(rod);
+            const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.025, 8), lm(0x8c9298, 0, 0, 0.4, 0.8));
+            reel.rotation.z = Math.PI / 2;
+            reel.position.set(0, 0.16, 0.045);
+            rodGrp.add(reel);
+            // line sagging from the tip down to the drift
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xdde8e8, transparent: true, opacity: 0.5 });
+            const tip = new THREE.Vector3(0.17, 0.70 + 1.30 * Math.cos(1.02), -0.12 - 1.30 * Math.sin(1.02));
+            const entry = new THREE.Vector3(0.17, RIV.water - y, -1.95);
+            const mid = new THREE.Vector3(0.17, (tip.y + entry.y) / 2 - 0.18, (tip.z + entry.z) / 2);
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([tip, mid, entry]);
+            g.add(new THREE.Line(lineGeo, lineMat));
+            // drift bobber + take-ripple where the line lands
+            const bobber = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), lm(0xe86018, 0xe86018, 0.4));
+            bobber.position.copy(entry);
+            g.add(bobber);
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.05, 0.075, 20),
+                new THREE.MeshBasicMaterial({ color: 0xcfe8e4, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(entry.x, entry.y + 0.012, entry.z);
+            g.add(ring);
+            anglers.push({ rodGrp, ring, baseRX: -1.02, phase: Math.random() * 9 });
         };
-        saguaro(-2.4, 2.9, 1.0);
-        saguaro(3.1, -3.2, 0.82);
-        saguaro(-1.6, -3.4, 0.7);
-        // small barrel cactus + dry shrubs
-        for (let i = 0; i < 4; i++) {
-            const a = Math.random()*Math.PI*2, r = 2.6 + Math.random()*2.4;
-            const bx = Math.sin(a)*r, bz = Math.cos(a)*r;
-            const barrel = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), cactusMat);
-            barrel.scale.y = 1.3; barrel.position.set(bx, terrainH(bx,bz)+0.15, bz);
-            barrel.castShadow = true; addTarget.add(barrel);
-        }
-        const shrubMat = lm(0x8a7a3a);
-        for (let i = 0; i < 14; i++) {
-            const a = Math.random()*Math.PI*2, r = 2.2 + Math.random()*4.5;
-            const sx = Math.sin(a)*r, sz = Math.cos(a)*r, sy = terrainH(sx, sz);
-            for (let k = 0; k < 5; k++) {
-                const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.008, 0.16+Math.random()*0.12, 3), shrubMat);
-                blade.position.set(sx + (Math.random()-0.5)*0.1, sy + 0.08, sz + (Math.random()-0.5)*0.1);
-                blade.rotation.set((Math.random()-0.5)*0.8, 0, (Math.random()-0.5)*0.8);
-                addTarget.add(blade);
+        angler(-3.35, -1.1, RIV.bed + 0.03, 0.35, 0x8a2f23, 0x2a2a2c);  // wading, red jacket
+        angler(-5.45, 0.9, RIV.bed + 0.03, -0.55, 0x3a5a7a, 0x6a4a28);  // wading, blue jacket
+        angler(-2.05, 2.8, -0.06, 0.95, 0xb9995a, 0x394428);            // on the gravel point
+
+        // ── Wooded banks: pines + autumn maples ──
+        const mapleTrunk = lm(0x4a3826, 0, 0, 0.95);
+        const mapleCols = [0xc96a1e, 0xd98a24, 0xa83b1c, 0xe0a832, 0xb5551d];
+        const maple = (x, z, s) => {
+            const gy = rivH(x, z);
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * s, 0.09 * s, 0.75 * s, 6), mapleTrunk);
+            trunk.position.set(x, gy + 0.37 * s, z);
+            trunk.castShadow = trunk.receiveShadow = true;
+            addTarget.add(trunk);
+            for (let k = 0; k < 3; k++) {
+                const cm = lm(mapleCols[(Math.random() * mapleCols.length) | 0], 0, 0, 1.0);
+                const c = new THREE.Mesh(new THREE.IcosahedronGeometry((0.34 + Math.random() * 0.2) * s, 0), cm);
+                c.position.set(x + (Math.random() - 0.5) * 0.4 * s, gy + (0.85 + k * 0.28) * s, z + (Math.random() - 0.5) * 0.4 * s);
+                c.castShadow = c.receiveShadow = true;
+                addTarget.add(c);
             }
-        }
-        // rocks of varied size, partly buried
-        for (let i = 0; i < 12; i++) {
-            const a = Math.random()*Math.PI*2, r = 2.4 + Math.random()*4.5;
-            const s = 0.09 + Math.random()*0.26;
-            const rx = Math.sin(a)*r, rz = Math.cos(a)*r;
-            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0),
-                lm([0x9a7c52, 0x8c6e48, 0xa98a5c][(Math.random()*3)|0]));
-            rock.position.set(rx, terrainH(rx,rz) + s*0.35, rz);
-            rock.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+        };
+        // near bank, behind the desk
+        [[4.6, -3.2, 1.5], [6.2, -1.0, 1.9], [5.4, 1.8, 1.3], [7.2, 3.6, 1.7], [4.9, 5.4, 1.2],
+         [8.4, -4.2, 2.0], [7.8, 7.0, 1.5], [3.9, 8.2, 1.1]].forEach(([x, z, s]) =>
+            Math.random() < 0.5 ? maple(x, z, s) : pine(x, z, s));
+        // far bank across the river
+        [[-9.4, -2.5, 1.6], [-10.6, 0.4, 2.0], [-9.0, 2.8, 1.3], [-11.4, 4.6, 1.7],
+         [-9.8, 7.2, 1.4], [-8.8, 5.0, 1.1]].forEach(([x, z, s]) =>
+            Math.random() < 0.6 ? maple(x, z, s) : pine(x, z, s));
+        // crowns peeking over the dam on both abutments
+        [[-9.6, -7.4, 1.8], [3.4, -7.2, 1.6], [5.2, -6.4, 1.3], [-8.6, -6.8, 1.2]].forEach(([x, z, s]) =>
+            Math.random() < 0.5 ? maple(x, z, s) : pine(x, z, s));
+
+        // ── Boulders on the bars, a snagged driftwood log ──
+        for (let i = 0; i < 9; i++) {
+            const bx = Math.random() < 0.5 ? -1.9 + Math.random() * 1.4 : RIV.x0 - 0.4 + Math.random() * 0.9;
+            const bz = -3 + Math.random() * 9;
+            const s = 0.09 + Math.random() * 0.16;
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), lm(0x6c6a64, 0, 0, 0.95));
+            rock.position.set(bx, rivH(bx, bz) + s * 0.55, bz);
+            rock.rotation.set(Math.random() * 3, Math.random() * 3, 0);
             rock.castShadow = rock.receiveShadow = true;
             addTarget.add(rock);
         }
-        // sun-bleached cow skull half-buried in the sand
-        const dSkullMat = lm(0xe8ddc4);
-        const cowSkull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), dSkullMat);
-        cowSkull.scale.set(1, 0.8, 1.3);
-        cowSkull.position.set(1.2, 0.07, 3.6);
-        cowSkull.castShadow = true;
-        addTarget.add(cowSkull);
-        [[-1], [1]].forEach(([hx]) => {
-            const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.03, 0.24, 6), dSkullMat);
-            horn.position.set(1.2 + hx*0.13, 0.12, 3.52);
-            horn.rotation.z = hx*0.9; horn.rotation.x = -0.3;
-            addTarget.add(horn);
-        });
+        const drift = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.10, 1.7, 6), lm(0x8a7a62, 0, 0, 0.95));
+        drift.position.set(-2.0, -0.05, 4.4);
+        drift.rotation.set(0.06, 0.7, Math.PI / 2 - 0.06);
+        drift.castShadow = drift.receiveShadow = true;
+        addTarget.add(drift);
 
-        // ── Walking sand skeleton (articulated, bending knees + elbows) ──
-        const boneMat = lm(0xdccba3);
-        const mkBone = (geo, mat, parent, x, y, z) => {
-            const m = new THREE.Mesh(geo, mat);
-            m.position.set(x, y, z);
-            m.castShadow = true;
-            parent.add(m);
-            return m;
-        };
-        const skelGroup = new THREE.Group();
-        const skelBob = new THREE.Group();          // vertical bob while striding
-        const skelSpine = new THREE.Group();        // sways slightly with the gait
-        skelGroup.add(skelBob);
-        skelBob.add(skelSpine);
-        mkBone(new THREE.CylinderGeometry(0.03, 0.035, 0.42, 7), boneMat, skelSpine, 0, 1.02, 0);   // spine
-        const ribCage = new THREE.Group(); skelSpine.add(ribCage);
-        const sternum = mkBone(new THREE.BoxGeometry(0.04, 0.26, 0.03), lm(0xd5c399), ribCage, 0, 1.12, 0.10);
-        for (let i = 0; i < 5; i++) {               // curved rib pairs
-            const rib = new THREE.Mesh(new THREE.TorusGeometry(0.135 - i*0.012, 0.011, 6, 14, Math.PI*1.05), boneMat);
-            rib.rotation.x = Math.PI/2; rib.rotation.z = -Math.PI*0.02;
-            rib.position.set(0, 1.22 - i*0.06, 0);
-            ribCage.add(rib);
-        }
-        mkBone(new THREE.BoxGeometry(0.05, 0.05, 0.16), boneMat, skelSpine, 0, 1.27, -0.02);          // collar/shoulders bar
-        const pelvis = mkBone(new THREE.BoxGeometry(0.26, 0.13, 0.17), boneMat, skelSpine, 0, 0.80, 0);
-        pelvis.geometry = new THREE.CylinderGeometry(0.14, 0.11, 0.16, 10, 1, false, 0, Math.PI*2);
-        pelvis.scale.set(1, 0.8, 0.7);
-        // neck + skull
-        mkBone(new THREE.CylinderGeometry(0.025, 0.03, 0.09, 6), boneMat, skelSpine, 0, 1.31, 0);
-        const skull = mkBone(new THREE.SphereGeometry(0.11, 14, 12), dSkullMat, skelSpine, 0, 1.44, 0.01);
-        skull.scale.set(0.92, 1.06, 1.02);
-        const jaw = mkBone(new THREE.BoxGeometry(0.12, 0.045, 0.10), dSkullMat, skelSpine, 0, 1.37, 0.035);
-        mkBone(new THREE.BoxGeometry(0.10, 0.02, 0.02), lm(0xcbb98a), skelSpine, 0, 1.355, 0.085);    // teeth
-        // eye sockets + nasal cavity
-        mkBone(new THREE.SphereGeometry(0.026, 8, 8), lm(0x241a0d), skelSpine, -0.042, 1.45, 0.095);
-        mkBone(new THREE.SphereGeometry(0.026, 8, 8), lm(0x241a0d), skelSpine,  0.042, 1.45, 0.095);
-        mkBone(new THREE.ConeGeometry(0.016, 0.04, 4), lm(0x241a0d), skelSpine, 0, 1.41, 0.10);
-        // two-segment limb: { hip pivot, knee pivot }
-        const mkLimb = (px, py, pz, upperLen, lowerLen, rad, isLeg) => {
-            const hip = new THREE.Group(); hip.position.set(px, py, pz);
-            mkBone(new THREE.CylinderGeometry(rad, rad*0.82, upperLen, 6), boneMat, hip, 0, -upperLen/2, 0);
-            mkBone(new THREE.SphereGeometry(rad*1.15, 7, 6), dSkullMat, hip, 0, -upperLen, 0);   // joint
-            const knee = new THREE.Group(); knee.position.set(0, -upperLen, 0); hip.add(knee);
-            mkBone(new THREE.CylinderGeometry(rad*0.8, rad*0.62, lowerLen, 6), boneMat, knee, 0, -lowerLen/2, 0);
-            if (isLeg) {
-                mkBone(new THREE.BoxGeometry(0.075, 0.035, 0.17), dSkullMat, knee, 0, -lowerLen-0.005, 0.05);
-            } else {
-                mkBone(new THREE.SphereGeometry(rad*1.1, 6, 5), dSkullMat, knee, 0, -lowerLen, 0);  // wrist
-                for (let f = 0; f < 3; f++)                                                          // finger stubs
-                    mkBone(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 4), boneMat, knee, (f-1)*0.018, -lowerLen-0.05, 0);
-            }
-            skelSpine.add(hip);
-            return { hip, knee };
-        };
-        const skelLegL = mkLimb(-0.08, 0.80, 0, 0.40, 0.40, 0.034, true);
-        const skelLegR = mkLimb( 0.08, 0.80, 0, 0.40, 0.40, 0.034, true);
-        const skelArmL = mkLimb(-0.17, 1.26, 0, 0.30, 0.28, 0.024, false);
-        const skelArmR = mkLimb( 0.17, 1.26, 0, 0.30, 0.28, 0.024, false);
-        skelGroup.position.set(2.6, 0, 0);
-        addTarget.add(skelGroup);
-        // sand trickling off the bones
-        const SHED_N = 44;
-        const shedPos = new Float32Array(SHED_N * 3);
-        const shedBase = [];
-        for (let i = 0; i < SHED_N; i++) {
-            const ox = (Math.random()-0.5)*0.4, oy = 0.7 + Math.random()*0.7, oz = (Math.random()-0.5)*0.25;
-            shedBase.push(ox, oy, oz, Math.random());
-            shedPos[i*3] = ox; shedPos[i*3+1] = oy; shedPos[i*3+2] = oz;
-        }
-        const shedGeo = new THREE.BufferGeometry();
-        shedGeo.setAttribute('position', new THREE.BufferAttribute(shedPos, 3));
-        const skelShed = new THREE.Points(shedGeo,
-            new THREE.PointsMaterial({ color: 0xdcc188, size: 0.022, transparent: true, opacity: 0.8, fog: true }));
-        skelGroup.add(skelShed);
-        // footprint trail (re-used decals that fade)
-        const footprints = [];
-        for (let i = 0; i < 16; i++) {
-            const fp = new THREE.Mesh(new THREE.CircleGeometry(0.07, 8),
-                new THREE.MeshBasicMaterial({ color: 0x9a743c, transparent: true, opacity: 0, depthWrite: false }));
-            fp.rotation.x = -Math.PI/2;
-            fp.scale.set(1, 1.5, 1);
-            fp.userData.born = -10;
-            footprints.push(fp);
-            addTarget.add(fp);
-        }
-        let _desFootIdx = 0, _desLastPrint = 0, _desStepSide = 1;
+        // ── Dog's plaid blanket on the gravel bar (nap routine intact) ──
+        box(0.62, 0.030, 0.74, lm(0x5a2e28, 0, 0, 1.0), BEDX, 0.016, BEDZ);
+        box(0.50, 0.022, 0.60, lm(0x7a4434, 0, 0, 1.0), BEDX, 0.042, BEDZ);
+        box(0.34, 0.020, 0.42, lm(0x4a5a44, 0, 0, 1.0), BEDX + 0.03, 0.062, BEDZ - 0.02);
 
-        // ── Tumbleweed rolling on the wind ──
-        const tumbleweed = new THREE.Group();
-        for (let i = 0; i < 7; i++) {
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18 - i*0.012, 0.012, 4, 9), lm(0x9c7b3e));
-            ring.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
-            tumbleweed.add(ring);
-        }
-        tumbleweed.position.set(-6, 0.2, 3);
-        tumbleweed.userData.z = 3;
-        addTarget.add(tumbleweed);
+        // ── Sun disc + shadow-casting daylight ──
+        const riverSunDisc = new THREE.Mesh(new THREE.CircleGeometry(0.85, 26),
+            new THREE.MeshBasicMaterial({ color: 0xfff2cf, fog: false, transparent: true, opacity: 0.95 }));
+        riverSunDisc.renderOrder = 1;
+        addTarget.add(riverSunDisc);
+        const riverSun = new THREE.DirectionalLight(0xffe8c0, 0);
+        riverSun.castShadow = true;
+        riverSun.shadow.mapSize.set(2048, 2048);
+        riverSun.shadow.camera.left = -11; riverSun.shadow.camera.right = 11;
+        riverSun.shadow.camera.top = 11;   riverSun.shadow.camera.bottom = -11;
+        riverSun.shadow.camera.near = 1;   riverSun.shadow.camera.far = 40;
+        riverSun.shadow.bias = -0.0015;
+        addTarget.add(riverSun);
+        addTarget.add(riverSun.target);
 
-        // ── Dog's woven mat in the desert (keeps the nap routine working) ──
-        const desertBed = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.05, 9), lm(0xc89a58));
-        desertBed.position.set(BEDX, 0.03, BEDZ);
-        desertBed.receiveShadow = true;
-        addTarget.add(desertBed);
-        const desertBedRim = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.04, 6, 16), lm(0xa87838));
-        desertBedRim.position.set(BEDX, 0.05, BEDZ);
-        desertBedRim.rotation.x = Math.PI / 2;
-        addTarget.add(desertBedRim);
-
-        // ── Desert sun disc + layered glow + sunlight ──
-        const desertSunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.05, 28),
-            new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 1, fog: false }));
-        desertSunDisc.renderOrder = 1;
-        addTarget.add(desertSunDisc);
-        const desertSunHalo = new THREE.Mesh(new THREE.CircleGeometry(2.4, 28),
-            new THREE.MeshBasicMaterial({ color: 0xffe79a, transparent: true, opacity: 0.28, fog: false }));
-        addTarget.add(desertSunHalo);
-        const desertSunGlow = new THREE.Mesh(new THREE.CircleGeometry(4.5, 28),
-            new THREE.MeshBasicMaterial({ color: 0xffe2a0, transparent: true, opacity: 0.12, fog: false }));
-        addTarget.add(desertSunGlow);
-        const desertSun = new THREE.DirectionalLight(0xfff0cc, 0);
-        desertSun.castShadow = true;
-        desertSun.shadow.mapSize.set(2048, 2048);
-        desertSun.shadow.camera.left = -10; desertSun.shadow.camera.right = 10;
-        desertSun.shadow.camera.top = 10;   desertSun.shadow.camera.bottom = -10;
-        desertSun.shadow.camera.near = 1;   desertSun.shadow.camera.far = 36;
-        desertSun.shadow.bias = -0.0015;
-        addTarget.add(desertSun);
-        addTarget.add(desertSun.target);
-
-        // ── Blowing sand streaks low across the ground ──
-        const BSAND_N = 140;
-        const bsandPos = new Float32Array(BSAND_N * 3);
-        const bsandBase = [];
-        for (let i = 0; i < BSAND_N; i++) {
-            const bx = (Math.random()-0.5)*18, by = 0.05 + Math.random()*1.0, bz = (Math.random()-0.5)*18;
-            bsandBase.push(by, Math.random());
-            bsandPos[i*3] = bx; bsandPos[i*3+1] = by; bsandPos[i*3+2] = bz;
-        }
-        const bsandGeo = new THREE.BufferGeometry();
-        bsandGeo.setAttribute('position', new THREE.BufferAttribute(bsandPos, 3));
-        const blowingSand = new THREE.Points(bsandGeo,
-            new THREE.PointsMaterial({ color: 0xe6cd95, size: 0.035, transparent: true, opacity: 0.4, fog: true }));
-        addTarget.add(blowingSand);
-
-        // ── Heat-haze shimmer motes near the ground ──
-        const HAZE_N = 90;
-        const hazePos = new Float32Array(HAZE_N * 3);
-        const hazeBase = [];
-        for (let i = 0; i < HAZE_N; i++) {
-            const a = Math.random()*Math.PI*2, r = 2.0 + Math.random()*7.0;
-            const hx = Math.sin(a)*r, hz = Math.cos(a)*r;
-            hazeBase.push(hx, hz, Math.random()*Math.PI*2);
-            hazePos[i*3] = hx; hazePos[i*3+1] = 0.1 + Math.random()*0.5; hazePos[i*3+2] = hz;
-        }
-        const hazeGeo = new THREE.BufferGeometry();
-        hazeGeo.setAttribute('position', new THREE.BufferAttribute(hazePos, 3));
-        const hazeMat = new THREE.PointsMaterial({ color: 0xfff4d8, size: 0.05, transparent: true, opacity: 0.3, fog: true });
-        const hazePoints = new THREE.Points(hazeGeo, hazeMat);
-        addTarget.add(hazePoints);
-
-        // Desert sky palette (time slider: 0 dusk → 1 high noon)
-        const dSkyNoon = new THREE.Color(0x8fc2e6);
-        const dSkyDusk = new THREE.Color(0xe6a45a);
-        const dSkyCol  = new THREE.Color();
-        const dSunWarm = new THREE.Color(0xffae58);
-        const dSunNoon = new THREE.Color(0xfff4d8);
-        const dGrNoon  = new THREE.Color(0xe7c98e);
-        const dGrDusk  = new THREE.Color(0x9a6a3a);
-
-        // ═══════════════════════════════
-        //  LIGHTING
-        // ═══════════════════════════════
+        // Day-cycle color endpoints (time slider: 0 misty dawn → 1 clear noon)
+        const rSkyDawn = new THREE.Color(0xd9a678);
+        const rSkyNoon = new THREE.Color(0x9cc4e4);
+        const rSkyCol  = new THREE.Color();
+        const rSunDawn = new THREE.Color(0xffb066);
+        const rSunNoon = new THREE.Color(0xfff2da);
+        const rGrDawn  = new THREE.Color(0x6a5a40);
+        const rGrNoon  = new THREE.Color(0x718258);
 
         addTarget = scene; // ── shared lights ──
 
@@ -3431,16 +3287,16 @@
             const isForest    = th === 'forest';
             const isNP        = th === 'northPole';
             const isSP        = th === 'spaceship';
-            const isDesert    = th === 'desert';
+            const isRiver     = th === 'river';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
             spaceshipGroup.visible = isSP;
-            desertGroup.visible    = isDesert;
+            riverGroup.visible     = isRiver;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
-            document.getElementById('lamp-row').classList.toggle('hidden', isDesert);
+            document.getElementById('lamp-row').classList.toggle('hidden', isRiver);
             if (isForest) {
                 document.getElementById('lamp-label').textContent = 'campfire';
                 document.getElementById('time-label').textContent = 'time';
@@ -3451,10 +3307,10 @@
                 document.getElementById('time-slider').value = 0.75;
             } else if (isSP) {
                 document.getElementById('lamp-label').textContent = 'thrusters';
-            } else if (isDesert) {
-                document.getElementById('time-label').textContent = 'sun';
-                params.time = 1.0;
-                document.getElementById('time-slider').value = 1.0;
+            } else if (isRiver) {
+                document.getElementById('time-label').textContent = 'time';
+                params.time = 0.85;
+                document.getElementById('time-slider').value = 0.85;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
@@ -3463,7 +3319,7 @@
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', desert: 'desert', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -3808,150 +3664,63 @@
                     grp.rotation.x = Math.sin(t*0.18 + ph*1.3)*0.14;
                     grp.rotation.z = Math.sin(t*0.24 + ph*0.8)*0.10;
                 }
-            } else if (theme === 'desert') {
-                // ── Desert day cycle (sun slider: 0 dusk → 1 high noon) ──
+            } else if (theme === 'river') {
+                // ── River day cycle (time slider: 0 misty dawn → 1 clear noon) ──
                 const td = params.time;
-                dSkyCol.copy(dSkyDusk).lerp(dSkyNoon, td);
-                scene.background.copy(dSkyCol);
-                scene.fog.color.copy(dSkyCol).multiplyScalar(0.97);
-                scene.fog.density = 0.010 + (1 - td) * 0.012;
-                dDomeDay.material.opacity  = td;          // cross-fade the gradient domes
-                dDomeDusk.material.opacity = 1 - td;
+                rSkyCol.copy(rSkyDawn).lerp(rSkyNoon, td);
+                scene.background.copy(rSkyCol);
+                scene.fog.color.copy(rSkyCol).multiplyScalar(0.96);
+                scene.fog.density = 0.012 + (1 - td) * 0.024;
 
-                // Bright sky-bounce ambient over hot sand (tuned for filmic tone mapping)
-                hemiLight.intensity = (1.7 + td * 2.0) * b;
-                hemiLight.color.copy(dSkyCol);
-                hemiLight.groundColor.copy(dGrDusk).lerp(dGrNoon, td);
-                fillLight.intensity = 0.8 * b;
-                fillLight.color.copy(dSkyCol);
+                hemiLight.intensity = (1.6 + td * 2.1) * b;
+                hemiLight.color.copy(rSkyCol);
+                hemiLight.groundColor.copy(rGrDawn).lerp(rGrNoon, td);
+                fillLight.intensity = 0.7 * b;
+                fillLight.color.copy(rSkyCol);
 
-                // Sun arcs from the horizon to overhead, light + discs track it
-                const el = 0.10 + td * 1.32;
+                // Sun climbs over the far bank behind the dam
+                const el = 0.13 + td * 1.22;
                 const sy = Math.sin(el), sc = Math.cos(el);
-                const sunPos = new THREE.Vector3(sc * 9, sy * 10 + 0.4, -4.0);
-                desertSun.position.copy(sunPos);
-                desertSun.intensity = (0.7 + td * 3.6) * b;
-                desertSun.color.copy(dSunWarm).lerp(dSunNoon, Math.min(1, td * 1.3));
-                const discPos = sunPos.clone().multiplyScalar(1.35);
-                [desertSunDisc, desertSunHalo, desertSunGlow].forEach((d, i) => {
-                    d.position.copy(discPos);
-                    d.position.z -= i * 0.04;
-                    d.lookAt(camera.position);
-                });
-                desertSunDisc.material.color.copy(dSunWarm).lerp(dSunNoon, Math.min(1, td * 1.3));
-                desertSunHalo.material.opacity = 0.20 + (1 - td) * 0.16;
-                desertSunGlow.material.opacity = 0.10 + (1 - td) * 0.12;
+                riverSun.position.set(-sc * 8.5, sy * 10 + 0.4, -6.5);
+                riverSun.intensity = (0.65 + td * 3.0) * b;
+                riverSun.color.copy(rSunDawn).lerp(rSunNoon, Math.min(1, td * 1.35));
+                riverSunDisc.position.set(-sc * 10.5, sy * 11.5 + 0.5, -8.5);
+                riverSunDisc.material.opacity = 0.6 + (1 - td) * 0.35;
+                riverSunDisc.lookAt(camera.position);
 
-                // Palm crowns sway; individual fronds flutter
-                for (let i = 0; i < palmFronds.length; i++) {
-                    const cr = palmFronds[i];
-                    cr.rotation.z = Math.sin(t * 0.8 + cr.userData.phase) * 0.05;
-                    cr.rotation.x = Math.sin(t * 0.6 + cr.userData.phase * 1.3) * 0.035;
-                    for (let k = 0; k < cr.children.length; k++) {
-                        const dr = cr.children[k];
-                        if (dr.userData.baseZ !== undefined)
-                            dr.rotation.z = dr.userData.baseZ + Math.sin(t * 1.7 + dr.userData.phase) * 0.06;
-                    }
+                // Current slides downstream; spillway churns
+                rivTex.offset.y -= dt * 0.055;
+                rapidsTex.offset.y -= dt * 0.55;
+                rapids2Tex.offset.y -= dt * 0.3;
+                resTex.offset.x += dt * 0.006;
+                for (let i = 0; i < spillSheets.length; i++) {
+                    spillSheets[i].material.map.offset.y -= dt * (1.0 + i * 0.09);
+                    spillSheets[i].material.opacity = 0.8 + Math.sin(t * 7 + i * 2.1) * 0.08;
                 }
 
-                // Horizon mirage bands shimmer + scroll, strongest in the heat
-                for (let i = 0; i < mirages.length; i++) {
-                    const pl = mirages[i];
-                    const shim = Math.sin(t * 1.5 + pl.userData.phase) * 0.5 + 0.5;
-                    pl.material.opacity = (0.32 + shim * 0.42) * (0.45 + td * 0.55);
-                    pl.material.map.offset.x = (t * 0.04 + i * 0.3) % 1;
-                    pl.position.y = 0.5 + Math.sin(t * 0.9 + pl.userData.phase) * 0.08;
+                // Spray mist rises off the stilling basin, thicker at dawn
+                const mp = mistPoints.geometry.attributes.position.array;
+                for (let i = 0; i < MIST_N; i++) {
+                    const ph = (mistBase[i * 3 + 2] + t * 0.16) % 1;
+                    mp[i * 3]     = mistBase[i * 3] + Math.sin(t * 0.7 + i) * 0.12;
+                    mp[i * 3 + 1] = 0.05 + ph * 1.5;
+                    mp[i * 3 + 2] = mistBase[i * 3 + 1] + ph * 0.8 + Math.cos(t * 0.5 + i) * 0.08;
                 }
-                // Oasis water ripples
-                oasisTex.offset.y = (t * 0.03) % 1;
-                oasis.material.opacity = 0.9 + Math.sin(t * 1.3) * 0.04;
+                mistPoints.geometry.attributes.position.needsUpdate = true;
+                mistMat.opacity = 0.16 + (1 - td) * 0.22;
 
-                // ── Sand skeleton strolls a slow loop, knees + elbows bending ──
-                const wSpeed = 0.17;
-                const wAng = t * wSpeed;
-                const wR = 2.7;
-                const sxp = Math.cos(wAng) * wR;
-                const szp = Math.sin(wAng) * wR * 0.85;
-                skelGroup.position.set(sxp, 0, szp);
-                const nxp = Math.cos(wAng + 0.05) * wR;
-                const nzp = Math.sin(wAng + 0.05) * wR * 0.85;
-                skelGroup.rotation.y = Math.atan2(nxp - sxp, nzp - szp);
-                const stride = t * 5.4;
-                const swL = Math.sin(stride), swR = Math.sin(stride + Math.PI);
-                // hips swing fore/aft; knees bend on the forward (lifting) swing
-                skelLegL.hip.rotation.x = swL * 0.55;
-                skelLegR.hip.rotation.x = swR * 0.55;
-                skelLegL.knee.rotation.x = Math.max(0, Math.sin(stride - 0.5)) * 1.15;
-                skelLegR.knee.rotation.x = Math.max(0, Math.sin(stride + Math.PI - 0.5)) * 1.15;
-                // arms counter-swing with a steady elbow flex
-                skelArmL.hip.rotation.x = swR * 0.45;
-                skelArmR.hip.rotation.x = swL * 0.45;
-                skelArmL.knee.rotation.x = 0.5 + Math.max(0, swR) * 0.4;
-                skelArmR.knee.rotation.x = 0.5 + Math.max(0, swL) * 0.4;
-                skelBob.position.y = Math.abs(Math.sin(stride)) * 0.06;
-                skelSpine.rotation.y = swL * 0.06;
-                skelSpine.rotation.z = swL * 0.03;
-                skull.rotation.y = Math.sin(t * 0.5) * 0.3;          // idly looks around
-                jaw.rotation.x = Math.max(0, Math.sin(t * 2.3)) * 0.12;
-
-                // sand trickling off the bones
-                const shp = skelShed.geometry.attributes.position.array;
-                for (let i = 0; i < SHED_N; i++) {
-                    const ph = (shedBase[i*4+3] + t * 0.5) % 1;
-                    shp[i*3]   = shedBase[i*4]   + Math.sin(t*2 + i) * 0.03;
-                    shp[i*3+1] = shedBase[i*4+1] * (1 - ph);
-                    shp[i*3+2] = shedBase[i*4+2] + Math.cos(t*2 + i) * 0.02;
+                // Anglers: rods bob with the drift, an occasional recast flick,
+                // take-ripples blooming where the line lands
+                for (let i = 0; i < anglers.length; i++) {
+                    const a = anglers[i];
+                    const bob = Math.sin(t * 1.25 + a.phase) * 0.045;
+                    const cp = (t + a.phase * 2.3) % 12;
+                    const flick = cp < 0.85 ? Math.sin((cp / 0.85) * Math.PI) * 0.55 : 0;
+                    a.rodGrp.rotation.x = a.baseRX + bob + flick;
+                    const rp = ((t * 0.6 + a.phase) % 1.9) / 1.9;
+                    a.ring.scale.setScalar(0.4 + rp * 2.6);
+                    a.ring.material.opacity = (1 - rp) * 0.45;
                 }
-                skelShed.geometry.attributes.position.needsUpdate = true;
-
-                // stamp + fade footprints as the feet plant
-                if (t - _desLastPrint > 0.34) {
-                    _desLastPrint = t;
-                    const fp = footprints[_desFootIdx % footprints.length];
-                    _desFootIdx++;
-                    const side = (_desStepSide *= -1) * 0.1;
-                    const hd = skelGroup.rotation.y;
-                    fp.position.set(sxp + Math.cos(hd)*side, 0.015, szp - Math.sin(hd)*side);
-                    fp.rotation.z = -hd;
-                    fp.userData.born = t;
-                }
-                for (let i = 0; i < footprints.length; i++) {
-                    const age = t - footprints[i].userData.born;
-                    footprints[i].material.opacity = Math.max(0, 0.45 * (1 - age / 7));
-                }
-
-                // tumbleweed rolls on the wind, resets across the field
-                tumbleweed.position.x += dt * 1.6;
-                tumbleweed.rotation.z -= dt * 8;
-                tumbleweed.position.y = 0.18 + Math.abs(Math.sin(t*8)) * 0.06;
-                if (tumbleweed.position.x > 9) {
-                    tumbleweed.position.x = -9;
-                    tumbleweed.userData.z = (Math.random()-0.5)*8;
-                }
-                tumbleweed.position.z = tumbleweed.userData.z;
-
-                // blowing sand drifts downwind and wraps around
-                const bsp = blowingSand.geometry.attributes.position.array;
-                for (let i = 0; i < BSAND_N; i++) {
-                    bsp[i*3]   += dt * (1.4 + bsandBase[i*2+1] * 1.2);
-                    bsp[i*3+2] -= dt * 0.5;
-                    if (bsp[i*3] > 9) bsp[i*3] = -9;
-                    if (bsp[i*3+2] < -9) bsp[i*3+2] = 9;
-                    bsp[i*3+1] = bsandBase[i*2] + Math.sin(t*3 + i) * 0.05;
-                }
-                blowingSand.geometry.attributes.position.needsUpdate = true;
-                blowingSand.material.opacity = 0.25 + td * 0.25;
-
-                // Heat-haze motes wobble just above the sand
-                const hp = hazePoints.geometry.attributes.position.array;
-                for (let i = 0; i < HAZE_N; i++) {
-                    const ph = hazeBase[i*3+2];
-                    hp[i*3]   = hazeBase[i*3]   + Math.sin(t * 0.5 + ph) * 0.10;
-                    hp[i*3+1] = 0.1 + (Math.sin(t * 0.8 + ph) * 0.5 + 0.5) * 0.45;
-                    hp[i*3+2] = hazeBase[i*3+1] + Math.cos(t * 0.4 + ph) * 0.10;
-                }
-                hazePoints.geometry.attributes.position.needsUpdate = true;
-                hazeMat.opacity = 0.18 + td * 0.22;
             }
 
             // Monitor flicker × brightness
