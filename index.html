@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
+    <meta name="description" content="A tiny 3D world where Alan is always at his desk — visit the room, the woods, the north pole, a spaceship, or the river below the dam.">
+    <meta name="theme-color" content="#0a0e1e">
+    <meta property="og:title" content="alandeboer.computer">
+    <meta property="og:description" content="A tiny 3D world where Alan is always at his desk — five worlds to wander, one beagle.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://alandeboer.computer/">
+    <meta property="og:image" content="https://alandeboer.computer/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://alandeboer.computer/og.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400&display=swap" rel="stylesheet">
@@ -3529,6 +3542,10 @@
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             soundBtn.classList.toggle('on', soundOn);
         });
+
+        // ?clean hides the UI chrome — for screenshots and embeds
+        if (new URLSearchParams(location.search).has('clean'))
+            document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
         const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', room: 'room' }[location.hash.slice(1).toLowerCase()];
