@@ -3616,6 +3616,64 @@
             box(0.02, 0.16, 0.06, lm(0x4a5438, 0, 0, 1.0), gx, lhH(gx, gz) + 0.08, gz, 0.15, Math.random() * 3, 0.35);
         }
 
+        // ── Storm gulls wheeling over the break ──
+        const gullLight = lm(0xcfd4d8, 0, 0, 0.8);
+        const gullDark  = lm(0x9aa2a8, 0, 0, 0.8);
+        const gulls = [];
+        for (let i = 0; i < 5; i++) {
+            const g = new THREE.Group();
+            const gm = i % 2 ? gullLight : gullDark;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.045, 0.15), gm);
+            g.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.034, 0.05), gm);
+            head.position.set(0, 0.02, -0.09);
+            g.add(head);
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.03), lm(0xd88a28, 0, 0, 0.8));
+            beak.position.set(0, 0.014, -0.125);
+            g.add(beak);
+            const mkWing = side => {
+                const wgeo = new THREE.BoxGeometry(0.26, 0.013, 0.085);
+                wgeo.translate(side * 0.13, 0, 0);
+                const w = new THREE.Mesh(wgeo, gm);
+                w.position.set(side * 0.022, 0.008, 0.01);
+                g.add(w);
+                return w;
+            };
+            const wl = mkWing(-1), wr = mkWing(1);
+            g.traverse(o => { o.castShadow = true; });
+            addTarget.add(g);
+            gulls.push({
+                g, wl, wr,
+                ph: Math.random() * 9,
+                r: 2.6 + Math.random() * 3.2,
+                cx: -5 + Math.random() * 7,
+                cz: -3 + Math.random() * 7,
+                h: 2.3 + Math.random() * 1.8,
+                sp: 0.22 + Math.random() * 0.18,
+                dir: Math.random() < 0.5 ? 1 : -1,
+            });
+        }
+
+        // ── A distant freighter crossing the horizon ──
+        const shipGrp = new THREE.Group();
+        const shipMat = lm(0x171b22, 0, 0, 0.85);
+        const shipHull = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.18, 2.6), shipMat);
+        shipHull.position.y = 0.09;
+        shipGrp.add(shipHull);
+        const shipHouse = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.55), shipMat);
+        shipHouse.position.set(0, 0.32, 0.85);
+        shipGrp.add(shipHouse);
+        const shipLight = (hex, x, y, z, s = 0.045) => {
+            const l = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), lm(hex, hex, 2.2));
+            l.position.set(x, y, z);
+            shipGrp.add(l);
+        };
+        shipLight(0xfff2cc, 0, 0.55, 0.85);        // masthead
+        shipLight(0xffc27a, 0.1, 0.36, 0.62, 0.06); // bridge windows
+        shipLight(0xff3830, 0.28, 0.24, -0.4);      // port running light
+        shipGrp.position.set(-21, SEA.level, 0);
+        addTarget.add(shipGrp);
+
         // ── Dog's coiled-rope bed by the cottage path ──
         const ropeMat = lm(0x9a8158, 0, 0, 0.9);
         [0.30, 0.24, 0.17].forEach((rr, i) => {
@@ -3677,7 +3735,7 @@
         const lhSkyCol   = new THREE.Color();
         const lhGrCalm   = new THREE.Color(0x3a4436);
         const lhGrStorm  = new THREE.Color(0x22262a);
-        let lhNextStrike = 12, lhFlashT = -10;
+        let lhNextStrike = 12, lhFlashT = -10, lhNextHorn = 7;
 
         addTarget = scene; // ── shared lights ──
 
@@ -3883,6 +3941,28 @@
                 o.start(st);
                 o.stop(st + 0.17);
             }
+        };
+        // foghorn: two slow detuned saws — deep, mournful, far away
+        const foghorn = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.05;
+            [86, 90.5].forEach(f => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sawtooth';
+                o.frequency.value = f;
+                const flp = audioCtx.createBiquadFilter();
+                flp.type = 'lowpass';
+                flp.frequency.value = 250;
+                flp.Q.value = 0.7;
+                const fg = audioCtx.createGain();
+                fg.gain.setValueAtTime(0, st);
+                fg.gain.linearRampToValueAtTime(0.16, st + 0.4);
+                fg.gain.setValueAtTime(0.16, st + 1.9);
+                fg.gain.exponentialRampToValueAtTime(0.001, st + 2.8);
+                o.connect(flp).connect(fg).connect(audioCtx.destination);
+                o.start(st);
+                o.stop(st + 3);
+            });
         };
         const soundBtn = document.getElementById('sound-btn');
         soundBtn.addEventListener('click', () => {
@@ -4533,6 +4613,33 @@
                 // Cottage window flickers warmly against the dark
                 cottageWin.material.emissiveIntensity = 1.35 + Math.sin(t * 6.2) * 0.1 + Math.sin(t * 13.7) * 0.06;
                 cottageLight.intensity = 1.4 + Math.sin(t * 6.2) * 0.15;
+
+                // Gulls wheel over the break, blown ragged as the storm builds
+                for (let i = 0; i < gulls.length; i++) {
+                    const gl = gulls[i];
+                    const a = (t * gl.sp * (0.6 + storm * 0.9) + gl.ph) * gl.dir;
+                    gl.g.position.set(
+                        gl.cx + Math.cos(a) * gl.r,
+                        gl.h + Math.sin(t * 0.9 + gl.ph) * (0.15 + storm * 0.4) + Math.sin(t * 3.1 + gl.ph * 2) * storm * 0.1,
+                        gl.cz + Math.sin(a) * gl.r * 0.7);
+                    gl.g.rotation.y = -(a + Math.PI / 2 * gl.dir);
+                    gl.g.rotation.z = gl.dir * 0.16 + Math.sin(t * 2 + gl.ph) * (0.08 + storm * 0.12);
+                    const flap = Math.sin(t * (5.5 + storm * 5) + gl.ph * 3) * (0.45 + storm * 0.25);
+                    gl.wl.rotation.z = flap;
+                    gl.wr.rotation.z = -flap;
+                }
+
+                // The freighter plods across the horizon, riding the swell
+                shipGrp.position.z = ((t * 0.10 + 10) % 34) - 17;
+                shipGrp.position.y = SEA.level + swellH(-21, shipGrp.position.z, t, storm) * 0.6;
+                shipGrp.rotation.x = Math.sin(t * 0.5) * 0.02 * (1 + storm);
+                shipGrp.rotation.z = Math.sin(t * 0.7 + 2) * 0.03 * (1 + storm);
+
+                // Foghorn sounds through the murk on a long interval
+                if (soundOn && audioCtx && t > lhNextHorn) {
+                    lhNextHorn = t + 24 + Math.random() * 12;
+                    foghorn();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
