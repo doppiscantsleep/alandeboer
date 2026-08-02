@@ -446,6 +446,34 @@
         composer.addPass(bloomPass);
         composer.addPass(new OutputPass());
 
+        // ── Performance watchdog: steps render resolution down when frames
+        //    drop, back up when there's headroom. Hysteresis + cooldowns
+        //    keep it from oscillating on the boundary.
+        const BASE_PR = Math.min(window.devicePixelRatio, 2);
+        const PR_STEPS = [1, 0.85, 0.7, 0.55];
+        let prIdx = 0, perfEma = 1 / 60, perfCooldown = 3;
+        const applyPR = () => {
+            const pr = BASE_PR * PR_STEPS[prIdx];
+            renderer.setPixelRatio(pr);
+            composer.setPixelRatio(pr);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        };
+        const perfWatch = dt => {
+            if (dt > 0.25) return;   // tab switch / hitch — not signal
+            perfEma += (dt - perfEma) * 0.05;
+            perfCooldown -= dt;
+            if (perfCooldown > 0) return;
+            if (perfEma > 1 / 42 && prIdx < PR_STEPS.length - 1) {
+                prIdx++;
+                applyPR();
+                perfCooldown = 2.5;
+            } else if (perfEma < 1 / 56 && prIdx > 0) {
+                prIdx--;
+                applyPR();
+                perfCooldown = 5;
+            }
+        };
+
         // ── Orbit controls ──
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.target.set(0, 1.05, 0.2);
@@ -4552,8 +4580,10 @@
         function animate() {
             requestAnimationFrame(animate);
             const t = clock.getElapsedTime();
-            const dt = Math.min(t - _lastT, 0.1);
+            const rawDt = t - _lastT;
+            const dt = Math.min(rawDt, 0.1);
             _lastT = t;
+            perfWatch(rawDt);
             const b = params.brightness;
             const c = params.color;
 
