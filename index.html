@@ -209,6 +209,7 @@
         .world[data-world="river"]     { --wc: #5fc0d8; }
         .world[data-world="lighthouse"] { --wc: #ffd27a; }
         .world[data-world="apiary"]    { --wc: #f0b428; }
+        .world[data-world="tavern"]    { --wc: #d85c28; }
 
         .ctrl-sep {
             height: 1px;
@@ -369,6 +370,7 @@
             <button class="world" data-world="river"><span class="dot"></span>the river</button>
             <button class="world" data-world="lighthouse"><span class="dot"></span>lighthouse</button>
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
+            <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -429,6 +431,9 @@
         const apiaryGroup = new THREE.Group();
         apiaryGroup.visible = false;
         scene.add(apiaryGroup);
+        const tavernGroup = new THREE.Group();
+        tavernGroup.visible = false;
+        scene.add(tavernGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -4143,6 +4148,272 @@
         const apGrMorn  = new THREE.Color(0x8a7a50);
         const apGrNoon  = new THREE.Color(0x74885a);
 
+        addTarget = tavernGroup;
+
+        // ═══════════════════════════════
+        //  TAVERN — dark autumn inn, hearth + cauldron
+        // ═══════════════════════════════
+
+        // ── Fieldstone wall texture ──
+        const stoneCv = mkCanvas(512, 512);
+        {
+            const st = stoneCv.getContext('2d');
+            st.fillStyle = '#4a4340'; st.fillRect(0, 0, 512, 512);   // mortar
+            for (let row = 0; row < 8; row++) {
+                let x = (row % 2) * -30;
+                while (x < 512) {
+                    const w = 55 + Math.random() * 60, h = 52;
+                    const tone = 88 + Math.random() * 46;
+                    st.fillStyle = `rgb(${tone | 0},${tone * 0.92 | 0},${tone * 0.82 | 0})`;
+                    st.beginPath();
+                    st.roundRect(x + 4, row * 64 + 5, w - 8, h, 12);
+                    st.fill();
+                    // face shading
+                    st.fillStyle = 'rgba(255,255,255,0.07)';
+                    st.beginPath(); st.roundRect(x + 7, row * 64 + 8, w - 14, 18, 9); st.fill();
+                    x += w;
+                }
+            }
+            speckle(st, 512, 512, 3200, 0.10, '#8a8078', '#2e2a26');
+        }
+        const stoneTex = new THREE.CanvasTexture(stoneCv);
+        stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
+        stoneTex.repeat.set(2.4, 1.6);
+        stoneTex.colorSpace = THREE.SRGBColorSpace;
+        const stoneMat = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.95 });
+
+        // ── Shell: dark plank floor, stone walls, beamed ceiling ──
+        const tvFloor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12),
+            new THREE.MeshStandardMaterial({
+                map: asTex(planks.map, 3, 3), bumpMap: asTex(planks.bump, 3, 3, false),
+                bumpScale: 0.9, color: 0x9a8570, roughness: 0.75,
+            }));
+        tvFloor.rotation.x = -Math.PI / 2;
+        tvFloor.receiveShadow = true;
+        addTarget.add(tvFloor);
+        const tvBack = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.4), stoneMat);
+        tvBack.position.set(0, 1.7, -3.0);
+        tvBack.receiveShadow = true;
+        addTarget.add(tvBack);
+        const tvSide = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.4), stoneMat.clone());
+        tvSide.material.map = stoneTex.clone();
+        tvSide.material.map.needsUpdate = true;
+        tvSide.position.set(-3.1, 1.7, 0);
+        tvSide.rotation.y = Math.PI / 2;
+        tvSide.receiveShadow = true;
+        addTarget.add(tvSide);
+        const oakMat = new THREE.MeshStandardMaterial({
+            map: asTex(darkWood.map, 1, 1), bumpMap: asTex(darkWood.bump, 1, 1, false),
+            bumpScale: 0.4, color: 0x8a7050, roughness: 0.8,
+        });
+        // ceiling + heavy beams
+        const tvCeil = new THREE.Mesh(new THREE.PlaneGeometry(12, 12),
+            new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.95 }));
+        tvCeil.rotation.x = Math.PI / 2;
+        tvCeil.position.y = 3.35;
+        addTarget.add(tvCeil);
+        for (let bz2 = -2.4; bz2 <= 2.6; bz2 += 1.25) {
+            box(11.5, 0.22, 0.18, oakMat, 0, 3.24, bz2);
+        }
+        box(0.24, 3.4, 0.24, oakMat, -2.95, 1.7, -2.85);   // corner posts
+        box(0.24, 3.4, 0.24, oakMat, 2.9, 1.7, -2.85);
+        box(0.24, 3.4, 0.24, oakMat, -2.95, 1.7, 2.6);
+
+        // ── Fireplace: stone breast, glowing firebox, log fire ──
+        const FPX2 = 1.6, FPZ2 = -2.85;
+        box(2.0, 3.35, 0.45, stoneMat, FPX2, 1.67, FPZ2);            // chimney breast
+        box(2.4, 0.16, 0.9, stoneMat, FPX2, 0.08, FPZ2 + 0.2);       // hearth stone
+        box(1.9, 0.10, 0.5, oakMat, FPX2, 1.42, FPZ2 + 0.28);        // mantel shelf
+        // firebox opening
+        box(1.15, 1.0, 0.1, lm(0x0c0806, 0, 0, 1.0), FPX2, 0.62, FPZ2 + 0.24);
+        // glowing ember bed + crossed logs
+        const emberMat2 = lm(0x3a1002, 0xff3c08, 0.9);
+        box(0.9, 0.07, 0.3, emberMat2, FPX2, 0.16, FPZ2 + 0.3);
+        [[-0.28, 0.55], [0.3, -0.5], [0.0, 0.2]].forEach(([ox, rz3], i) => {
+            const log = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.7, 7), lm(0x2e1c10, 0x8a2a04, 0.25));
+            log.position.set(FPX2 + ox * 0.5, 0.24 + i * 0.05, FPZ2 + 0.3);
+            log.rotation.z = Math.PI / 2 + rz3 * 0.4;
+            log.rotation.y = rz3;
+            log.castShadow = true;
+            addTarget.add(log);
+        });
+        // flames — layered cones that flicker in the animate loop
+        const tvFlames = [];
+        const tvFlameCols = [0xffdd66, 0xff9922, 0xff5511];
+        for (let i = 0; i < 5; i++) {
+            const fh2 = 0.28 + Math.random() * 0.2;
+            const fm = new THREE.Mesh(new THREE.ConeGeometry(0.07 + Math.random() * 0.05, fh2, 6),
+                new THREE.MeshBasicMaterial({ color: tvFlameCols[i % 3], transparent: true, opacity: 0.85 }));
+            fm.position.set(FPX2 - 0.25 + i * 0.13, 0.24 + fh2 / 2, FPZ2 + 0.3);
+            fm.userData.baseY = 0.24;
+            addTarget.add(fm);
+            tvFlames.push(fm);
+        }
+        const hearthLight = new THREE.PointLight(0xff7726, 0, 9, 1.6);
+        hearthLight.position.set(FPX2, 0.7, FPZ2 + 0.7);
+        addTarget.add(hearthLight);
+        // mantel dressing: candles + little pumpkins
+        const candleLights = [];
+        const candleAt = (cx3, cy3, cz3) => {
+            box(0.045, 0.11, 0.045, lm(0xe8e0cc, 0, 0, 0.85), cx3, cy3 + 0.055, cz3);
+            const fl2 = box(0.02, 0.045, 0.02, lm(0xffdd88, 0xffcc55, 2.2), cx3, cy3 + 0.135, cz3);
+            const cl = new THREE.PointLight(0xffb050, 0.55, 1.6);
+            cl.position.set(cx3, cy3 + 0.2, cz3);
+            addTarget.add(cl);
+            candleLights.push({ l: cl, f: fl2, ph: Math.random() * 9 });
+        };
+        candleAt(FPX2 - 0.7, 1.47, FPZ2 + 0.28);
+        candleAt(FPX2 + 0.75, 1.47, FPZ2 + 0.28);
+        const pumpkin = (px3, py3, pz3, s3) => {
+            const p2 = new THREE.Mesh(new THREE.SphereGeometry(s3, 10, 8), lm(0xd86818, 0, 0, 0.75));
+            p2.scale.y = 0.78;
+            p2.position.set(px3, py3 + s3 * 0.75, pz3);
+            p2.castShadow = true;
+            addTarget.add(p2);
+            box(0.02, s3 * 0.5, 0.02, lm(0x4a5a2a, 0, 0, 0.9), px3, py3 + s3 * 1.55, pz3, 0, 0, 0.2);
+        };
+        pumpkin(FPX2 + 0.35, 1.47, FPZ2 + 0.28, 0.07);
+        pumpkin(2.6, 0, -2.3, 0.2);
+        pumpkin(2.25, 0, -2.55, 0.13);
+        pumpkin(-2.6, 0, -0.4, 0.16);
+
+        // ── The cauldron: black pot, green brew, rising bubbles ──
+        const CAX = -2.05, CAZ = -2.1;
+        const cauldron = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), lm(0x1a1a1c, 0, 0, 0.6, 0.4));
+        cauldron.scale.y = 0.82;
+        cauldron.position.set(CAX, 0.38, CAZ);
+        cauldron.castShadow = true;
+        addTarget.add(cauldron);
+        const cauldRim = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.035, 8, 20), lm(0x242426, 0, 0, 0.55, 0.5));
+        cauldRim.rotation.x = Math.PI / 2;
+        cauldRim.position.set(CAX, 0.62, CAZ);
+        addTarget.add(cauldRim);
+        for (let i = 0; i < 3; i++) {   // stubby legs over a coal bed
+            const a3 = (i / 3) * Math.PI * 2;
+            box(0.05, 0.18, 0.05, lm(0x1a1a1c, 0, 0, 0.6, 0.4), CAX + Math.sin(a3) * 0.22, 0.09, CAZ + Math.cos(a3) * 0.22);
+        }
+        box(0.4, 0.05, 0.4, lm(0x2a1004, 0xd83c08, 0.55), CAX, 0.03, CAZ);   // coals
+        const brew = new THREE.Mesh(new THREE.CircleGeometry(0.27, 18), lm(0x2a4a14, 0x52c832, 0.85));
+        brew.rotation.x = -Math.PI / 2;
+        brew.position.set(CAX, 0.60, CAZ);
+        addTarget.add(brew);
+        const brewLight = new THREE.PointLight(0x52c832, 0, 4.5);
+        brewLight.position.set(CAX, 0.95, CAZ);
+        addTarget.add(brewLight);
+        // bubbles popping out of the brew
+        const BUB_N = 22;
+        const bubPos = new Float32Array(BUB_N * 3);
+        const bubSeed = [];
+        for (let i = 0; i < BUB_N; i++) {
+            bubSeed.push(Math.random() * Math.PI * 2, Math.random() * 0.22, Math.random());
+            bubPos[i * 3] = CAX; bubPos[i * 3 + 1] = 0.62; bubPos[i * 3 + 2] = CAZ;
+        }
+        const bubGeo = new THREE.BufferGeometry();
+        bubGeo.setAttribute('position', new THREE.BufferAttribute(bubPos, 3));
+        const bubMat = new THREE.PointsMaterial({
+            color: 0x8ae858, size: 0.05, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false,
+        });
+        const bubPoints = new THREE.Points(bubGeo, bubMat);
+        addTarget.add(bubPoints);
+
+        // ── Bar corner: counter, kegs, bottle shelf ──
+        box(1.7, 0.9, 0.4, oakMat, 2.7, 0.45, 1.1, 0, Math.PI / 2, 0);
+        box(1.9, 0.07, 0.55, oakMat, 2.7, 0.93, 1.1, 0, Math.PI / 2, 0);
+        [[2.65, 0.32, 2.3], [2.65, 0.32, 2.85], [2.65, 0.98, 2.55]].forEach(([kx, ky, kz]) => {
+            const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.42, 10), oakMat);
+            keg.rotation.z = Math.PI / 2;
+            keg.rotation.y = Math.PI / 2;
+            keg.position.set(kx, ky, kz);
+            keg.castShadow = true;
+            addTarget.add(keg);
+            [-0.14, 0.14].forEach(hoop =>
+                box(0.02, 0.47, 0.47, lm(0x3a3a3e, 0, 0, 0.5, 0.6), kx, ky, kz + hoop));
+        });
+        // bottle shelf on the stone wall
+        box(1.3, 0.05, 0.2, oakMat, -3.0, 2.0, 1.4, 0, Math.PI / 2, 0);
+        const bottleCols2 = [0x4a7a3a, 0x7a3a2a, 0xc8a028, 0x3a5a7a, 0x6a3a5a];
+        for (let i = 0; i < 5; i++) {
+            const bot = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.19, 8),
+                lm(bottleCols2[i], bottleCols2[i], 0.12, 0.4));
+            bot.position.set(-2.98, 2.13, 0.9 + i * 0.24);
+            bot.castShadow = true;
+            addTarget.add(bot);
+        }
+
+        // ── Table by the fire: candle, ale mugs, stools ──
+        const tvTable = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.06, 12), oakMat);
+        tvTable.position.set(2.0, 0.72, 1.9);
+        tvTable.castShadow = tvTable.receiveShadow = true;
+        addTarget.add(tvTable);
+        box(0.12, 0.7, 0.12, oakMat, 2.0, 0.36, 1.9);
+        candleAt(2.0, 0.75, 1.9);
+        [[2.35, 2.05], [1.7, 2.2]].forEach(([mx, mz]) => {
+            const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.11, 8), lm(0x9a6838, 0, 0, 0.8));
+            mug.position.set(mx, 0.81, mz);
+            mug.castShadow = true;
+            addTarget.add(mug);
+            const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.02, 8), lm(0xf0e8d0, 0, 0, 0.9));
+            foam.position.set(mx, 0.87, mz);
+            addTarget.add(foam);
+        });
+        [[1.4, 1.5], [2.5, 2.5]].forEach(([sx2, sz2]) => {
+            const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.07, 10), oakMat);
+            stool.position.set(sx2, 0.42, sz2);
+            stool.castShadow = true;
+            addTarget.add(stool);
+            box(0.06, 0.4, 0.06, oakMat, sx2, 0.2, sz2);
+        });
+
+        // ── Autumn dressing: leaf garland on the mantel beam, window night ──
+        const leafCols2 = [0xc9661e, 0xd98a24, 0xa83b1c, 0xe0a832];
+        for (let i = 0; i < 14; i++) {
+            const gx2 = FPX2 - 0.9 + (i / 13) * 1.8;
+            const sag = Math.sin((i / 13) * Math.PI) * 0.14;
+            const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0),
+                lm(leafCols2[i % 4], 0, 0, 0.9));
+            leaf.position.set(gx2, 1.55 - sag, FPZ2 + 0.3);
+            addTarget.add(leaf);
+        }
+        // diamond-pane window with a deep autumn dusk beyond
+        const dusk = mkCanvas(128, 128);
+        {
+            const du = dusk.getContext('2d');
+            const dg = du.createLinearGradient(0, 0, 0, 128);
+            dg.addColorStop(0, '#141230'); dg.addColorStop(0.7, '#3a2038'); dg.addColorStop(1, '#8a4020');
+            du.fillStyle = dg; du.fillRect(0, 0, 128, 128);
+            for (let i = 0; i < 20; i++) {
+                du.fillStyle = 'rgba(230,235,255,0.8)';
+                du.fillRect(Math.random() * 128, Math.random() * 60, 1, 1);
+            }
+            du.fillStyle = '#0c0a14';
+            du.beginPath();
+            du.moveTo(0, 128); du.lineTo(0, 100); du.lineTo(30, 92); du.lineTo(60, 100); du.lineTo(90, 88); du.lineTo(128, 98); du.lineTo(128, 128);
+            du.fill();
+        }
+        const duskTex = new THREE.CanvasTexture(dusk);
+        duskTex.colorSpace = THREE.SRGBColorSpace;
+        const winView = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.1),
+            new THREE.MeshBasicMaterial({ map: duskTex, fog: false }));
+        winView.position.set(-3.05, 1.7, 1.0);
+        winView.rotation.y = Math.PI / 2;
+        addTarget.add(winView);
+        box(0.06, 1.26, 1.04, oakMat, -3.08, 1.7, 1.0);
+        box(0.08, 1.2, 0.05, oakMat, -3.03, 1.7, 1.0);      // mullions
+        box(0.08, 0.05, 1.0, oakMat, -3.03, 1.7, 1.0);
+
+        let tvNextGloop = 3;
+
+        // ── Clark's braided rug by the fire ──
+        [0.36, 0.28, 0.19, 0.10].forEach((rr, i) => {
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.045, 8, 24),
+                lm([0x8a4a28, 0x6a5438, 0x9a6838, 0x5a3a24][i], 0, 0, 0.95));
+            ring.rotation.x = -Math.PI / 2;
+            ring.scale.z = 0.5;
+            ring.position.set(BEDX, 0.02, BEDZ);
+            ring.receiveShadow = true;
+            addTarget.add(ring);
+        });
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -4233,6 +4504,7 @@
             const isRiver     = th === 'river';
             const isLH        = th === 'lighthouse';
             const isApiary    = th === 'apiary';
+            const isTavern    = th === 'tavern';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -4240,7 +4512,8 @@
             riverGroup.visible     = isRiver;
             lighthouseGroup.visible = isLH;
             apiaryGroup.visible    = isApiary;
-            document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP);
+            tavernGroup.visible    = isTavern;
+            document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-row').classList.toggle('hidden', isRiver);
@@ -4268,11 +4541,13 @@
                 document.getElementById('time-label').textContent = 'time';
                 params.time = 0.75;
                 document.getElementById('time-slider').value = 0.75;
+            } else if (isTavern) {
+                document.getElementById('lamp-label').textContent = 'hearth';
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -4281,7 +4556,7 @@
         // ── River soundscape: synthesized, no audio files ──
         // Brown noise through a lowpass = the constant spillway rush;
         // short descending oscillator sweeps = songbirds on the banks.
-        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, noiseBuf = null, soundOn = false;
+        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, noiseBuf = null, soundOn = false;
         const buildAudio = () => {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const len = audioCtx.sampleRate * 2;
@@ -4340,6 +4615,35 @@
                 o.start();
                 wob.start();
             });
+            // hearth fire: bright filtered noise, jittered in the gain loop
+            const csrc = audioCtx.createBufferSource();
+            csrc.buffer = noiseBuf;
+            csrc.loop = true;
+            csrc.playbackRate.value = 2.3;
+            const chp = audioCtx.createBiquadFilter();
+            chp.type = 'highpass';
+            chp.frequency.value = 1400;
+            crackleGain = audioCtx.createGain();
+            crackleGain.gain.value = 0;
+            csrc.connect(chp).connect(crackleGain).connect(audioCtx.destination);
+            csrc.start();
+        };
+        // a fat bubble breaking the surface of the brew
+        const gloop = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            const o = audioCtx.createOscillator();
+            o.type = 'sine';
+            const f0 = 260 + Math.random() * 160;
+            o.frequency.setValueAtTime(f0, st);
+            o.frequency.exponentialRampToValueAtTime(f0 * 0.45, st + 0.16);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, st);
+            g.gain.linearRampToValueAtTime(0.07, st + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(st);
+            o.stop(st + 0.2);
         };
         // thunder: a delayed low rumble that decays slowly
         const thunder = delay => {
@@ -4528,7 +4832,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -5235,6 +5539,55 @@
                 }
                 smokePoints.geometry.attributes.position.needsUpdate = true;
                 smokeMat.opacity = Math.min(0.55, smk * 0.4) * (0.7 + Math.sin(t * 2.6) * 0.3);
+            } else if (theme === 'tavern') {
+                // ── Tavern: firelit dark, everything breathes with the hearth ──
+                scene.background.setHex(0x0a0604);
+                scene.fog.color.setHex(0x0e0805);
+                scene.fog.density = 0.045;
+
+                const hearth = params.lampBrightness;
+                const flick2 = Math.sin(t * 11) * 0.16 + Math.sin(t * 23.7) * 0.10 + Math.sin(t * 5.3) * 0.09;
+                hemiLight.intensity = (0.55 + hearth * 0.5) * b;
+                hemiLight.color.setHex(0x8a5a34);
+                hemiLight.groundColor.setHex(0x241408);
+                fillLight.intensity = 0.28 * b;
+                fillLight.color.setHex(0xb06a30);
+                hearthLight.intensity = Math.max(0.1, (1.7 + flick2) * hearth * 2.6) * b;
+
+                // flames lick and sway
+                for (let i = 0; i < tvFlames.length; i++) {
+                    const f2 = tvFlames[i];
+                    const s4 = hearth < 0.05 ? 0.02 : 0.6 + Math.sin(t * 9.5 + i * 2.1) * 0.2 + hearth * 0.35;
+                    f2.scale.set(s4, s4 * (1 + Math.sin(t * 13 + i) * 0.15), s4);
+                    f2.position.y = f2.userData.baseY + f2.scale.y * 0.14;
+                    f2.rotation.y = t * (1.1 + i * 0.4);
+                    f2.material.opacity = hearth < 0.05 ? 0.05 : 0.65 + Math.sin(t * 17 + i) * 0.2;
+                }
+                // candles gutter independently of the fire
+                for (const c2 of candleLights) {
+                    const g3 = 0.75 + Math.sin(t * 13 + c2.ph) * 0.15 + Math.sin(t * 31 + c2.ph * 2) * 0.08;
+                    c2.l.intensity = 0.5 * g3 * b;
+                    c2.f.material.emissiveIntensity = 1.6 + g3;
+                }
+
+                // the cauldron simmers: brew pulses, bubbles climb and pop
+                brewLight.intensity = (2.2 + Math.sin(t * 2.7) * 0.6 + Math.sin(t * 6.1) * 0.3) * b;
+                brew.material.emissiveIntensity = 1.1 + Math.sin(t * 2.7) * 0.3;
+                const bub = bubPoints.geometry.attributes.position.array;
+                for (let i = 0; i < BUB_N; i++) {
+                    const ph = (bubSeed[i * 3 + 2] + t * 0.5) % 1;
+                    bub[i * 3]     = CAX + Math.sin(bubSeed[i * 3] + t * 0.6) * bubSeed[i * 3 + 1];
+                    bub[i * 3 + 1] = 0.62 + ph * 0.16;
+                    bub[i * 3 + 2] = CAZ + Math.cos(bubSeed[i * 3] * 2 + t * 0.5) * bubSeed[i * 3 + 1];
+                }
+                bubPoints.geometry.attributes.position.needsUpdate = true;
+                bubMat.opacity = 0.5 + Math.sin(t * 4) * 0.2;
+
+                // gloops on the sound toggle
+                if (soundOn && audioCtx && t > tvNextGloop) {
+                    tvNextGloop = t + 1.2 + Math.random() * 2.8;
+                    gloop();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -5253,6 +5606,13 @@
                 const swell = 0.8 + Math.sin(t * 0.9) * 0.12 + Math.sin(t * 2.3) * 0.08;
                 const bt2 = (soundOn && theme === 'apiary') ? 0.055 * swell : 0;
                 buzzGain.gain.value += (bt2 - buzzGain.gain.value) * Math.min(1, dt * 2);
+            }
+            // Hearth crackle — random flutter over a soft bed, pops and all
+            if (crackleGain) {
+                const ct2 = (soundOn && theme === 'tavern')
+                    ? params.lampBrightness * (0.015 + Math.random() * 0.05 + (Math.random() < 0.02 ? 0.10 : 0))
+                    : 0;
+                crackleGain.gain.value += (ct2 - crackleGain.gain.value) * Math.min(1, dt * 9);
             }
 
             // Monitor flicker × brightness
@@ -5372,6 +5732,7 @@
                 theme === 'northPole' ? 0.5 :
                 theme === 'spaceship' ? 0.32 :
                 theme === 'lighthouse' ? 0.45 :
+                theme === 'tavern' ? 0.5 :
                 0.08 + (1 - params.time) * 0.3;
 
             controls.update();
