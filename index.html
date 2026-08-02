@@ -371,6 +371,10 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
         // ── Renderer ──
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -382,6 +386,11 @@
         renderer.toneMappingExposure = 1.35;
         document.body.appendChild(renderer.domElement);
         const MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
+
+        // ── Bloom pipeline: bright/emissive surfaces radiate ──
+        // Bloom runs on linear HDR values; OutputPass applies tone mapping after.
+        const composer = new EffectComposer(renderer);
+        composer.setPixelRatio(renderer.getPixelRatio());
 
         // ── Scene ──
         const scene = new THREE.Scene();
@@ -410,6 +419,12 @@
         // ── Camera ──
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 30);
         camera.position.set(3.5, 2.6, 5.0);
+
+        composer.addPass(new RenderPass(scene, camera));
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight), 0.45, 0.6, 1.0);
+        composer.addPass(bloomPass);
+        composer.addPass(new OutputPass());
 
         // ── Orbit controls ──
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -620,7 +635,7 @@
             floor: new THREE.MeshStandardMaterial({
                 map: asTex(planks.map, 2.5, 2.5),
                 bumpMap: asTex(planks.bump, 2.5, 2.5, false), bumpScale: 0.9,
-                roughnessMap: asTex(planks.rough, 2.5, 2.5, false), roughness: 0.55,
+                roughnessMap: asTex(planks.rough, 2.5, 2.5, false), roughness: 0.7,
                 metalness: 0.0,
             }),
             wall: new THREE.MeshStandardMaterial({
@@ -3674,6 +3689,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
         });
 
         const clock = new THREE.Clock();
@@ -4220,8 +4236,16 @@
             }
             dustPoints.geometry.attributes.position.needsUpdate = true;
 
+            // Bloom sits heavier on glowing night worlds; in the daylight
+            // worlds it follows the sun — glowy at dawn, nearly off at noon
+            bloomPass.strength =
+                theme === 'room' ? 0.55 :
+                theme === 'northPole' ? 0.5 :
+                theme === 'spaceship' ? 0.5 :
+                0.08 + (1 - params.time) * 0.3;
+
             controls.update();
-            renderer.render(scene, camera);
+            composer.render();
         }
 
         animate();
