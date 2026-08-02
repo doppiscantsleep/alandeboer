@@ -55,15 +55,31 @@
             pointer-events: none;
         }
 
-        /* ── Controls panel ── */
+        /* ── Lighting panel: frosted glass, one quiet instrument ── */
         #controls {
             position: absolute;
-            top: 24px;
-            left: 24px;
+            top: 20px;
+            left: 20px;
             display: flex;
             flex-direction: column;
-            gap: 11px;
+            gap: 12px;
             pointer-events: all;
+            padding: 14px 18px 16px;
+            background: rgba(9, 12, 26, 0.42);
+            border: 1px solid rgba(125, 150, 255, 0.14);
+            border-radius: 12px;
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+        }
+        .panel-title {
+            color: rgba(150, 175, 255, 0.42);
+            font-weight: 300;
+            font-size: 9px;
+            letter-spacing: 3.5px;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+            cursor: default;
         }
         .ctrl-row {
             display: flex;
@@ -71,10 +87,10 @@
             gap: 12px;
         }
         .ctrl-row label {
-            color: rgba(140, 170, 255, 0.75);
+            color: rgba(155, 180, 255, 0.72);
             font-family: 'Quicksand', sans-serif;
             font-weight: 300;
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 2.5px;
             text-transform: uppercase;
             width: 76px;
@@ -85,12 +101,16 @@
         .ctrl-row input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
-            width: 100px;
-            height: 2px;
-            border-radius: 1px;
+            width: 116px;
+            height: 3px;
+            border-radius: 2px;
             outline: none;
             cursor: pointer;
             flex-shrink: 0;
+        }
+        .ctrl-row input[type="range"]:focus-visible {
+            outline: 1px solid rgba(160, 185, 255, 0.7);
+            outline-offset: 5px;
         }
         #brightness-slider {
             background: linear-gradient(to right, rgba(80,110,220,0.08), rgba(80,110,220,0.5));
@@ -108,51 +128,131 @@
             background: linear-gradient(to right, #0a1230, #28406e, #d08a4a, #aee0ff);
         }
         .ctrl-row.hidden { display: none; }
-        #theme-btn {
+
+        /* ── World picker: one chip per world, lit in that world's color ── */
+        #worlds {
             position: absolute;
-            top: 24px;
-            right: 24px;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 4px;
             pointer-events: all;
-            background: rgba(20, 28, 60, 0.30);
-            border: 1px solid rgba(110, 140, 240, 0.30);
-            color: rgba(150, 175, 255, 0.85);
+            padding: 5px;
+            background: rgba(9, 12, 26, 0.42);
+            border: 1px solid rgba(125, 150, 255, 0.14);
+            border-radius: 12px;
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+        }
+        .world {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 13px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: rgba(150, 170, 230, 0.5);
             font-family: 'Quicksand', sans-serif;
             font-weight: 300;
             font-size: 10px;
-            letter-spacing: 2.5px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            padding: 9px 16px;
-            border-radius: 3px;
+            white-space: nowrap;
             cursor: pointer;
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
         }
-        #theme-btn:hover {
-            background: rgba(45, 60, 115, 0.5);
-            border-color: rgba(140, 170, 255, 0.55);
-            color: rgba(205, 220, 255, 0.95);
+        .world .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--wc);
+            box-shadow: 0 0 6px var(--wc);
+            opacity: 0.45;
+            transition: opacity 0.2s, box-shadow 0.2s;
         }
+        .world:hover {
+            color: rgba(205, 220, 255, 0.92);
+            background: rgba(95, 120, 210, 0.10);
+        }
+        .world:focus-visible {
+            outline: 1px solid rgba(160, 185, 255, 0.7);
+            outline-offset: 2px;
+        }
+        .world.active {
+            color: rgba(228, 236, 255, 0.95);
+            background: color-mix(in srgb, var(--wc) 11%, transparent);
+            border-color: color-mix(in srgb, var(--wc) 40%, transparent);
+        }
+        .world.active .dot {
+            opacity: 1;
+            box-shadow: 0 0 10px var(--wc), 0 0 2px rgba(255, 255, 255, 0.9);
+        }
+        .world[data-world="room"]      { --wc: #7d9bff; }
+        .world[data-world="forest"]    { --wc: #6fd07a; }
+        .world[data-world="northPole"] { --wc: #7ce8ff; }
+        .world[data-world="spaceship"] { --wc: #ff8d5c; }
+        .world[data-world="desert"]    { --wc: #ffcf6e; }
+
         .ctrl-sep {
             height: 1px;
-            background: rgba(80, 110, 220, 0.1);
-            margin: 1px 0;
+            background: rgba(110, 140, 255, 0.12);
+            margin: 2px 0;
+        }
+
+        @media (max-width: 860px) {
+            #worlds {
+                left: 12px;
+                right: 12px;
+                top: 12px;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+                gap: 3px;
+            }
+            .world { padding: 7px 6px; font-size: 9px; letter-spacing: 1px; gap: 5px; justify-content: center; }
+            #controls {
+                top: auto;
+                bottom: 16px;
+                left: 12px;
+                padding: 11px 14px 13px;
+                gap: 10px;
+            }
+            .ctrl-row input[type="range"] { width: 90px; }
+            #site-name {
+                top: auto;
+                bottom: 20px;
+                left: auto;
+                right: 14px;
+                transform: none;
+                font-size: 9px;
+                letter-spacing: 3px;
+            }
+            #hint { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #ui * { transition: none !important; }
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 7px;
-            height: 7px;
+            width: 11px;
+            height: 11px;
             border-radius: 50%;
-            background: rgba(130, 160, 255, 0.75);
+            background: rgba(205, 220, 255, 0.92);
+            box-shadow: 0 0 7px rgba(140, 170, 255, 0.75), 0 0 0 3px rgba(140, 170, 255, 0.14);
             cursor: pointer;
-            transition: background 0.15s;
+            transition: box-shadow 0.15s, background 0.15s;
         }
         input[type="range"]:hover::-webkit-slider-thumb {
-            background: rgba(170, 195, 255, 0.95);
+            background: #ffffff;
+            box-shadow: 0 0 10px rgba(160, 190, 255, 0.95), 0 0 0 4px rgba(140, 170, 255, 0.22);
         }
         input[type="range"]::-moz-range-thumb {
-            width: 7px;
-            height: 7px;
+            width: 11px;
+            height: 11px;
             border-radius: 50%;
-            background: rgba(130, 160, 255, 0.75);
+            background: rgba(205, 220, 255, 0.92);
+            box-shadow: 0 0 7px rgba(140, 170, 255, 0.75), 0 0 0 3px rgba(140, 170, 255, 0.14);
             border: none;
             cursor: pointer;
         }
@@ -163,6 +263,7 @@
         <div id="site-name">alandeboer.computer</div>
         <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom</div>
         <div id="controls">
+            <div class="panel-title">lighting</div>
             <div class="ctrl-row">
                 <label for="brightness-slider">brightness</label>
                 <input type="range" id="brightness-slider" min="0.1" max="2.2" step="0.01" value="1.0">
@@ -185,7 +286,13 @@
                 <input type="range" id="lamp-color-slider" min="0" max="1" step="0.01" value="0.0">
             </div>
         </div>
-        <button id="theme-btn">enter the woods</button>
+        <nav id="worlds" aria-label="Choose a world">
+            <button class="world active" data-world="room"><span class="dot"></span>the room</button>
+            <button class="world" data-world="forest"><span class="dot"></span>the woods</button>
+            <button class="world" data-world="northPole"><span class="dot"></span>north pole</button>
+            <button class="world" data-world="spaceship"><span class="dot"></span>spaceship</button>
+            <button class="world" data-world="desert"><span class="dot"></span>desert</button>
+        </nav>
     </div>
 
     <script type="importmap">
@@ -3317,7 +3424,7 @@
         });
 
         // ── Scenery toggle ──
-        const themeBtn = document.getElementById('theme-btn');
+        const worldBtns = document.querySelectorAll('#worlds .world');
         const setTheme = th => {
             theme = th;
             const isRoom      = th === 'room';
@@ -3351,19 +3458,9 @@
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
-            if (isRoom)   themeBtn.textContent = 'enter the woods';
-            else if (isForest) themeBtn.textContent = 'north pole ❄';
-            else if (isNP)     themeBtn.textContent = 'spaceship 🚀';
-            else if (isSP)     themeBtn.textContent = 'desert ☀';
-            else               themeBtn.textContent = 'back inside';
+            worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
         };
-        themeBtn.addEventListener('click', () => {
-            if (theme === 'room')       setTheme('forest');
-            else if (theme === 'forest')    setTheme('northPole');
-            else if (theme === 'northPole') setTheme('spaceship');
-            else if (theme === 'spaceship') setTheme('desert');
-            else                            setTheme('room');
-        });
+        worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
         const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', desert: 'desert', room: 'room' }[location.hash.slice(1).toLowerCase()];
