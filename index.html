@@ -260,6 +260,16 @@
         #sound-btn.on .dot { opacity: 1; }
         #sound-btn.hidden { display: none; }
 
+        /* mid-width desktops: the six-chip bar would overlap the centered
+           site name, so the name joins the hint at the bottom */
+        @media (max-width: 1560px) and (min-width: 861px) {
+            #site-name {
+                top: auto;
+                bottom: 46px;
+                font-size: 10px;
+                letter-spacing: 5px;
+            }
+        }
         @media (max-width: 860px) {
             #worlds {
                 left: 12px;
@@ -325,7 +335,7 @@
 <body>
     <div id="ui">
         <div id="site-name">alandeboer.computer</div>
-        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; pet clark</div>
+        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; pet clark &nbsp;·&nbsp; click the monitor</div>
         <div id="controls">
             <div class="panel-title">lighting</div>
             <div class="ctrl-row">
@@ -1938,6 +1948,12 @@
         monScr.position.set(MOX, MOY, MOZ + 0.008);
         addTarget.add(monScr);
         let monLastDraw = 0;
+        // generous invisible click target over the whole monitor face
+        const monHit = new THREE.Mesh(
+            new THREE.PlaneGeometry(MOW + 0.12, MOH + 0.14),
+            new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        monHit.position.set(MOX, MOY, MOZ + 0.03);
+        addTarget.add(monHit);
         // click-to-zoom state: fly in to read, click anywhere to fly back
         let monZoom = false, monZoomStart = 0, zoomSaved = null;
         const zoomCamTo = new THREE.Vector3(MOX, MOY + 0.01, MOZ + 0.86);
@@ -2891,11 +2907,11 @@
         }, 0.4, 1.1, 2.8);
 
         // ── Cabin + engine lights (animate loop drives intensities) ──
-        const spEngineLight = new THREE.PointLight(0xff6600, 0, 6, 2.0);
-        spEngineLight.position.set(0, hatchY + 0.4, AFT + 0.4);
+        const spEngineLight = new THREE.PointLight(0xff6600, 0, 2.2, 2.0);
+        spEngineLight.position.set(0, hatchY + 0.4, AFT + 0.3);
         addTarget.add(spEngineLight);
-        const spEngineLight2 = new THREE.PointLight(0x2244ff, 0, 6, 2.0);
-        spEngineLight2.position.set(0, hatchY - 0.3, AFT + 0.5);
+        const spEngineLight2 = new THREE.PointLight(0x2244ff, 0, 2.2, 2.0);
+        spEngineLight2.position.set(0, hatchY - 0.3, AFT + 0.35);
         addTarget.add(spEngineLight2);
         const spCockpitLight = new THREE.PointLight(0xf0f2f8, 0, 9, 1.6);
         spCockpitLight.position.set(0, SPCY + SPR - 0.5, 0.4);
@@ -4094,7 +4110,7 @@
             pointerV.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointerV, camera);
             if (raycaster.intersectObject(dogGroup, true).length) { petDog(); return; }
-            if (raycaster.intersectObject(monScr).length) {
+            if (raycaster.intersectObject(monHit).length) {
                 zoomSaved = { cam: camera.position.clone(), tgt: controls.target.clone(), auto: controls.autoRotate };
                 controls.enabled = false;
                 controls.autoRotate = false;
