@@ -210,6 +210,7 @@
         .world[data-world="lighthouse"] { --wc: #ffd27a; }
         .world[data-world="apiary"]    { --wc: #f0b428; }
         .world[data-world="tavern"]    { --wc: #d85c28; }
+        .world[data-world="video"]     { --wc: #ffec3d; }
 
         .ctrl-sep {
             height: 1px;
@@ -371,6 +372,7 @@
             <button class="world" data-world="lighthouse"><span class="dot"></span>lighthouse</button>
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
+            <button class="world" data-world="video"><span class="dot"></span>video store</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -434,6 +436,9 @@
         const tavernGroup = new THREE.Group();
         tavernGroup.visible = false;
         scene.add(tavernGroup);
+        const videoGroup = new THREE.Group();
+        videoGroup.visible = false;
+        scene.add(videoGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -4521,6 +4526,310 @@
             addTarget.add(ring);
         });
 
+        addTarget = videoGroup;
+
+        // ═══════════════════════════════
+        //  VIDEO STORE — Friday night, 1996
+        // ═══════════════════════════════
+
+        // ── 90s confetti carpet ──
+        const vcCv = mkCanvas(512, 512);
+        {
+            const vc2 = vcCv.getContext('2d');
+            vc2.fillStyle = '#141c52'; vc2.fillRect(0, 0, 512, 512);
+            for (let i = 0; i < 340; i++) {
+                vc2.fillStyle = ['#2a3a9a', '#e8c020', '#c03a6a', '#2a9a8a', '#7a3ac0'][(Math.random() * 5) | 0];
+                vc2.globalAlpha = 0.5 + Math.random() * 0.4;
+                const cx4 = Math.random() * 512, cy4 = Math.random() * 512;
+                vc2.save();
+                vc2.translate(cx4, cy4);
+                vc2.rotate(Math.random() * 3);
+                if (Math.random() < 0.5) vc2.fillRect(-6, -1.5, 12, 3);         // confetti bars
+                else {                                                            // squiggles
+                    vc2.strokeStyle = vc2.fillStyle; vc2.lineWidth = 2.4;
+                    vc2.beginPath(); vc2.moveTo(-8, 0);
+                    vc2.quadraticCurveTo(-3, -6, 0, 0); vc2.quadraticCurveTo(3, 6, 8, 0);
+                    vc2.stroke();
+                }
+                vc2.restore();
+            }
+            vc2.globalAlpha = 1;
+            speckle(vc2, 512, 512, 1800, 0.08, '#3a4ac0', '#0a1030');
+        }
+        const vcTex = new THREE.CanvasTexture(vcCv);
+        vcTex.wrapS = vcTex.wrapT = THREE.RepeatWrapping;
+        vcTex.repeat.set(3, 3);
+        vcTex.colorSpace = THREE.SRGBColorSpace;
+        const vFloor = new THREE.Mesh(new THREE.PlaneGeometry(12, 10),
+            new THREE.MeshStandardMaterial({ map: vcTex, roughness: 0.95 }));
+        vFloor.rotation.x = -Math.PI / 2;
+        vFloor.position.z = 0.2;
+        vFloor.receiveShadow = true;
+        addTarget.add(vFloor);
+
+        // ── Walls: warm white above a royal-blue wainscot band ──
+        const vWallMat = lm(0xd8d4c8, 0, 0, 0.92);
+        const vBlueMat = lm(0x18287a, 0, 0, 0.85);
+        const vWall = (w, x, z, ry4) => {
+            const up = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.1), vWallMat);
+            up.position.set(x, 2.05, z);
+            up.rotation.y = ry4;
+            up.receiveShadow = true;
+            addTarget.add(up);
+            const lo = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.0), vBlueMat);
+            lo.position.set(x, 0.5, z);
+            lo.rotation.y = ry4;
+            lo.receiveShadow = true;
+            addTarget.add(lo);
+        };
+        vWall(12, 0, -3.0, 0);                 // back
+        vWall(10, -3.6, 0.2, Math.PI / 2);     // left
+        vWall(10, 3.6, 0.2, -Math.PI / 2);     // right
+        // drop ceiling with humming fluorescent panels
+        const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(12, 10),
+            new THREE.MeshStandardMaterial({ color: 0xb8b4a8, roughness: 0.95 }));
+        vCeil.rotation.x = Math.PI / 2;
+        vCeil.position.set(0, 3.1, 0.2);
+        addTarget.add(vCeil);
+        const fluoros = [];
+        for (let fx3 = -2.4; fx3 <= 2.4; fx3 += 2.4) {
+            for (let fz3 = -1.8; fz3 <= 2.2; fz3 += 2.0) {
+                const panel = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.05, 0.6),
+                    new THREE.MeshStandardMaterial({ color: 0xf4f4ec, emissive: 0xf0f2e8, emissiveIntensity: 1.0, roughness: 0.6 }));
+                panel.position.set(fx3, 3.07, fz3);
+                addTarget.add(panel);
+                fluoros.push(panel);
+            }
+        }
+
+        // ── Signage: yellow-on-blue marquee + category plaques ──
+        const signCv = (txt, w2, h2, fg, bg, fs) => {
+            const cv = mkCanvas(w2, h2);
+            const g = cv.getContext('2d');
+            g.fillStyle = bg; g.fillRect(0, 0, w2, h2);
+            g.fillStyle = fg;
+            g.font = `italic 900 ${fs}px Arial, sans-serif`;
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText(txt, w2 / 2, h2 / 2 + 2);
+            const t2 = new THREE.CanvasTexture(cv);
+            t2.colorSpace = THREE.SRGBColorSpace;
+            return t2;
+        };
+        const marquee = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.62, 0.1),
+            new THREE.MeshStandardMaterial({
+                map: signCv('VIDEO', 512, 96, '#ffe14a', '#101c66', 74),
+                emissive: 0x2a3aaa, emissiveIntensity: 0.35, roughness: 0.6,
+            }));
+        marquee.position.set(0, 2.55, -2.93);
+        addTarget.add(marquee);
+        const catSign = (txt, x, z, ry4, fs2 = 34) => {
+            const s = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.2),
+                new THREE.MeshStandardMaterial({ map: signCv(txt, 256, 60, '#101c66', '#ffe14a', fs2), roughness: 0.7 }));
+            s.position.set(x, 2.35, z);
+            s.rotation.y = ry4;
+            addTarget.add(s);
+        };
+        catSign('ACTION', -3.55, -1.4, Math.PI / 2);
+        catSign('COMEDY', -3.55, 0.6, Math.PI / 2);
+        catSign('HORROR', -3.55, 2.2, Math.PI / 2);
+        catSign('NEW RELEASES', -2.1, -2.94, 0, 26);
+        catSign('BE KIND · REWIND', 2.4, -2.94, 0, 22);
+
+        // ── VHS shelving: wall runs + a center gondola, spines jittered ──
+        const shelfDk = lm(0x2a2c30, 0, 0, 0.7);
+        const tapeCols = [0x1a1a1e, 0x24242a, 0x8a2020, 0x20408a, 0x207a40, 0x6a3a9a, 0xc8a020, 0x18181c, 0x30303a];
+        const vhsRun = (x, z, ry4, len, shelves) => {
+            const g = new THREE.Group();
+            g.position.set(x, 0, z);
+            g.rotation.y = ry4;
+            addTarget.add(g);
+            const back = new THREE.Mesh(new THREE.BoxGeometry(len, 2.0, 0.04), shelfDk);
+            back.position.y = 1.0;
+            back.castShadow = back.receiveShadow = true;
+            g.add(back);
+            for (let s = 0; s < shelves; s++) {
+                const sy2 = 0.35 + s * 0.45;
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(len, 0.03, 0.26), shelfDk);
+                shelf.position.set(0, sy2, 0.13);
+                shelf.castShadow = shelf.receiveShadow = true;
+                g.add(shelf);
+                let tx3 = -len / 2 + 0.05;
+                while (tx3 < len / 2 - 0.06) {
+                    if (Math.random() < 0.08) { tx3 += 0.05; continue; }   // gaps where tapes went home
+                    const tape = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.19, 0.11),
+                        lm(tapeCols[(Math.random() * tapeCols.length) | 0], 0, 0, 0.8));
+                    tape.position.set(tx3, sy2 + 0.11, 0.1);
+                    tape.rotation.z = Math.random() < 0.06 ? 0.12 : 0;
+                    g.add(tape);
+                    tx3 += 0.034;
+                }
+            }
+        };
+        vhsRun(-3.45, -1.4, Math.PI / 2, 2.4, 4);   // ACTION
+        vhsRun(-3.45, 0.6, Math.PI / 2, 1.4, 4);    // COMEDY
+        vhsRun(-3.45, 2.2, Math.PI / 2, 1.2, 4);    // HORROR
+        vhsRun(0, -2.05, 0, 3.6, 3);                // center gondola, behind the desk
+
+        // ── New releases: face-out covers on the back wall ──
+        const coverAtlas = mkCanvas(512, 256);
+        {
+            const ca = coverAtlas.getContext('2d');
+            for (let i = 0; i < 8; i++) {
+                const ox = (i % 4) * 128, oy = ((i / 4) | 0) * 128;
+                const g1 = ca.createLinearGradient(ox, oy, ox + 128, oy + 128);
+                const hues = [['#c02030', '#301040'], ['#2040a0', '#081020'], ['#e08020', '#401008'],
+                              ['#108060', '#04201a'], ['#7020a0', '#180830'], ['#c0c0c8', '#303040'],
+                              ['#d04080', '#200818'], ['#204830', '#0a1a10']][i];
+                g1.addColorStop(0, hues[0]); g1.addColorStop(1, hues[1]);
+                ca.fillStyle = g1; ca.fillRect(ox, oy, 128, 128);
+                ca.fillStyle = 'rgba(255,255,255,0.85)';
+                ca.fillRect(ox + 10, oy + 8, 108, 16);              // title bar
+                ca.fillStyle = 'rgba(0,0,0,0.5)';
+                ca.beginPath(); ca.arc(ox + 64, oy + 76, 30, 0, Math.PI * 2); ca.fill();   // key art blob
+                ca.fillStyle = 'rgba(255,255,255,0.25)';
+                ca.beginPath(); ca.moveTo(ox + 46, oy + 60); ca.lineTo(ox + 88, oy + 76); ca.lineTo(ox + 46, oy + 94); ca.fill();
+            }
+        }
+        for (let i = 0; i < 8; i++) {
+            const ct2 = new THREE.CanvasTexture(coverAtlas);
+            ct2.colorSpace = THREE.SRGBColorSpace;
+            ct2.repeat.set(0.25, 0.5);
+            ct2.offset.set((i % 4) * 0.25, ((i / 4) | 0) * 0.5);
+            const cov = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.42),
+                new THREE.MeshStandardMaterial({ map: ct2, roughness: 0.7 }));
+            cov.position.set(-2.7 + (i % 4) * 0.42, 1.85 - ((i / 4) | 0) * 0.62, -2.95);
+            addTarget.add(cov);
+            const lip = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.025, 0.09), shelfDk);
+            if (i % 4 === 0) {
+                lip.position.set(-2.07, 1.6 - ((i / 4) | 0) * 0.62, -2.92);
+                addTarget.add(lip);
+            }
+        }
+
+        // ── Checkout counter, CRT, returns slot, candy rack ──
+        box(1.9, 0.95, 0.55, vBlueMat, 2.6, 0.47, 1.4, 0, Math.PI / 2, 0);
+        box(2.0, 0.06, 0.7, lm(0xe8e4d8, 0, 0, 0.6), 2.6, 0.97, 1.4, 0, Math.PI / 2, 0);
+        // CRT television on the counter, playing static
+        const crtCv = mkCanvas(128, 96);
+        const crtCtx = crtCv.getContext('2d');
+        const crtTex = new THREE.CanvasTexture(crtCv);
+        const crt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.44), lm(0x2a2a2e, 0, 0, 0.7));
+        crt.position.set(2.55, 1.22, 0.7);
+        crt.rotation.y = -0.9;
+        crt.castShadow = true;
+        addTarget.add(crt);
+        const crtScr = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3),
+            new THREE.MeshBasicMaterial({ map: crtTex }));
+        crtScr.position.copy(crt.position);
+        crtScr.rotation.y = -0.9;
+        crtScr.translateZ(0.225);
+        addTarget.add(crtScr);
+        // returns drop box by the door
+        box(0.5, 0.85, 0.4, vBlueMat, 3.2, 0.42, 2.9);
+        box(0.4, 0.06, 0.05, lm(0x0a0a10, 0, 0, 0.9), 3.2, 0.75, 3.11);
+        const retSign = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.13),
+            new THREE.MeshStandardMaterial({ map: signCv('RETURNS', 128, 40, '#ffe14a', '#101c66', 24), roughness: 0.7 }));
+        retSign.position.set(3.2, 0.92, 3.105);
+        addTarget.add(retSign);
+        // candy rack: shelves of bright boxes
+        const candy = new THREE.Group();
+        candy.position.set(3.35, 0, -0.6);
+        candy.rotation.y = -Math.PI / 2;
+        addTarget.add(candy);
+        for (let s = 0; s < 3; s++) {
+            const sh2 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.2), shelfDk);
+            sh2.position.set(0, 0.45 + s * 0.35, 0);
+            candy.add(sh2);
+            for (let c3 = 0; c3 < 7; c3++) {
+                const cb = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.16, 0.05),
+                    lm([0xd82030, 0xf0a818, 0x20a050, 0x3060d8, 0xb03aa0, 0xf06818, 0x18b8c8][c3], 0, 0, 0.7));
+                cb.position.set(-0.42 + c3 * 0.14, 0.55 + s * 0.35, 0.02);
+                cb.rotation.y = (Math.random() - 0.5) * 0.15;
+                candy.add(cb);
+            }
+        }
+
+        // ── Storefront: night windows, neon OPEN, cardboard standee ──
+        const frontCv = mkCanvas(256, 160);
+        {
+            const fr = frontCv.getContext('2d');
+            const fg2 = fr.createLinearGradient(0, 0, 0, 160);
+            fg2.addColorStop(0, '#060a1e'); fg2.addColorStop(1, '#101a30');
+            fr.fillStyle = fg2; fr.fillRect(0, 0, 256, 160);
+            fr.fillStyle = '#c8d8f0';                      // parking-lot lamp
+            fr.beginPath(); fr.arc(200, 30, 5, 0, Math.PI * 2); fr.fill();
+            const lg2 = fr.createRadialGradient(200, 30, 2, 200, 30, 60);
+            lg2.addColorStop(0, 'rgba(200,216,240,0.5)'); lg2.addColorStop(1, 'rgba(200,216,240,0)');
+            fr.fillStyle = lg2; fr.fillRect(140, 0, 120, 120);
+            fr.fillStyle = '#04060c';                      // parked cars
+            [[30, 118, 70, 26], [130, 122, 62, 22]].forEach(([cx5, cy5, cw5, ch5]) => {
+                fr.beginPath(); fr.roundRect(cx5, cy5, cw5, ch5, 8); fr.fill();
+            });
+        }
+        const frontTex = new THREE.CanvasTexture(frontCv);
+        frontTex.colorSpace = THREE.SRGBColorSpace;
+        [[-2.1, 1.65], [0, 1.65], [2.1, 1.65]].forEach(([wx2]) => {
+            const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.5),
+                new THREE.MeshBasicMaterial({ map: frontTex, fog: false }));
+            pane.position.set(wx2, 1.55, 3.35);
+            pane.rotation.y = Math.PI;
+            addTarget.add(pane);
+            box(0.1, 3.1, 0.1, lm(0x9a9a9c, 0, 0, 0.5, 0.6), wx2 - 1.0, 1.55, 3.32);
+        });
+        box(0.1, 3.1, 0.1, lm(0x9a9a9c, 0, 0, 0.5, 0.6), 3.1, 1.55, 3.32);
+        const openSign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3),
+            new THREE.MeshBasicMaterial({
+                map: signCv('OPEN', 128, 64, '#ff4a8a', '#0a0614', 40),
+                transparent: true, opacity: 0.95,
+            }));
+        openSign.position.set(-2.1, 2.2, 3.3);
+        openSign.rotation.y = Math.PI;
+        addTarget.add(openSign);
+        // cardboard standee: hero silhouette on an easel
+        const standee = new THREE.Group();
+        standee.position.set(-2.3, 0, 2.3);
+        standee.rotation.y = 0.7;
+        addTarget.add(standee);
+        const stCv = mkCanvas(128, 256);
+        {
+            const sg2 = stCv.getContext('2d');
+            const sgr = sg2.createLinearGradient(0, 0, 0, 256);
+            sgr.addColorStop(0, '#e8a020'); sgr.addColorStop(1, '#802010');
+            sg2.fillStyle = sgr; sg2.fillRect(0, 0, 128, 256);
+            sg2.fillStyle = '#181420';    // action-hero silhouette
+            sg2.beginPath(); sg2.arc(64, 60, 20, 0, Math.PI * 2); sg2.fill();
+            sg2.fillRect(40, 80, 48, 90);
+            sg2.fillRect(28, 84, 16, 60); sg2.fillRect(84, 84, 16, 60);
+            sg2.fillRect(44, 170, 16, 70); sg2.fillRect(68, 170, 16, 70);
+            sg2.fillStyle = '#ffe14a'; sg2.font = '900 20px Arial';
+            sg2.textAlign = 'center'; sg2.fillText('NOW ON VHS', 64, 26);
+        }
+        const stTex = new THREE.CanvasTexture(stCv);
+        stTex.colorSpace = THREE.SRGBColorSpace;
+        const stMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.4),
+            new THREE.MeshStandardMaterial({ map: stTex, roughness: 0.85, side: THREE.DoubleSide }));
+        stMesh.position.y = 0.72;
+        standee.add(stMesh);
+        box(0.05, 1.3, 0.05, lm(0x9a8a68, 0, 0, 0.9), 0, 0.65, -0.18, 0.25, 0, 0);
+
+        // ── Clark's staff-picks beanbag by the counter ──
+        const bean = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), lm(0x18287a, 0, 0, 0.95));
+        bean.scale.set(1, 0.28, 1);
+        bean.position.set(BEDX, 0.08, BEDZ);
+        bean.receiveShadow = bean.castShadow = true;
+        addTarget.add(bean);
+        box(0.5, 0.02, 0.4, lm(0xffe14a, 0, 0, 0.9), BEDX, 0.145, BEDZ);
+
+        // neon + marquee glow, driven by the neon slider
+        const vNeonLight = new THREE.PointLight(0xff4a8a, 0, 5);
+        vNeonLight.position.set(-2.1, 2.2, 2.9);
+        addTarget.add(vNeonLight);
+        const vMarqLight = new THREE.PointLight(0xffe14a, 0, 6);
+        vMarqLight.position.set(0, 2.5, -2.4);
+        addTarget.add(vMarqLight);
+        let vFlickerPanel = 0, vNextFlicker = 5;
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -4612,6 +4921,7 @@
             const isLH        = th === 'lighthouse';
             const isApiary    = th === 'apiary';
             const isTavern    = th === 'tavern';
+            const isVideo     = th === 'video';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -4620,7 +4930,8 @@
             lighthouseGroup.visible = isLH;
             apiaryGroup.visible    = isApiary;
             tavernGroup.visible    = isTavern;
-            document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern);
+            videoGroup.visible     = isVideo;
+            document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-row').classList.toggle('hidden', isRiver);
@@ -4650,11 +4961,13 @@
                 document.getElementById('time-slider').value = 0.75;
             } else if (isTavern) {
                 document.getElementById('lamp-label').textContent = 'hearth';
+            } else if (isVideo) {
+                document.getElementById('lamp-label').textContent = 'neon';
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -4663,7 +4976,7 @@
         // ── River soundscape: synthesized, no audio files ──
         // Brown noise through a lowpass = the constant spillway rush;
         // short descending oscillator sweeps = songbirds on the banks.
-        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, noiseBuf = null, soundOn = false;
+        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, noiseBuf = null, soundOn = false;
         const buildAudio = () => {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const len = audioCtx.sampleRate * 2;
@@ -4734,7 +5047,55 @@
             crackleGain.gain.value = 0;
             csrc.connect(chp).connect(crackleGain).connect(audioCtx.destination);
             csrc.start();
+            // fluorescent ballast hum: mains frequency plus its first overtone
+            humGain = audioCtx.createGain();
+            humGain.gain.value = 0;
+            [120, 240].forEach((hf, hi) => {
+                const ho = audioCtx.createOscillator();
+                ho.type = 'sine';
+                ho.frequency.value = hf;
+                const hg = audioCtx.createGain();
+                hg.gain.value = hi === 0 ? 0.7 : 0.3;
+                ho.connect(hg).connect(humGain);
+                ho.start();
+            });
+            humGain.connect(audioCtx.destination);
         };
+        // a VHS rewinding behind the counter: rising whirr, clunk at the end
+        const rewind = () => {
+            if (!audioCtx || !noiseBuf) return;
+            const st = audioCtx.currentTime + 0.05;
+            const rsrc = audioCtx.createBufferSource();
+            rsrc.buffer = noiseBuf;
+            rsrc.loop = true;
+            rsrc.playbackRate.setValueAtTime(0.8, st);
+            rsrc.playbackRate.exponentialRampToValueAtTime(2.6, st + 1.6);
+            const rbp = audioCtx.createBiquadFilter();
+            rbp.type = 'bandpass';
+            rbp.frequency.setValueAtTime(600, st);
+            rbp.frequency.exponentialRampToValueAtTime(2400, st + 1.6);
+            rbp.Q.value = 2.5;
+            const rg = audioCtx.createGain();
+            rg.gain.setValueAtTime(0, st);
+            rg.gain.linearRampToValueAtTime(0.05, st + 0.25);
+            rg.gain.setValueAtTime(0.05, st + 1.55);
+            rg.gain.linearRampToValueAtTime(0, st + 1.72);
+            rsrc.connect(rbp).connect(rg).connect(audioCtx.destination);
+            rsrc.start(st);
+            rsrc.stop(st + 1.8);
+            // the clunk
+            const ko = audioCtx.createOscillator();
+            ko.type = 'square';
+            ko.frequency.value = 90;
+            const kg = audioCtx.createGain();
+            kg.gain.setValueAtTime(0, st + 1.72);
+            kg.gain.linearRampToValueAtTime(0.05, st + 1.74);
+            kg.gain.exponentialRampToValueAtTime(0.001, st + 1.82);
+            ko.connect(kg).connect(audioCtx.destination);
+            ko.start(st + 1.7);
+            ko.stop(st + 1.85);
+        };
+        let vNextRewind = 9;
         // a fat bubble breaking the surface of the brew
         const gloop = () => {
             if (!audioCtx) return;
@@ -4939,7 +5300,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -5710,6 +6071,65 @@
                     rs.position.z = rs.userData.z0;
                     rs.material.opacity = 0.15 + (1 - p3) * 0.3;
                 }
+            } else if (theme === 'video') {
+                // ── Video store: fluorescent Friday night ──
+                scene.background.setHex(0x05060e);
+                scene.fog.color.setHex(0x0a0c16);
+                scene.fog.density = 0.02;
+
+                hemiLight.intensity = 3.2 * b;
+                hemiLight.color.setHex(0xf0f2ea);
+                hemiLight.groundColor.setHex(0x3a4258);
+                fillLight.intensity = 1.5 * b;
+                fillLight.color.setHex(0xeef0e8);
+
+                // one tube is always dying — flicker a random panel
+                if (t > vNextFlicker) {
+                    vNextFlicker = t + 3 + Math.random() * 7;
+                    vFlickerPanel = (Math.random() * fluoros.length) | 0;
+                }
+                for (let i = 0; i < fluoros.length; i++) {
+                    fluoros[i].material.emissiveIntensity = i === vFlickerPanel
+                        ? (Math.random() < 0.25 ? 0.25 : 1.0)
+                        : 1.0;
+                }
+
+                // neon slider: OPEN sign + marquee glow
+                const neon2 = params.lampBrightness;
+                vNeonLight.intensity = neon2 * 1.4 * b;
+                vMarqLight.intensity = neon2 * 1.1 * b;
+                openSign.material.opacity = 0.4 + Math.min(1, neon2) * 0.55 + Math.sin(t * 30) * 0.02;
+                marquee.material.emissiveIntensity = 0.15 + neon2 * 0.3;
+
+                // CRT: rolling static with the occasional blue screen
+                if (t - monLastDraw > -1) {   // cheap: redraw each frame at 128x96
+                    const blue = Math.sin(t * 0.21) > 0.93;
+                    if (blue) {
+                        crtCtx.fillStyle = '#1030c8';
+                        crtCtx.fillRect(0, 0, 128, 96);
+                        crtCtx.fillStyle = '#e8f0ff';
+                        crtCtx.font = 'bold 9px monospace';
+                        crtCtx.fillText('FEATURE', 38, 44);
+                        crtCtx.fillText('PRESENTATION', 22, 58);
+                    } else {
+                        crtCtx.fillStyle = '#0a0a0a';
+                        crtCtx.fillRect(0, 0, 128, 96);
+                        for (let i = 0; i < 260; i++) {
+                            const v2 = 40 + Math.random() * 200 | 0;
+                            crtCtx.fillStyle = `rgb(${v2},${v2},${v2})`;
+                            crtCtx.fillRect(Math.random() * 128, Math.random() * 96, 2, 1.4);
+                        }
+                        crtCtx.fillStyle = 'rgba(255,255,255,0.12)';
+                        crtCtx.fillRect(0, ((t * 60) % 96), 128, 3);   // rolling bar
+                    }
+                    crtTex.needsUpdate = true;
+                }
+
+                // somebody's always rewinding
+                if (soundOn && audioCtx && t > vNextRewind) {
+                    vNextRewind = t + 11 + Math.random() * 14;
+                    rewind();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -5735,6 +6155,11 @@
                     ? params.lampBrightness * (0.015 + Math.random() * 0.05 + (Math.random() < 0.02 ? 0.10 : 0))
                     : 0;
                 crackleGain.gain.value += (ct2 - crackleGain.gain.value) * Math.min(1, dt * 9);
+            }
+            // Fluorescent ballast hum in the video store
+            if (humGain) {
+                const ht2 = (soundOn && theme === 'video') ? 0.012 : 0;
+                humGain.gain.value += (ht2 - humGain.gain.value) * Math.min(1, dt * 2);
             }
 
             // Monitor flicker × brightness
@@ -5855,6 +6280,7 @@
                 theme === 'spaceship' ? 0.32 :
                 theme === 'lighthouse' ? 0.45 :
                 theme === 'tavern' ? 0.5 :
+                theme === 'video' ? 0.35 :
                 0.08 + (1 - params.time) * 0.3;
 
             controls.update();
