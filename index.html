@@ -325,7 +325,7 @@
 <body>
     <div id="ui">
         <div id="site-name">alandeboer.computer</div>
-        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; pet the beagle</div>
+        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; pet clark</div>
         <div id="controls">
             <div class="panel-title">lighting</div>
             <div class="ctrl-row">
@@ -1098,73 +1098,97 @@
 
         addTarget = scene; // ── the beagle travels between worlds ──
 
-        // ── Beagle ──
+        // ── Clark the beagle ──
+        // Proper tricolor: black saddle, tan head and flanks, white blaze,
+        // muzzle, chest, paws, and the signature white tail tip.
         const dogGroup = new THREE.Group();
         dogGroup.position.set(BEDX, 0, BEDZ);
         addTarget.add(dogGroup);
 
-        // Materials
-        const dogWhite = lm(0xe6e1d8);
-        const dogTan   = lm(0x9a5c30);
-        const dogDark  = lm(0x1a0e08);
+        const dogWhite  = lm(0xefe8da, 0, 0, 0.92);
+        const dogTan    = lm(0xac6c36, 0, 0, 0.92);
+        const dogTanLt  = lm(0xc08a52, 0, 0, 0.92);
+        const dogBlack  = lm(0x221610, 0, 0, 0.9);
+        const dogNose   = lm(0x131110, 0, 0, 0.55);
+        const dogCollar = lm(0xb42c20, 0, 0, 0.7);
+        const dogTag    = lm(0xd8a832, 0xd8a832, 0.25, 0.4, 0.8);
 
-        // Helper to add a box mesh to dogGroup
-        const dAdd = (w,h,d,mat,x,y,z) => {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
-            m.position.set(x,y,z);
-            dogGroup.add(m);
+        const dMesh = (parent, w, h, d, mat, x, y, z, rx = 0) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, y, z);
+            m.rotation.x = rx;
+            m.castShadow = m.receiveShadow = true;
+            parent.add(m);
             return m;
         };
 
-        // Body (white belly, brown saddle on top) — ref kept for breathing
-        const dogBody = dAdd(0.18, 0.16, 0.36, dogWhite, 0, 0.17, 0);
-        // Brown saddle
-        dAdd(0.182, 0.045, 0.28, dogTan, 0, 0.26, -0.02);
-        // Dark patch on top of saddle
-        dAdd(0.16, 0.020, 0.18, dogDark, 0, 0.282, -0.02);
-        // Chest patch
-        dAdd(0.10, 0.06, 0.030, dogTan, 0, 0.13, 0.175);
+        // Torso group — ref kept for the breathing animation
+        const dogBody = new THREE.Group();
+        dogGroup.add(dogBody);
+        dMesh(dogBody, 0.19, 0.175, 0.21, dogWhite, 0, 0.165, 0.085);   // chest, deep
+        dMesh(dogBody, 0.175, 0.155, 0.19, dogWhite, 0, 0.175, -0.10);  // rump
+        dMesh(dogBody, 0.20, 0.042, 0.27, dogTan, 0, 0.215, -0.035);    // tan flank band
+        dMesh(dogBody, 0.196, 0.075, 0.245, dogBlack, 0, 0.252, -0.045); // black saddle
+        dMesh(dogBody, 0.14, 0.05, 0.05, dogWhite, 0, 0.13, 0.20);      // white chest blaze
+        // neck: tan on top, white at the throat
+        dMesh(dogBody, 0.125, 0.095, 0.10, dogTan, 0, 0.235, 0.155);
+        dMesh(dogBody, 0.10, 0.055, 0.09, dogWhite, 0, 0.165, 0.165);
 
-        // Head group — pivots at the neck so it can sniff the ground
+        // Red collar with a gold tag (it says CLARK, trust me)
+        dMesh(dogGroup, 0.15, 0.036, 0.12, dogCollar, 0, 0.203, 0.158);
+        dMesh(dogGroup, 0.026, 0.032, 0.009, dogTag, 0, 0.172, 0.218);
+
+        // Head group — pivots at the neck so he can sniff and howl
         const dogHeadGrp = new THREE.Group();
         dogHeadGrp.position.set(0, 0.21, 0.19);
         dogGroup.add(dogHeadGrp);
-        const dhAdd = (w, h, d, mat, x, y, z) => {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            m.position.set(x, y, z);
-            dogHeadGrp.add(m);
-            return m;
+        dMesh(dogHeadGrp, 0.145, 0.135, 0.15, dogTan, 0, 0.02, 0.03);       // tan skull
+        dMesh(dogHeadGrp, 0.046, 0.137, 0.152, dogWhite, 0, 0.021, 0.032);  // white blaze up the face
+        dMesh(dogHeadGrp, 0.036, 0.014, 0.014, dogTanLt, -0.048, 0.075, 0.102); // brow spots
+        dMesh(dogHeadGrp, 0.036, 0.014, 0.014, dogTanLt,  0.048, 0.075, 0.102);
+        dMesh(dogHeadGrp, 0.082, 0.068, 0.115, dogWhite, 0, -0.025, 0.148);  // muzzle
+        dMesh(dogHeadGrp, 0.06, 0.026, 0.08, dogWhite, 0, -0.068, 0.135);    // jaw
+        dMesh(dogHeadGrp, 0.04, 0.03, 0.028, dogNose, 0, -0.004, 0.208);     // nose
+        dMesh(dogHeadGrp, 0.021, 0.026, 0.012, dogBlack, -0.044, 0.042, 0.106); // eyes
+        dMesh(dogHeadGrp, 0.021, 0.026, 0.012, dogBlack,  0.044, 0.042, 0.106);
+        dMesh(dogHeadGrp, 0.008, 0.008, 0.013, dogWhite, -0.049, 0.05, 0.107); // eye glints
+        dMesh(dogHeadGrp, 0.008, 0.008, 0.013, dogWhite,  0.049, 0.05, 0.107);
+        // Ears — hinged at the top so they flop from the attachment point
+        const mkEar = side => {
+            const eg = new THREE.Group();
+            eg.position.set(side * 0.083, 0.055, 0.03);
+            dogHeadGrp.add(eg);
+            dMesh(eg, 0.034, 0.15, 0.072, dogTan, 0, -0.075, 0.008, 0.12);
+            dMesh(eg, 0.028, 0.038, 0.058, dogTan, 0, -0.155, 0.022, 0.18); // rounded tip
+            return eg;
         };
-        dhAdd(0.135, 0.13, 0.15, dogWhite, 0,  0.015, 0.035);  // head
-        dhAdd(0.135, 0.038, 0.13, dogTan,  0,  0.095, 0.035);  // tan crown
-        dhAdd(0.075, 0.065, 0.10, dogWhite, 0, -0.020, 0.140); // snout
-        dhAdd(0.035, 0.026, 0.022, dogDark, 0,  0.000, 0.198); // nose
-        dhAdd(0.018, 0.018, 0.010, dogDark, -0.040, 0.035, 0.105); // eyes
-        dhAdd(0.018, 0.018, 0.010, dogDark,  0.040, 0.035, 0.105);
-        // Ears — long, hanging down (tan), sway while trotting
-        const earL = dhAdd(0.028, 0.140, 0.060, dogTan, -0.078, -0.020, 0.020);
-        const earR = dhAdd(0.028, 0.140, 0.060, dogTan,  0.078, -0.020, 0.020);
+        const earL = mkEar(-1);
+        const earR = mkEar(1);
 
-        // Tail base + white tip (signature beagle white tail tip)
-        const tail = dAdd(0.025, 0.025, 0.11, dogWhite, 0, 0.225, -0.225);
-        tail.rotation.x = -0.45; // angled up
-        dAdd(0.030, 0.030, 0.035, dogWhite, 0, 0.260, -0.265);
+        // Tail — one hinged group: black base, tan middle, white flag tip
+        const tail = new THREE.Group();
+        tail.position.set(0, 0.245, -0.195);
+        tail.rotation.x = -0.5;   // carried high, beagle-style
+        dogGroup.add(tail);
+        dMesh(tail, 0.03, 0.03, 0.085, dogBlack, 0, 0, -0.035);
+        dMesh(tail, 0.026, 0.026, 0.07, dogTan, 0, 0, -0.10);
+        dMesh(tail, 0.032, 0.032, 0.05, dogWhite, 0, 0, -0.155);
 
-        // Legs — use groups so they swing from the hip joint
-        const legGeo = new THREE.BoxGeometry(0.044, 0.10, 0.044);
-        const makeLeg = (x, z) => {
+        // Legs — groups swing from the hip; hind legs carry tan haunches
+        const makeLeg = (x, z, hind) => {
             const grp = new THREE.Group();
-            grp.position.set(x, 0.10, z);
+            grp.position.set(x, 0.115, z);
             dogGroup.add(grp);
-            const m = new THREE.Mesh(legGeo, dogWhite);
-            m.position.set(0, -0.05, 0);
-            grp.add(m);
+            if (hind) dMesh(grp, 0.055, 0.095, 0.085, dogTan, 0, -0.02, -0.008);
+            dMesh(grp, 0.048, 0.075, 0.052, hind ? dogTan : dogWhite, 0, -0.038, 0);
+            dMesh(grp, 0.04, 0.06, 0.044, dogWhite, 0, -0.095, 0);       // white sock
+            dMesh(grp, 0.048, 0.028, 0.062, dogWhite, 0, -0.128, 0.009); // paw, toes forward
             return grp;
         };
-        const legFL = makeLeg(-0.060, 0.120);
-        const legFR = makeLeg( 0.060, 0.120);
-        const legBL = makeLeg(-0.060, -0.120);
-        const legBR = makeLeg( 0.060, -0.120);
+        const legFL = makeLeg(-0.062, 0.122, false);
+        const legFR = makeLeg( 0.062, 0.122, false);
+        const legBL = makeLeg(-0.060, -0.115, true);
+        const legBR = makeLeg( 0.060, -0.115, true);
 
         // ── Dog state machine ──
         const dogState = {
@@ -3964,6 +3988,30 @@
                 o.stop(st + 3);
             });
         };
+        // Clark's howl: a swooping sine with vibrato — the classic beagle aroo
+        const aroo = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            const o = audioCtx.createOscillator();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(340, st);
+            o.frequency.exponentialRampToValueAtTime(640, st + 0.35);
+            o.frequency.setValueAtTime(640, st + 0.9);
+            o.frequency.exponentialRampToValueAtTime(430, st + 1.5);
+            const vib = audioCtx.createOscillator();
+            vib.frequency.value = 6.5;
+            const vibG = audioCtx.createGain();
+            vibG.gain.value = 14;
+            vib.connect(vibG).connect(o.frequency);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, st);
+            g.gain.linearRampToValueAtTime(0.055, st + 0.15);
+            g.gain.setValueAtTime(0.055, st + 1.1);
+            g.gain.exponentialRampToValueAtTime(0.001, st + 1.65);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(st); vib.start(st);
+            o.stop(st + 1.8); vib.stop(st + 1.8);
+        };
         const soundBtn = document.getElementById('sound-btn');
         soundBtn.addEventListener('click', () => {
             soundOn = !soundOn;
@@ -4144,6 +4192,19 @@
             } else if (ds.mode === 'sniffing') {
                 moveTarget = null;
                 if (t > ds.sniffUntil) {
+                    // sometimes whatever he smelled deserves a full aroo
+                    if (Math.random() < 0.25) {
+                        ds.mode = 'howling';
+                        ds.howlUntil = t + 2.4;
+                        if (soundOn && audioCtx) aroo();
+                    } else {
+                        ds.mode = 'walking';
+                    }
+                    ds.modeStart = t;
+                }
+            } else if (ds.mode === 'howling') {
+                moveTarget = null;
+                if (t > ds.howlUntil) {
                     ds.mode = 'walking';
                     ds.modeStart = t;
                 }
@@ -4197,6 +4258,15 @@
                 tail.rotation.y = Math.sin(t * 8) * 0.32;        // excited wag
                 earL.rotation.x = Math.sin(t * 5.2) * 0.10;
                 earR.rotation.x = Math.sin(t * 5.2 + 0.5) * 0.10;
+            } else if (ds.mode === 'howling') {
+                // Nose to the sky, steady on all fours, a slight tremble
+                const setK = Math.min(1, dt * 5);
+                [legFL, legFR, legBL, legBR].forEach(l => l.rotation.x += (0 - l.rotation.x) * setK);
+                dogGroup.position.y += (0 - dogGroup.position.y) * lerpK;
+                headPitch = -0.66 + Math.sin(t * 9) * 0.02;
+                tail.rotation.y = Math.sin(t * 2.2) * 0.12;
+                earL.rotation.x += (-0.28 - earL.rotation.x) * setK;   // ears swept back
+                earR.rotation.x += (-0.28 - earR.rotation.x) * setK;
             } else if (ds.mode === 'inBed') {
                 // Curl up: legs tuck forward, body settles into the cushion
                 const tuckK = Math.min(1, dt * 3);
