@@ -324,7 +324,7 @@
 <body>
     <div id="ui">
         <div id="site-name">alandeboer.computer</div>
-        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom</div>
+        <div id="hint">drag to orbit &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; pet the beagle</div>
         <div id="controls">
             <div class="panel-title">lighting</div>
             <div class="ctrl-row">
@@ -3233,8 +3233,7 @@
         const salmonBack  = lm(0x4a5842, 0, 0, 0.55);
         const salmonSide  = lm(0xa8a89c, 0, 0, 0.5, 0.15);
         const salmonFin   = lm(0x3a4636, 0, 0, 0.7);
-        const salmon = [];
-        for (let i = 0; i < 3; i++) {
+        const mkSalmonMeshes = () => {
             const f = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.10, 0.34), salmonBack);
             body.castShadow = true;
@@ -3256,8 +3255,14 @@
             splash.rotation.x = -Math.PI / 2;
             splash.visible = false;
             addTarget.add(splash);
-            salmon.push({ f, splash, period: 6.5 + i * 2.8, phase: i * 3.7 });
+            return { f, splash };
+        };
+        const salmon = [];
+        for (let i = 0; i < 3; i++) {
+            salmon.push({ ...mkSalmonMeshes(), period: 6.5 + i * 2.8, phase: i * 3.7 });
         }
+        // one extra fish held in reserve — it leaps where the visitor taps the water
+        const spookSalmon = mkSalmonMeshes();
 
         // ── Wooded banks: pines + autumn maples ──
         const mapleTrunk = lm(0x4a3826, 0, 0, 0.95);
@@ -3543,6 +3548,84 @@
             soundBtn.classList.toggle('on', soundOn);
         });
 
+        // ═══════════════════════════════
+        //  CLICK INTERACTIONS
+        // ═══════════════════════════════
+
+        // Hearts that float up when the beagle gets pets
+        const heartCv = mkCanvas(64, 64);
+        {
+            const hc = heartCv.getContext('2d');
+            hc.fillStyle = '#ff6fa0';
+            hc.beginPath();
+            hc.moveTo(32, 56);
+            hc.bezierCurveTo(4, 34, 10, 8, 32, 22);
+            hc.bezierCurveTo(54, 8, 60, 34, 32, 56);
+            hc.fill();
+        }
+        const heartTex = new THREE.CanvasTexture(heartCv);
+        const hearts = [];
+        for (let i = 0; i < 3; i++) {
+            const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: heartTex, transparent: true, opacity: 0, depthWrite: false }));
+            spr.scale.setScalar(0.11);
+            spr.visible = false;
+            scene.add(spr);
+            hearts.push(spr);
+        }
+        let petStart = -10, petUntil = -10;
+        const petDog = () => {
+            const tn = clock.getElapsedTime();
+            petStart = tn;
+            petUntil = tn + 2.6;
+        };
+
+        // Lamp click toggles it, remembering the last brightness
+        const lampSliderEl = document.getElementById('lamp-slider');
+        let lampPrev = 1.0;
+        const toggleLamp = () => {
+            if (params.lampBrightness > 0.03) {
+                lampPrev = params.lampBrightness;
+                params.lampBrightness = 0;
+            } else {
+                params.lampBrightness = lampPrev || 1.0;
+            }
+            lampSliderEl.value = params.lampBrightness;
+        };
+
+        // Tap the river → a startled salmon leaps right there
+        let spook = null;
+        const spookFish = p => {
+            spook = {
+                x: THREE.MathUtils.clamp(p.x, RIV.x0 + 0.5, RIV.x1 - 0.5),
+                z: THREE.MathUtils.clamp(p.z, RIV.damZ + 1.6, 8.5),
+                t0: null,
+            };
+        };
+
+        // Clicks only — a drag that orbits the camera never triggers anything
+        const raycaster = new THREE.Raycaster();
+        const pointerV = new THREE.Vector2();
+        let downX = 0, downY = 0;
+        renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+        renderer.domElement.addEventListener('pointerup', e => {
+            if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+            pointerV.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(pointerV, camera);
+            if (raycaster.intersectObject(dogGroup, true).length) { petDog(); return; }
+            if (theme === 'room') {
+                const hit = raycaster.intersectObject(roomGroup, true);
+                if (hit.length) {
+                    const p = hit[0].point;
+                    if (Math.hypot(p.x - LX, p.z - LZ) < 0.5 && p.y < 2.0) { toggleLamp(); return; }
+                }
+            }
+            if (theme === 'river') {
+                const hit = raycaster.intersectObject(riverWater);
+                if (hit.length) spookFish(hit[0].point);
+            }
+        });
+
         // ?clean hides the UI chrome — for screenshots and embeds
         if (new URLSearchParams(location.search).has('clean'))
             document.getElementById('ui').style.display = 'none';
@@ -3707,6 +3790,26 @@
             if (ds.mode !== 'inBed') dogBody.scale.y += (1 - dogBody.scale.y) * lerpK;
             dogHeadGrp.rotation.x += (headPitch - dogHeadGrp.rotation.x) * lerpK;
             dogHeadGrp.rotation.y += (headYaw - dogHeadGrp.rotation.y) * lerpK;
+
+            // A good dog, petted: happy hops, blur-speed tail, hearts rising
+            if (t < petUntil) {
+                const pe = t - petStart;
+                dogGroup.position.y += Math.abs(Math.sin(pe * 9)) * 0.05;
+                tail.rotation.y = Math.sin(t * 24) * 0.5;
+                earL.rotation.x = Math.sin(t * 12) * 0.2;
+                earR.rotation.x = Math.sin(t * 12 + 0.4) * 0.2;
+                for (let i = 0; i < hearts.length; i++) {
+                    const hp = ((pe + i * 0.5) % 1.6) / 1.6;
+                    hearts[i].visible = true;
+                    hearts[i].position.set(
+                        dogGroup.position.x + Math.sin(i * 2.4 + pe) * 0.13,
+                        dogGroup.position.y + 0.34 + hp * 0.45,
+                        dogGroup.position.z + Math.cos(i * 1.7) * 0.10);
+                    hearts[i].material.opacity = (1 - hp) * 0.9;
+                }
+            } else if (hearts[0].visible) {
+                hearts.forEach(h => h.visible = false);
+            }
 
             // Zero-g: dog floats and gently tumbles in spaceship
             if (theme === 'spaceship') {
@@ -3982,6 +4085,31 @@
                         s.splash.material.opacity = (1 - spT) * 0.65;
                     } else {
                         s.splash.visible = false;
+                    }
+                }
+
+                // A tapped spot on the water spooks a fish into the air
+                if (spook) {
+                    if (spook.t0 === null) spook.t0 = t;
+                    const el2 = t - spook.t0;
+                    if (el2 < 0.9) {
+                        const p2 = el2 / 0.9;
+                        spookSalmon.f.visible = true;
+                        spookSalmon.f.position.set(spook.x, RIV.water - 0.16 + Math.sin(p2 * Math.PI) * 0.85, spook.z - p2 * 0.4);
+                        spookSalmon.f.rotation.x = 0.95 - p2 * 2.0;
+                        spookSalmon.f.rotation.z = Math.sin(p2 * 17) * 0.14;
+                    } else {
+                        spookSalmon.f.visible = false;
+                        const st2 = (el2 - 0.9) / 0.7;
+                        if (st2 < 1) {
+                            spookSalmon.splash.visible = true;
+                            spookSalmon.splash.position.set(spook.x, RIV.water + 0.018, spook.z - 0.4);
+                            spookSalmon.splash.scale.setScalar(0.4 + st2 * 3.0);
+                            spookSalmon.splash.material.opacity = (1 - st2) * 0.65;
+                        } else {
+                            spookSalmon.splash.visible = false;
+                            spook = null;
+                        }
                     }
                 }
 
