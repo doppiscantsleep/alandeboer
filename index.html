@@ -1894,6 +1894,39 @@
             '[watch] dog.js: tail wag ok',
             '$ ▍',
         ];
+        // The terminal shows Alan's real recent commits when GitHub answers;
+        // the scripted lines above are the offline fallback.
+        let ghLines = null;
+        const timeAgo = d => {
+            const m = (Date.now() - d.getTime()) / 60000;
+            if (m < 60) return `${Math.max(1, m | 0)}m ago`;
+            if (m < 1440) return `${(m / 60) | 0}h ago`;
+            return `${(m / 1440) | 0}d ago`;
+        };
+        fetch('https://api.github.com/users/doppiscantsleep/repos?sort=pushed&per_page=2')
+            .then(r => (r.ok ? r.json() : Promise.reject()))
+            .then(repos => Promise.all(repos.map(rp =>
+                fetch(`https://api.github.com/repos/doppiscantsleep/${rp.name}/commits?per_page=5`)
+                    .then(r => (r.ok ? r.json() : []))
+                    .then(cs => cs.map(c2 => ({
+                        sha: c2.sha.slice(0, 7),
+                        repo: rp.name,
+                        msg: c2.commit.message.split('\n')[0],
+                        date: new Date(c2.commit.author.date),
+                    })))
+                    .catch(() => []))))
+            .then(lists => {
+                const commits = lists.flat().sort((a, b2) => b2.date - a.date).slice(0, 7);
+                if (!commits.length) return;
+                const out = [['$ git log --remotes --oneline', '#7ee787']];
+                for (const c2 of commits) {
+                    out.push([`${c2.sha} ${c2.repo} · ${timeAgo(c2.date)}`, '#79c0ff']);
+                    out.push(['  ' + (c2.msg.length > 40 ? c2.msg.slice(0, 39) + '…' : c2.msg), '#9aa4b2']);
+                }
+                out.push(['$ ▍', '#7ee787']);
+                ghLines = out;
+            })
+            .catch(() => {});
         function drawMonitor(t) {
             const W = 1024, H = 440;
             mc.textAlign = 'left'; mc.font = '11px monospace';
@@ -1938,13 +1971,21 @@
             mc.fillStyle = '#11141b'; mc.fillRect(698, 26, W - 698, 20);
             mc.fillStyle = '#8a93a3'; mc.fillText('zsh — alan@computer', 712, 40);
             mc.font = '12px monospace';
-            const shown = 1 + Math.floor(t / 2.4) % termLines.length;
-            for (let i = 0; i < shown; i++) {
-                const line = termLines[i];
-                mc.fillStyle = line.startsWith('$') ? '#7ee787'
-                    : line.includes('✨') ? '#ffd23e'
-                    : line.includes('computer') ? '#79c0ff' : '#9aa4b2';
-                mc.fillText(line, 712, 64 + i * 17);
+            if (ghLines) {
+                const shown = 1 + Math.floor(t / 1.6) % ghLines.length;
+                for (let i = 0; i < shown; i++) {
+                    mc.fillStyle = ghLines[i][1];
+                    mc.fillText(ghLines[i][0], 712, 64 + i * 17);
+                }
+            } else {
+                const shown = 1 + Math.floor(t / 2.4) % termLines.length;
+                for (let i = 0; i < shown; i++) {
+                    const line = termLines[i];
+                    mc.fillStyle = line.startsWith('$') ? '#7ee787'
+                        : line.includes('✨') ? '#ffd23e'
+                        : line.includes('computer') ? '#79c0ff' : '#9aa4b2';
+                    mc.fillText(line, 712, 64 + i * 17);
+                }
             }
             // Status bar
             mc.fillStyle = '#0a3a5c'; mc.fillRect(0, H - 26, W, 26);
