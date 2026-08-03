@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a blooming kitchen garden. One beagle named Clark.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a floodlit soccer match. One beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
     <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, one beagle named Clark.">
@@ -213,7 +213,7 @@
         .world[data-world="apiary"]    { --wc: #f0b428; }
         .world[data-world="tavern"]    { --wc: #d85c28; }
         .world[data-world="video"]     { --wc: #ffec3d; }
-        .world[data-world="garden"]    { --wc: #a8e05a; }
+        .world[data-world="pitch"]     { --wc: #e8e8e8; }
 
         .ctrl-sep {
             height: 1px;
@@ -376,7 +376,7 @@
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
-            <button class="world" data-world="garden"><span class="dot"></span>the garden</button>
+            <button class="world" data-world="pitch"><span class="dot"></span>the pitch</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -443,9 +443,9 @@
         const videoGroup = new THREE.Group();
         videoGroup.visible = false;
         scene.add(videoGroup);
-        const gardenGroup = new THREE.Group();
-        gardenGroup.visible = false;
-        scene.add(gardenGroup);
+        const pitchGroup = new THREE.Group();
+        pitchGroup.visible = false;
+        scene.add(pitchGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -2022,7 +2022,7 @@
             room: 'room', woods: 'forest', forest: 'forest', northpole: 'northPole',
             pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
-            video: 'video', videostore: 'video', garden: 'garden',
+            video: 'video', videostore: 'video', pitch: 'pitch', soccer: 'pitch', football: 'pitch',
         };
         const execTerm = raw => {
             const cmd = raw.trim();
@@ -2047,7 +2047,7 @@
                     break;
                 case 'worlds':
                     termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
-                    termEcho('lighthouse · apiary · tavern · video · garden', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video · pitch', '#79c0ff');
                     termEcho('switch with: theme <name>', '#5a6373');
                     break;
                 case 'theme': {
@@ -4976,398 +4976,240 @@
         addTarget.add(vMarqLight);
         let vFlickerPanel = 0, vNextFlicker = 5;
 
-        addTarget = gardenGroup;
+        addTarget = pitchGroup;
 
         // ═══════════════════════════════
-        //  GARDEN — a kitchen garden in full glory
+        //  THE PITCH — a live match around the desk
         // ═══════════════════════════════
+        // Red attacks +x, Blue attacks -x. The desk sits in the center
+        // circle and the ball plays off it like furniture-shaped fate.
 
-        // ── Mow-striped lawn ──
-        const lawnCv = mkCanvas(512, 512);
+        const PF = { hl: 11, hw: 6.5, mouth: 1.7, gh: 1.2 };
+
+        // ── Striped turf with painted markings ──
+        const turfCv = mkCanvas(1024, 640);
         {
-            const lw2 = lawnCv.getContext('2d');
-            for (let i = 0; i < 8; i++) {
-                lw2.fillStyle = i % 2 ? '#5a7c3a' : '#6b8c46';
-                lw2.fillRect(0, i * 64, 512, 64);
+            const tf = turfCv.getContext('2d');
+            for (let i = 0; i < 10; i++) {
+                tf.fillStyle = i % 2 ? '#3f7a34' : '#4a8a3c';
+                tf.fillRect(i * 102.4, 0, 103, 640);
             }
-            for (let i = 0; i < 1600; i++) {
-                lw2.fillStyle = ['#648244', '#52703a', '#74924e'][(Math.random() * 3) | 0];
-                lw2.globalAlpha = 0.3 + Math.random() * 0.3;
-                lw2.fillRect(Math.random() * 512, Math.random() * 512, 2, 3.5);
-            }
-            lw2.globalAlpha = 1;
-        }
-        const lawnTex = new THREE.CanvasTexture(lawnCv);
-        lawnTex.wrapS = lawnTex.wrapT = THREE.RepeatWrapping;
-        lawnTex.repeat.set(3, 3);
-        lawnTex.colorSpace = THREE.SRGBColorSpace;
-        lawnTex.anisotropy = MAX_ANISO;
-        const lawn = new THREE.Mesh(new THREE.PlaneGeometry(30, 30),
-            new THREE.MeshStandardMaterial({ map: lawnTex, roughness: 1.0 }));
-        lawn.rotation.x = -Math.PI / 2;
-        lawn.receiveShadow = true;
-        addTarget.add(lawn);
-        // stepping stones curving in from the gate
-        [[2.6, 5.6], [2.1, 4.4], [1.6, 3.3], [1.2, 2.2], [0.9, 1.2]].forEach(([px4, pz4], i) => {
-            const stone = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.05, 8), lm(0x9a968c, 0, 0, 0.95));
-            stone.position.set(px4, 0.025, pz4);
-            stone.rotation.y = i;
-            stone.receiveShadow = true;
-            addTarget.add(stone);
-        });
-
-        // ── White picket fence with a rose arch gate ──
-        const picketMat = lm(0xe8e6dc, 0, 0, 0.85);
-        const picketRun = (x, z, ry6, len) => {
-            const g = new THREE.Group();
-            g.position.set(x, 0, z);
-            g.rotation.y = ry6;
-            addTarget.add(g);
-            for (let px5 = -len / 2; px5 <= len / 2; px5 += 0.42) {
-                const p3 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.75, 0.03), picketMat);
-                p3.position.set(px5, 0.375, 0);
-                p3.castShadow = true;
-                g.add(p3);
-                const tip = new THREE.Mesh(new THREE.ConeGeometry(0.062, 0.1, 4), picketMat);
-                tip.position.set(px5, 0.8, 0);
-                tip.rotation.y = Math.PI / 4;
-                g.add(tip);
-            }
-            [0.25, 0.58].forEach(ry7 => {
-                const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.3, 0.07, 0.045), picketMat);
-                rail.position.set(0, ry7, 0.015);
-                rail.castShadow = true;
-                g.add(rail);
+            speckle(tf, 1024, 640, 2600, 0.06, '#5a9a48', '#2e5c26');
+            tf.strokeStyle = '#e8ece8';
+            tf.lineWidth = 5;
+            const mx = (x) => ((x + 12.5) / 25) * 1024;
+            const mz = (z) => ((z + 8) / 16) * 640;
+            tf.strokeRect(mx(-PF.hl), mz(-PF.hw), mx(PF.hl) - mx(-PF.hl), mz(PF.hw) - mz(-PF.hw));
+            tf.beginPath(); tf.moveTo(mx(0), mz(-PF.hw)); tf.lineTo(mx(0), mz(PF.hw)); tf.stroke();
+            tf.beginPath(); tf.ellipse(mx(0), mz(0), mx(2.6) - mx(0), mz(2.6) - mz(0), 0, 0, Math.PI * 2); tf.stroke();
+            [-1, 1].forEach(sg => {
+                tf.strokeRect(Math.min(mx(sg * PF.hl), mx(sg * (PF.hl - 3.2))), mz(-3.4),
+                    Math.abs(mx(sg * PF.hl) - mx(sg * (PF.hl - 3.2))), mz(3.4) - mz(-3.4));
+                tf.beginPath();
+                tf.arc(mx(sg * (PF.hl - 2.2)), mz(0), mx(0.55) - mx(0), 0, Math.PI * 2);
+                tf.stroke();
             });
-        };
-        picketRun(0, -7.5, 0, 15);
-        picketRun(-7.5, 0, Math.PI / 2, 15);
-        picketRun(7.5, 0, Math.PI / 2, 15);
-        picketRun(-3.9, 7.5, 0, 7.2);
-        picketRun(5.6, 7.5, 0, 3.8);
-        // rose arch over the gate gap
-        const archMat = picketMat;
-        [[1.15, 0], [3.05, 0]].forEach(([ax2]) => {
-            box(0.1, 2.0, 0.1, archMat, ax2, 1.0, 7.5);
-        });
-        const archTop = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.055, 8, 16, Math.PI), archMat);
-        archTop.position.set(2.1, 2.0, 7.5);
-        addTarget.add(archTop);
-        for (let i = 0; i < 14; i++) {   // climbing roses
-            const a4 = (i / 13) * Math.PI;
-            const rx4 = 2.1 + Math.cos(a4) * 0.95, ryy = 2.0 + Math.sin(a4) * 0.95;
-            const rose = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07 + Math.random() * 0.05, 0),
-                lm(Math.random() < 0.6 ? 0xd83a58 : 0x3f6a30, 0, 0, 0.85));
-            rose.position.set(rx4 + (Math.random() - 0.5) * 0.14, Math.min(ryy, 2.0 + Math.sin(a4) * 0.95), 7.5 + (Math.random() - 0.5) * 0.18);
-            rose.castShadow = true;
-            addTarget.add(rose);
         }
+        const turfTex = new THREE.CanvasTexture(turfCv);
+        turfTex.colorSpace = THREE.SRGBColorSpace;
+        turfTex.anisotropy = MAX_ANISO;
+        const turf = new THREE.Mesh(new THREE.PlaneGeometry(25, 16),
+            new THREE.MeshStandardMaterial({ map: turfTex, roughness: 1.0 }));
+        turf.rotation.x = -Math.PI / 2;
+        turf.receiveShadow = true;
+        addTarget.add(turf);
+        const apron = new THREE.Mesh(new THREE.PlaneGeometry(34, 24), lm(0x35652c, 0, 0, 1.0));
+        apron.rotation.x = -Math.PI / 2;
+        apron.position.y = -0.01;
+        addTarget.add(apron);
 
-        // ── Raised beds ──
-        const bedWood = lm(0x7a5a38, 0, 0, 0.9);
-        const soilMat2 = lm(0x3a2a1c, 0, 0, 1.0);
-        const raisedBed = (x, z, w, d) => {
-            box(w, 0.3, 0.08, bedWood, x, 0.15, z - d / 2);
-            box(w, 0.3, 0.08, bedWood, x, 0.15, z + d / 2);
-            box(0.08, 0.3, d, bedWood, x - w / 2, 0.15, z);
-            box(0.08, 0.3, d, bedWood, x + w / 2, 0.15, z);
-            const soil = new THREE.Mesh(new THREE.BoxGeometry(w - 0.1, 0.06, d - 0.1), soilMat2);
-            soil.position.set(x, 0.26, z);
-            soil.receiveShadow = true;
-            addTarget.add(soil);
-        };
-        // tomatoes: staked vines heavy with fruit
-        raisedBed(4.6, -2.6, 2.4, 1.3);
-        for (let i = 0; i < 4; i++) {
-            const tx4 = 3.7 + i * 0.6;
-            box(0.05, 1.15, 0.05, bedWood, tx4, 0.75, -2.6);
-            for (let k = 0; k < 3; k++) {
-                const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16 + Math.random() * 0.07, 0), lm(0x3f6a30, 0, 0, 0.95));
-                bush.position.set(tx4 + (Math.random() - 0.5) * 0.2, 0.5 + k * 0.3, -2.6 + (Math.random() - 0.5) * 0.2);
-                bush.castShadow = true;
-                addTarget.add(bush);
-            }
-            for (let k = 0; k < 4; k++) {
-                const tom = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), lm(0xd83420, 0, 0, 0.6));
-                tom.position.set(tx4 + (Math.random() - 0.5) * 0.3, 0.45 + Math.random() * 0.7, -2.6 + (Math.random() - 0.5) * 0.28);
-                tom.castShadow = true;
-                addTarget.add(tom);
+        // ── Goals with netting ──
+        const postMat = lm(0xeceff0, 0, 0, 0.6);
+        const netCv = mkCanvas(64, 64);
+        {
+            const ng = netCv.getContext('2d');
+            ng.clearRect(0, 0, 64, 64);
+            ng.strokeStyle = 'rgba(232,236,232,0.7)';
+            ng.lineWidth = 1.5;
+            for (let i = 0; i <= 64; i += 8) {
+                ng.beginPath(); ng.moveTo(i, 0); ng.lineTo(i, 64); ng.stroke();
+                ng.beginPath(); ng.moveTo(0, i); ng.lineTo(64, i); ng.stroke();
             }
         }
-        // carrots: feathered tops in rows, orange crowns peeking
-        raisedBed(-4.6, -2.2, 2.2, 1.2);
-        for (let r = 0; r < 3; r++) for (let c4 = 0; c4 < 6; c4++) {
-            const cx7 = -5.5 + c4 * 0.36, cz7 = -2.55 + r * 0.36;
-            const top = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.24, 5), lm(0x4a7a34, 0, 0, 0.95));
-            top.position.set(cx7, 0.4, cz7);
-            top.castShadow = true;
-            addTarget.add(top);
-            const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.04, 6), lm(0xe07818, 0, 0, 0.8));
-            crown.position.set(cx7, 0.29, cz7);
-            addTarget.add(crown);
-        }
-        // lettuce: ruffled rosettes
-        raisedBed(-4.6, 0.1, 2.2, 1.2);
-        for (let r = 0; r < 2; r++) for (let c4 = 0; c4 < 5; c4++) {
-            const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), lm(r % 2 ? 0x7ab04a : 0x94c45a, 0, 0, 0.9));
-            head.scale.y = 0.7;
-            head.position.set(-5.4 + c4 * 0.42, 0.33, -0.2 + r * 0.55);
-            head.castShadow = true;
+        const netTex = new THREE.CanvasTexture(netCv);
+        netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+        netTex.repeat.set(4, 2);
+        const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+        [-1, 1].forEach(sg => {
+            const gx2 = sg * PF.hl;
+            box(0.07, PF.gh, 0.07, postMat, gx2, PF.gh / 2, -PF.mouth);
+            box(0.07, PF.gh, 0.07, postMat, gx2, PF.gh / 2, PF.mouth);
+            box(0.07, 0.07, PF.mouth * 2 + 0.07, postMat, gx2, PF.gh + 0.03, 0);
+            const netBack = new THREE.Mesh(new THREE.PlaneGeometry(PF.mouth * 2, PF.gh), netMat);
+            netBack.position.set(gx2 + sg * 0.75, PF.gh / 2, 0);
+            netBack.rotation.y = Math.PI / 2;
+            addTarget.add(netBack);
+            const netTop = new THREE.Mesh(new THREE.PlaneGeometry(PF.mouth * 2, 0.78), netMat);
+            netTop.position.set(gx2 + sg * 0.38, PF.gh - 0.02, 0);
+            netTop.rotation.set(Math.PI / 2, sg * -0.25, Math.PI / 2);
+            addTarget.add(netTop);
+        });
+
+        // ── Stands: stepped tiers packed with a painted crowd ──
+        const crowd = [];
+        const skinT = [0xc08a5c, 0x8a5c38, 0xe0b088, 0x6a4428];
+        const fanCols = [0xd83030, 0x3060d8, 0xe8e4d8, 0x3a3a40, 0xe8c020, 0x2a7a4a, 0xc06ab0];
+        [-1, 1].forEach(side => {
+            for (let row = 0; row < 5; row++) {
+                const sz6 = side * (8.6 + row * 0.85);
+                const sy6 = 0.35 + row * 0.5;
+                box(24, 0.5, 0.85, lm(0x5a5e66, 0, 0, 0.9), 0, sy6 - 0.25, sz6);
+                for (let seat = 0; seat < 22; seat++) {
+                    if (Math.random() < 0.12) continue;   // a few empty seats
+                    const fx4 = -10.5 + seat * 1.0 + Math.random() * 0.3;
+                    const fanCol = fanCols[(Math.random() * fanCols.length) | 0];
+                    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.4, 0.2), lm(fanCol, 0, 0, 0.95));
+                    bodyM.position.set(fx4, sy6 + 0.2, sz6);
+                    addTarget.add(bodyM);
+                    const headM = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), lm(skinT[(Math.random() * 4) | 0], 0, 0, 0.9));
+                    headM.position.set(fx4, sy6 + 0.5, sz6);
+                    addTarget.add(headM);
+                    crowd.push({ b: bodyM, h: headM, y0: sy6, col: seat, ph: Math.random() * 9 });
+                }
+            }
+            // stand roof
+            box(24.4, 0.12, 4.6, lm(0x3a3e46, 0, 0, 0.7, 0.4), 0, 3.4, side * 10.3, side * 0.16, 0, 0);
+        });
+
+        // ── Floodlight pylons + scoreboard ──
+        const floodHeads = [];
+        [[-12, -8.2], [12, -8.2], [-12, 8.2], [12, 8.2]].forEach(([fx5, fz5]) => {
+            box(0.16, 5.2, 0.16, lm(0x4a4e56, 0, 0, 0.6, 0.5), fx5, 2.6, fz5);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.12),
+                new THREE.MeshStandardMaterial({ color: 0xd8dce0, emissive: 0xf0f4ff, emissiveIntensity: 0.4, roughness: 0.6 }));
+            head.position.set(fx5, 5.5, fz5);
+            head.lookAt(0, 0.5, 0);
             addTarget.add(head);
-        }
-        // pumpkin patch sprawling on the lawn
-        const vineMat = lm(0x4a7a34, 0, 0, 0.95);
-        [[4.2, 2.6], [5.1, 3.3], [4.6, 4.1], [5.6, 2.4]].forEach(([vx, vz], i) => {
-            const vine = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 6, 12, Math.PI * (1 + Math.random() * 0.6)), vineMat);
-            vine.rotation.x = -Math.PI / 2;
-            vine.rotation.z = i * 1.3;
-            vine.position.set(vx, 0.035, vz);
-            addTarget.add(vine);
-            const pk = new THREE.Mesh(new THREE.SphereGeometry(0.2 + Math.random() * 0.13, 10, 8), lm(0xe07818, 0, 0, 0.7));
-            pk.scale.y = 0.75;
-            pk.position.set(vx + 0.3, 0.16, vz - 0.1);
-            pk.castShadow = pk.receiveShadow = true;
-            addTarget.add(pk);
-            box(0.025, 0.1, 0.025, lm(0x4a5a2a, 0, 0, 0.9), vx + 0.3, 0.32, vz - 0.1, 0, 0, 0.25);
-            const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), vineMat);
-            leaf.scale.y = 0.3;
-            leaf.position.set(vx - 0.3, 0.08, vz + 0.25);
-            addTarget.add(leaf);
+            floodHeads.push(head);
         });
-
-        // ── Fruit trees: apples heavy on the bough, plus a cherry in blossom ──
-        const fruitTree = (x, z, s, fruitCol) => {
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.11 * s, 0.9 * s, 6), lm(0x5a4430, 0, 0, 0.95));
-            trunk.position.set(x, 0.45 * s, z);
-            trunk.castShadow = trunk.receiveShadow = true;
-            addTarget.add(trunk);
-            const cans = [];
-            for (let k = 0; k < 4; k++) {
-                const c5 = new THREE.Mesh(new THREE.IcosahedronGeometry((0.38 + Math.random() * 0.2) * s, 0), lm(0x4a7a34, 0, 0, 0.95));
-                c5.position.set(x + (Math.random() - 0.5) * 0.6 * s, (0.95 + Math.random() * 0.5) * s, z + (Math.random() - 0.5) * 0.6 * s);
-                c5.castShadow = c5.receiveShadow = true;
-                addTarget.add(c5);
-                cans.push(c5);
-            }
-            for (let k = 0; k < 9; k++) {
-                const host = cans[(Math.random() * cans.length) | 0];
-                const fr2 = new THREE.Mesh(new THREE.SphereGeometry(0.055 * s, 7, 6), lm(fruitCol, 0, 0, 0.6));
-                fr2.position.copy(host.position);
-                fr2.position.x += (Math.random() - 0.5) * 0.5 * s;
-                fr2.position.y += (Math.random() - 0.6) * 0.4 * s;
-                fr2.position.z += (Math.random() - 0.5) * 0.5 * s;
-                fr2.castShadow = true;
-                addTarget.add(fr2);
-            }
+        const floodA = new THREE.SpotLight(0xf0f4ff, 0, 0, 0.7, 0.6, 0.6);
+        floodA.position.set(-12, 5.5, -8.2);
+        floodA.target.position.set(-3, 0, 0);
+        addTarget.add(floodA); addTarget.add(floodA.target);
+        const floodB = new THREE.SpotLight(0xf0f4ff, 0, 0, 0.7, 0.6, 0.6);
+        floodB.position.set(12, 5.5, 8.2);
+        floodB.target.position.set(3, 0, 0);
+        addTarget.add(floodB); addTarget.add(floodB.target);
+        // scoreboard above the far stand
+        const sbCv = mkCanvas(512, 160);
+        const sbTex = new THREE.CanvasTexture(sbCv);
+        sbTex.colorSpace = THREE.SRGBColorSpace;
+        const pitchScore = [0, 0];
+        const drawScore = () => {
+            const sb = sbCv.getContext('2d');
+            sb.fillStyle = '#0c0e14'; sb.fillRect(0, 0, 512, 160);
+            sb.strokeStyle = '#2a2e3a'; sb.lineWidth = 6; sb.strokeRect(4, 4, 504, 152);
+            sb.textAlign = 'center'; sb.font = '900 64px Arial';
+            sb.fillStyle = '#e05050'; sb.fillText('RED', 110, 92);
+            sb.fillStyle = '#f0f0e8'; sb.fillText(`${pitchScore[0]} : ${pitchScore[1]}`, 256, 92);
+            sb.fillStyle = '#5080e8'; sb.fillText('BLU', 402, 92);
+            sb.font = '600 22px Arial';
+            sb.fillStyle = '#8a93a3'; sb.fillText('ALANDEBOER PARK', 256, 136);
+            sbTex.needsUpdate = true;
         };
-        fruitTree(-6.0, -5.2, 1.7, 0xd83420);   // apples
-        fruitTree(6.3, -5.4, 1.5, 0xe8c020);    // golden pear
-        blossomTree(-6.2, 5.0, 1.8);             // cherry in blossom
-        blossomTree(6.4, 5.6, 1.4);
-        // blueberry bush by the gate
-        for (let k = 0; k < 3; k++) {
-            const bb2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.1, 0), lm(0x3f6a30, 0, 0, 0.95));
-            bb2.position.set(-2.6 + k * 0.3, 0.22, 6.3 + (k % 2) * 0.25);
-            bb2.castShadow = true;
-            addTarget.add(bb2);
-        }
-        for (let k = 0; k < 10; k++) {
-            const berry = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 5), lm(0x3a4a9c, 0, 0, 0.5));
-            berry.position.set(-2.7 + Math.random() * 0.9, 0.15 + Math.random() * 0.25, 6.2 + Math.random() * 0.45);
-            addTarget.add(berry);
-        }
+        drawScore();
+        box(0.18, 2.2, 0.18, lm(0x4a4e56, 0, 0, 0.6, 0.5), -2.1, 4.2, -12.4);
+        box(0.18, 2.2, 0.18, lm(0x4a4e56, 0, 0, 0.6, 0.5), 2.1, 4.2, -12.4);
+        const sbMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.45),
+            new THREE.MeshBasicMaterial({ map: sbTex }));
+        sbMesh.position.set(0, 5.6, -12.35);
+        addTarget.add(sbMesh);
 
-        // ── Flowers: sunflowers on the back fence, tulip borders ──
-        for (let i = 0; i < 6; i++) {
-            const sx5 = -2.4 + i * 0.95, sh3 = 1.4 + Math.random() * 0.5;
-            const stem2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, sh3, 6), lm(0x4a7a34, 0, 0, 0.95));
-            stem2.position.set(sx5, sh3 / 2, -6.9);
-            stem2.castShadow = true;
-            addTarget.add(stem2);
-            const disc2 = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.05, 12), lm(0x5a3a1c, 0, 0, 0.9));
-            disc2.rotation.x = Math.PI / 2 - 0.35;
-            disc2.position.set(sx5, sh3, -6.85);
-            addTarget.add(disc2);
-            for (let p4 = 0; p4 < 10; p4++) {
-                const a5 = (p4 / 10) * Math.PI * 2;
-                const petal = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.02), lm(0xf0c020, 0, 0, 0.8));
-                petal.position.set(sx5 + Math.cos(a5) * 0.19, sh3 + Math.sin(a5) * 0.19 * 0.94, -6.83);
-                petal.rotation.z = a5 + Math.PI / 2;
-                petal.rotation.x = -0.35;
-                addTarget.add(petal);
-            }
-            const sfLeaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), lm(0x4a7a34, 0, 0, 0.95));
-            sfLeaf.scale.set(1, 0.4, 1);
-            sfLeaf.position.set(sx5 + 0.1, sh3 * 0.55, -6.88);
-            addTarget.add(sfLeaf);
-        }
-        const tulipCols = [0xd83a58, 0xe8c020, 0xd870b8, 0xe07818, 0xe8e4e0];
-        for (let i = 0; i < 9; i++) {
-            [-6.9, 6.9].forEach(tx5 => {
-                const tz5 = -6 + i * 1.5 + (tx5 > 0 ? 0.7 : 0);
-                const stem3 = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.34, 5), lm(0x4a7a34, 0, 0, 0.95));
-                stem3.position.set(tx5, 0.17, tz5);
-                addTarget.add(stem3);
-                const bloom2 = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 6),
-                    lm(tulipCols[(Math.random() * tulipCols.length) | 0], 0, 0, 0.8));
-                bloom2.rotation.x = Math.PI;
-                bloom2.position.set(tx5, 0.4, tz5);
-                bloom2.castShadow = true;
-                addTarget.add(bloom2);
-            });
-        }
-
-        // ── Birdbath, watering can, Clark's towel ──
-        const bbPed = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.6, 8), lm(0xb0aca0, 0, 0, 0.9));
-        bbPed.position.set(2.3, 0.3, -1.2);
-        bbPed.castShadow = true;
-        addTarget.add(bbPed);
-        const bbBowl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.28, 0.14, 12), lm(0xb0aca0, 0, 0, 0.9));
-        bbBowl.position.set(2.3, 0.66, -1.2);
-        bbBowl.castShadow = true;
-        addTarget.add(bbBowl);
-        const bbWater = new THREE.Mesh(new THREE.CircleGeometry(0.34, 14),
-            new THREE.MeshStandardMaterial({ color: 0x6aa8c8, roughness: 0.15, metalness: 0.3 }));
-        bbWater.rotation.x = -Math.PI / 2;
-        bbWater.position.set(2.3, 0.71, -1.2);
-        addTarget.add(bbWater);
-        const canBody = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.26, 10), lm(0x3a7a68, 0, 0, 0.6, 0.4));
-        canBody.position.set(-3.4, 0.13, -1.3);
-        canBody.castShadow = true;
-        addTarget.add(canBody);
-        const canSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.3, 6), lm(0x3a7a68, 0, 0, 0.6, 0.4));
-        canSpout.rotation.z = 0.8;
-        canSpout.position.set(-3.6, 0.22, -1.3);
-        addTarget.add(canSpout);
-        box(0.62, 0.026, 0.74, lm(0x4a8a5a, 0, 0, 1.0), BEDX, 0.014, BEDZ);
-        box(0.62, 0.012, 0.11, lm(0xe8e6dc, 0, 0, 1.0), BEDX, 0.03, BEDZ - 0.2);
-        box(0.62, 0.012, 0.11, lm(0xe8e6dc, 0, 0, 1.0), BEDX, 0.03, BEDZ + 0.2);
-
-        // ── String lights on cedar posts around the lawn ──
-        const bulbMats = [];
-        const lightPosts = [[-3.2, -3.2], [3.2, -3.2], [3.2, 3.2], [-3.2, 3.2]];
-        lightPosts.forEach(([px6, pz6]) => {
-            box(0.07, 2.0, 0.07, bedWood, px6, 1.0, pz6);
-        });
-        for (let i = 0; i < 4; i++) {
-            const [ax3, az3] = lightPosts[i];
-            const [bx5, bz5] = lightPosts[(i + 1) % 4];
-            for (let k = 1; k < 7; k++) {
-                const f3 = k / 7;
-                const sag2 = Math.sin(f3 * Math.PI) * 0.35;
-                const bm = lm(0x443320, 0xffc878, 1.2);
-                const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), bm);
-                bulb.position.set(ax3 + (bx5 - ax3) * f3, 1.98 - sag2, az3 + (bz5 - az3) * f3);
-                addTarget.add(bulb);
-                bulbMats.push(bm);
+        // ── The ball ──
+        const ballCv = mkCanvas(128, 128);
+        {
+            const bc2 = ballCv.getContext('2d');
+            bc2.fillStyle = '#eef0ee'; bc2.fillRect(0, 0, 128, 128);
+            for (let i = 0; i < 9; i++) {
+                bc2.fillStyle = '#16181c';
+                const px7 = (i % 3) * 48 + 12, py7 = ((i / 3) | 0) * 48 + 12;
+                bc2.beginPath();
+                for (let v3 = 0; v3 < 5; v3++) {
+                    const a6 = (v3 / 5) * Math.PI * 2 - Math.PI / 2;
+                    const vx3 = px7 + Math.cos(a6) * 13, vy3 = py7 + Math.sin(a6) * 13;
+                    v3 === 0 ? bc2.moveTo(vx3, vy3) : bc2.lineTo(vx3, vy3);
+                }
+                bc2.closePath(); bc2.fill();
             }
         }
-        const stringLight = new THREE.PointLight(0xffc878, 0, 9);
-        stringLight.position.set(0, 2.2, 0);
-        addTarget.add(stringLight);
+        const ballTex = new THREE.CanvasTexture(ballCv);
+        ballTex.colorSpace = THREE.SRGBColorSpace;
+        const BALL_R = 0.14;
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 12, 10),
+            new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.5 }));
+        ball.castShadow = true;
+        addTarget.add(ball);
+        const ballState = { p: new THREE.Vector3(0, BALL_R, 2.6), v: new THREE.Vector3(1.5, 0, 0.8), nextKick: 0 };
 
-        // ── Butterflies working the blooms ──
-        const butterflies = [];
-        const wingCols = [0xe08428, 0xe8e4e0, 0xf0d048, 0x9ab8e8];
-        for (let i = 0; i < 5; i++) {
+        // ── Players ──
+        const players = [];
+        const mkPlayer = (team, home, keeper) => {
+            const kit = keeper ? (team ? 0x2a9a4a : 0xe8c020) : (team ? 0x3060d8 : 0xd83030);
+            const shorts = team ? 0x18287a : 0xe8e6e0;
             const g = new THREE.Group();
-            const col = wingCols[i % wingCols.length];
-            const mkBWing = side => {
-                const wgeo = new THREE.PlaneGeometry(0.09, 0.12);
-                wgeo.translate(side * 0.045, 0, 0);
-                const w = new THREE.Mesh(wgeo,
-                    new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
-                g.add(w);
-                return w;
-            };
-            const bwl = mkBWing(-1), bwr = mkBWing(1);
-            const body2 = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.08), lm(0x2a2016, 0, 0, 0.8));
-            g.add(body2);
             addTarget.add(g);
-            butterflies.push({
-                g, wl: bwl, wr: bwr,
-                cx: -5 + Math.random() * 10,
-                cz: -5 + Math.random() * 10,
-                ph: Math.random() * 9,
-                sp: 0.3 + Math.random() * 0.3,
+            const pAdd = (w, h, d, col, x, y, z) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lm(col, 0, 0, 0.9));
+                m.position.set(x, y, z);
+                m.castShadow = true;
+                g.add(m);
+                return m;
+            };
+            const legL = new THREE.Group(); legL.position.set(-0.07, 0.42, 0); g.add(legL);
+            const legR = new THREE.Group(); legR.position.set(0.07, 0.42, 0); g.add(legR);
+            [[legL], [legR]].forEach(([lg]) => {
+                const upper = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.11), lm(shorts, 0, 0, 0.9));
+                upper.position.y = -0.09;
+                upper.castShadow = true;
+                lg.add(upper);
+                const sock = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.22, 0.09), lm(kit, 0, 0, 0.9));
+                sock.position.y = -0.3;
+                sock.castShadow = true;
+                lg.add(sock);
             });
-        }
+            pAdd(0.3, 0.36, 0.18, kit, 0, 0.66, 0);                     // shirt
+            pAdd(0.09, 0.26, 0.09, kit, -0.19, 0.62, 0);                // arms
+            pAdd(0.09, 0.26, 0.09, kit, 0.19, 0.62, 0);
+            pAdd(0.16, 0.17, 0.16, skinT[(Math.random() * 4) | 0], 0, 0.95, 0);  // head
+            pAdd(0.17, 0.05, 0.17, 0x2a2016, 0, 1.04, 0);               // hair
+            players.push({ g, legL, legR, team, home, keeper, pos: new THREE.Vector2(home[0], home[1]), moved: 0 });
+        };
+        // team 0 = RED attacks +x, team 1 = BLUE attacks -x
+        [[-6, -2.5], [-6, 2.5], [-3.5, 0], [-1.2, -3.2], [-1.2, 3.2]].forEach(h => mkPlayer(0, h, false));
+        [[6, -2.5], [6, 2.5], [3.5, 0], [1.2, -3.2], [1.2, 3.2]].forEach(h => mkPlayer(1, h, false));
+        mkPlayer(0, [-10.4, 0], true);
+        mkPlayer(1, [10.4, 0], true);
+        let pitchCeleb = 0, pitchCelebTeam = 0;
 
-        // ── A robin on the birdbath rim ──
-        const robinGrp = new THREE.Group();
-        robinGrp.position.set(2.64, 0.76, -1.2);
-        robinGrp.rotation.y = -0.8;
-        addTarget.add(robinGrp);
-        const robinBody = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), lm(0x7a5a44, 0, 0, 0.9));
-        robinBody.scale.set(0.85, 0.9, 1.15);
-        robinBody.position.y = 0.04;
-        robinBody.castShadow = true;
-        robinGrp.add(robinBody);
-        const robinBreast = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), lm(0xd85a30, 0, 0, 0.85));
-        robinBreast.position.set(0, 0.025, -0.03);
-        robinGrp.add(robinBreast);
-        const robinHead = new THREE.Group();
-        robinHead.position.set(0, 0.085, -0.03);
-        robinGrp.add(robinHead);
-        const rhBall = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), lm(0x6a4c3a, 0, 0, 0.9));
-        robinHead.add(rhBall);
-        const beak2 = new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.03, 5), lm(0xe8b028, 0, 0, 0.7));
-        beak2.rotation.x = -Math.PI / 2;
-        beak2.position.set(0, 0, -0.04);
-        robinHead.add(beak2);
-        const robinTail = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.01, 0.06), lm(0x6a4c3a, 0, 0, 0.9));
-        robinTail.position.set(0, 0.045, 0.07);
-        robinTail.rotation.x = 0.35;
-        robinGrp.add(robinTail);
+        // ── Clark's touchline towel (he's the club mascot) ──
+        box(0.62, 0.026, 0.74, lm(0xd83030, 0, 0, 1.0), BEDX, 0.014, BEDZ);
+        box(0.5, 0.018, 0.6, lm(0xe8e6dc, 0, 0, 1.0), BEDX, 0.034, BEDZ);
 
-        // ── A rabbit with designs on the lettuce ──
-        const rabbit = new THREE.Group();
-        rabbit.visible = false;
-        addTarget.add(rabbit);
-        const rbFur = lm(0x9a8a76, 0, 0, 0.95);
-        const rbBody = new THREE.Mesh(new THREE.SphereGeometry(0.11, 9, 7), rbFur);
-        rbBody.scale.set(0.85, 0.8, 1.1);
-        rbBody.position.y = 0.1;
-        rbBody.castShadow = true;
-        rabbit.add(rbBody);
-        const rbHead = new THREE.Group();
-        rbHead.position.set(0, 0.17, -0.1);
-        rabbit.add(rbHead);
-        const rbSkull = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), rbFur);
-        rbSkull.castShadow = true;
-        rbHead.add(rbSkull);
-        const rbNose = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.015, 0.015), lm(0xc08a8a, 0, 0, 0.7));
-        rbNose.position.set(0, -0.01, -0.06);
-        rbHead.add(rbNose);
-        const rbEarL = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.13, 0.035), rbFur);
-        rbEarL.position.set(-0.025, 0.11, 0.01);
-        rbEarL.rotation.z = -0.12;
-        rbHead.add(rbEarL);
-        const rbEarR = rbEarL.clone();
-        rbEarR.position.x = 0.025;
-        rbEarR.rotation.z = 0.12;
-        rbHead.add(rbEarR);
-        const rbTail = new THREE.Mesh(new THREE.SphereGeometry(0.04, 7, 6), lm(0xece8dc, 0, 0, 0.95));
-        rbTail.position.set(0, 0.1, 0.12);
-        rabbit.add(rbTail);
-        const RB_HOLE = [-7.2, 1.6], RB_FEAST = [-5.0, 0.55];
-        const rbState = { mode: 'hidden', t0: 0, next: 8, pos: [RB_HOLE[0], RB_HOLE[1]] };
-
-        // ── Sun + sky (time: 0 lantern-lit dusk → 1 bright noon) ──
-        const gdSun = new THREE.DirectionalLight(0xfff0d0, 0);
-        gdSun.castShadow = true;
-        gdSun.shadow.mapSize.set(2048, 2048);
-        gdSun.shadow.camera.left = -10; gdSun.shadow.camera.right = 10;
-        gdSun.shadow.camera.top = 10;   gdSun.shadow.camera.bottom = -10;
-        gdSun.shadow.camera.near = 1;   gdSun.shadow.camera.far = 36;
-        gdSun.shadow.bias = -0.0015;
-        addTarget.add(gdSun);
-        addTarget.add(gdSun.target);
-        const gdSkyDusk = new THREE.Color(0xc87a9a);
-        const gdSkyNoon = new THREE.Color(0x9ecbe8);
-        const gdSkyCol  = new THREE.Color();
-        const gdGrDusk  = new THREE.Color(0x6a5a5c);
-        const gdGrNoon  = new THREE.Color(0x74985a);
+        // ── Sky + sun (time: 0 night match → 1 sunny afternoon) ──
+        const pSun = new THREE.DirectionalLight(0xfff0d0, 0);
+        pSun.castShadow = true;
+        pSun.shadow.mapSize.set(2048, 2048);
+        pSun.shadow.camera.left = -14; pSun.shadow.camera.right = 14;
+        pSun.shadow.camera.top = 14;   pSun.shadow.camera.bottom = -14;
+        pSun.shadow.camera.near = 1;   pSun.shadow.camera.far = 40;
+        pSun.shadow.bias = -0.0015;
+        addTarget.add(pSun);
+        addTarget.add(pSun.target);
+        const pSkyNight = new THREE.Color(0x0a1020);
+        const pSkyDay   = new THREE.Color(0x8ec4e8);
+        const pSkyCol   = new THREE.Color();
+        const pGrNight  = new THREE.Color(0x1a2418);
+        const pGrDay    = new THREE.Color(0x5c8a4c);
 
         addTarget = scene; // ── shared lights ──
 
@@ -5461,7 +5303,7 @@
             const isApiary    = th === 'apiary';
             const isTavern    = th === 'tavern';
             const isVideo     = th === 'video';
-            const isGarden    = th === 'garden';
+            const isPitch     = th === 'pitch';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -5471,7 +5313,7 @@
             apiaryGroup.visible    = isApiary;
             tavernGroup.visible    = isTavern;
             videoGroup.visible     = isVideo;
-            gardenGroup.visible    = isGarden;
+            pitchGroup.visible     = isPitch;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -5504,16 +5346,16 @@
                 document.getElementById('lamp-label').textContent = 'hearth';
             } else if (isVideo) {
                 document.getElementById('lamp-label').textContent = 'neon';
-            } else if (isGarden) {
-                document.getElementById('lamp-label').textContent = 'lanterns';
+            } else if (isPitch) {
+                document.getElementById('lamp-label').textContent = 'floodlights';
                 document.getElementById('time-label').textContent = 'time';
-                params.time = 0.8;
-                document.getElementById('time-slider').value = 0.8;
+                params.time = 0.3;
+                document.getElementById('time-slider').value = 0.3;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo || isGarden));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo || isPitch));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -5522,7 +5364,7 @@
         // ── River soundscape: synthesized, no audio files ──
         // Brown noise through a lowpass = the constant spillway rush;
         // short descending oscillator sweeps = songbirds on the banks.
-        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, noiseBuf = null, soundOn = false;
+        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, murmurGain = null, noiseBuf = null, soundOn = false;
         const buildAudio = () => {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const len = audioCtx.sampleRate * 2;
@@ -5606,6 +5448,57 @@
                 ho.start();
             });
             humGain.connect(audioCtx.destination);
+            // stadium murmur: mid-band noise, the sound of 200 conversations
+            const msrc = audioCtx.createBufferSource();
+            msrc.buffer = noiseBuf;
+            msrc.loop = true;
+            msrc.playbackRate.value = 1.2;
+            const mbp = audioCtx.createBiquadFilter();
+            mbp.type = 'bandpass';
+            mbp.frequency.value = 420;
+            mbp.Q.value = 0.6;
+            murmurGain = audioCtx.createGain();
+            murmurGain.gain.value = 0;
+            msrc.connect(mbp).connect(murmurGain).connect(audioCtx.destination);
+            msrc.start();
+        };
+        // the crowd erupts
+        const cheer = () => {
+            if (!audioCtx || !noiseBuf) return;
+            const st = audioCtx.currentTime + 0.02;
+            const csrc2 = audioCtx.createBufferSource();
+            csrc2.buffer = noiseBuf;
+            csrc2.loop = true;
+            csrc2.playbackRate.value = 1.6;
+            const cbp = audioCtx.createBiquadFilter();
+            cbp.type = 'bandpass';
+            cbp.frequency.value = 700;
+            cbp.Q.value = 0.4;
+            const cg2 = audioCtx.createGain();
+            cg2.gain.setValueAtTime(0, st);
+            cg2.gain.linearRampToValueAtTime(0.35, st + 0.25);
+            cg2.gain.setValueAtTime(0.35, st + 1.4);
+            cg2.gain.exponentialRampToValueAtTime(0.001, st + 3.2);
+            csrc2.connect(cbp).connect(cg2).connect(audioCtx.destination);
+            csrc2.start(st);
+            csrc2.stop(st + 3.4);
+        };
+        const whistle = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            [0, 0.22].forEach(off => {
+                const o = audioCtx.createOscillator();
+                o.type = 'square';
+                o.frequency.value = 2350;
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0, st + off);
+                g.gain.linearRampToValueAtTime(0.03, st + off + 0.02);
+                g.gain.setValueAtTime(0.03, st + off + 0.12);
+                g.gain.linearRampToValueAtTime(0, st + off + 0.16);
+                o.connect(g).connect(audioCtx.destination);
+                o.start(st + off);
+                o.stop(st + off + 0.2);
+            });
         };
         // a VHS rewinding behind the counter: rising whirr, clunk at the end
         const rewind = () => {
@@ -5846,7 +5739,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', garden: 'garden', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', pitch: 'pitch', soccer: 'pitch', football: 'pitch', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -6676,111 +6569,135 @@
                     vNextRewind = t + 11 + Math.random() * 14;
                     rewind();
                 }
-            } else if (theme === 'garden') {
-                // ── Garden: lantern-lit dusk to bright gardening weather ──
+            } else if (theme === 'pitch') {
+                // ── The pitch: night match under floodlights → sunny afternoon ──
                 const td = params.time;
-                gdSkyCol.copy(gdSkyDusk).lerp(gdSkyNoon, td);
-                scene.background.copy(gdSkyCol);
-                scene.fog.color.copy(gdSkyCol).multiplyScalar(0.97);
-                scene.fog.density = 0.008 + (1 - td) * 0.010;
+                pSkyCol.copy(pSkyNight).lerp(pSkyDay, td);
+                scene.background.copy(pSkyCol);
+                scene.fog.color.copy(pSkyCol).multiplyScalar(0.96);
+                scene.fog.density = 0.006 + (1 - td) * 0.008;
+                hemiLight.intensity = (0.9 + td * 2.4) * b;
+                hemiLight.color.copy(pSkyCol).lerp(new THREE.Color(0xf0f4ff), (1 - td) * 0.6);
+                hemiLight.groundColor.copy(pGrNight).lerp(pGrDay, td);
+                fillLight.intensity = (0.5 + td * 0.4) * b;
+                fillLight.color.setHex(0xf0f4ff);
+                const el = 0.2 + td * 1.0;
+                pSun.position.set(Math.cos(el) * 10, Math.sin(el) * 11, -5);
+                pSun.intensity = td * 2.6 * b;
+                // floodlights carry the night (floodlights slider)
+                const fl3 = params.lampBrightness * (0.3 + (1 - td) * 0.7);
+                floodA.intensity = fl3 * 14 * b;
+                floodB.intensity = fl3 * 14 * b;
+                for (const fh4 of floodHeads) fh4.material.emissiveIntensity = 0.15 + fl3 * 1.4;
 
-                hemiLight.intensity = (1.2 + td * 2.2) * b;
-                hemiLight.color.copy(gdSkyCol);
-                hemiLight.groundColor.copy(gdGrDusk).lerp(gdGrNoon, td);
-                fillLight.intensity = 0.7 * b;
-                fillLight.color.copy(gdSkyCol);
-                const el = 0.12 + td * 1.15;
-                gdSun.position.set(Math.cos(el) * 8, Math.sin(el) * 10 + 0.4, -4);
-                gdSun.intensity = (0.5 + td * 2.7) * b;
-                gdSun.color.setHex(td < 0.35 ? 0xffb070 : 0xfff2d8);
-
-                // string lights take over as the sun goes down (lanterns slider)
-                const lant = params.lampBrightness * (0.25 + (1 - td) * 0.75);
-                for (const bm2 of bulbMats) bm2.emissiveIntensity = 0.3 + lant * 1.6;
-                stringLight.intensity = lant * 2.6 * b;
-
-                // butterflies flit between the beds
-                for (const bf of butterflies) {
-                    const bx6 = bf.cx + Math.sin(t * bf.sp + bf.ph) * 2.2 + Math.sin(t * 1.7 + bf.ph * 2) * 0.4;
-                    const by6 = 0.5 + Math.sin(t * 0.9 + bf.ph) * 0.3 + Math.sin(t * 3.7 + bf.ph) * 0.12;
-                    const bz6 = bf.cz + Math.cos(t * bf.sp * 0.8 + bf.ph) * 2.2;
-                    bf.g.rotation.y = Math.atan2(bx6 - bf.g.position.x, bz6 - bf.g.position.z);
-                    bf.g.position.set(bx6, by6, bz6);
-                    const flap2 = Math.sin(t * 22 + bf.ph) * 1.0;
-                    bf.wl.rotation.z = 0.25 + flap2;
-                    bf.wr.rotation.z = -0.25 - flap2;
+                // ── Match engine ──
+                const bp3 = ballState.p, bv = ballState.v;
+                // find the closest player; they hunt the ball, everyone else shades
+                let closest = null, closestD = 1e9;
+                for (const pl2 of players) {
+                    const d3 = Math.hypot(pl2.pos.x - bp3.x, pl2.pos.y - bp3.z);
+                    if (!pl2.keeper && d3 < closestD) { closestD = d3; closest = pl2; }
                 }
-
-                // birdsong, brightest in the middle of the day
-                if (soundOn && audioCtx && Math.random() < dt * (0.06 + td * 0.28)) chirp();
-
-                // the robin scans the yard and dips to drink
-                robinGrp.rotation.y = -0.8 + Math.sin(t * 0.5) * 0.7 + Math.sin(t * 2.3) * 0.1;
-                const sip = (t % 5.5) < 0.9 ? Math.sin(((t % 5.5) / 0.9) * Math.PI) : 0;
-                robinHead.rotation.x = sip * 0.85 + Math.sin(t * 6) * 0.03;
-                robinTail.rotation.x = 0.35 + sip * 0.4;
-
-                // the rabbit runs its lettuce heist; Clark runs security
-                const dogNear = Math.hypot(dogState.pos[0] - rbState.pos[0], dogState.pos[1] - rbState.pos[1]);
-                if (rbState.mode === 'hidden') {
-                    rabbit.visible = false;
-                    if (t > rbState.next && dogNear > 3) {
-                        rbState.mode = 'creep';
-                        rbState.t0 = t;
-                        rbState.pos = [RB_HOLE[0], RB_HOLE[1]];
-                        rabbit.visible = true;
-                    }
-                } else if (rbState.mode === 'creep') {
-                    const k = Math.min(1, (t - rbState.t0) / 7);
-                    rbState.pos[0] = RB_HOLE[0] + (RB_FEAST[0] - RB_HOLE[0]) * k;
-                    rbState.pos[1] = RB_HOLE[1] + (RB_FEAST[1] - RB_HOLE[1]) * k;
-                    if (k >= 1) { rbState.mode = 'nibble'; rbState.t0 = t; }
-                } else if (rbState.mode === 'nibble') {
-                    // Clark clocks the intruder and closes in
-                    if (dogState.mode !== 'inBed') {
-                        if (dogState.mode !== 'walking') dogState.mode = 'walking';
-                        dogState.walkUntil = Math.max(dogState.walkUntil, t + 4);
-                        const ddx = rbState.pos[0] - dogState.pos[0];
-                        const ddz = rbState.pos[1] - dogState.pos[1];
-                        const dl = Math.hypot(ddx, ddz);
-                        if (dl > 0.05) {
-                            dogState.pos[0] += (ddx / dl) * 1.1 * dt;
-                            dogState.pos[1] += (ddz / dl) * 1.1 * dt;
-                            dogState.facing = Math.atan2(ddx, ddz);
-                        }
-                    }
-                    if (dogNear < 1.0 || t - rbState.t0 > 14) {
-                        rbState.mode = 'flee';
-                        rbState.t0 = t;
-                        if (dogNear < 1.0) {   // got 'em — proud wiggle, hearts and all
-                            petStart = t;
-                            petUntil = t + 2.0;
-                            if (soundOn && audioCtx) aroo();
-                        }
-                    }
-                } else if (rbState.mode === 'flee') {
-                    const fdx = RB_HOLE[0] - rbState.pos[0];
-                    const fdz = RB_HOLE[1] - rbState.pos[1];
-                    const fl2 = Math.hypot(fdx, fdz);
-                    if (fl2 < 0.15) {
-                        rbState.mode = 'hidden';
-                        rbState.next = t + 16 + Math.random() * 18;
+                for (const pl2 of players) {
+                    const px8 = pl2.pos.x, pz8 = pl2.pos.y;
+                    let tx6, tz6, sp5;
+                    if (pl2.keeper) {
+                        tx6 = pl2.home[0];
+                        tz6 = THREE.MathUtils.clamp(bp3.z * 0.55, -PF.mouth + 0.2, PF.mouth - 0.2);
+                        sp5 = 2.2;
+                    } else if (pl2 === closest && pitchCeleb <= 0) {
+                        tx6 = bp3.x; tz6 = bp3.z; sp5 = 2.6;
                     } else {
-                        rbState.pos[0] += (fdx / fl2) * 3.0 * dt;
-                        rbState.pos[1] += (fdz / fl2) * 3.0 * dt;
+                        tx6 = pl2.home[0] + (bp3.x - pl2.home[0]) * 0.3;
+                        tz6 = pl2.home[1] + (bp3.z - pl2.home[1]) * 0.3;
+                        sp5 = 1.5;
+                    }
+                    let dx4 = tx6 - px8, dz4 = tz6 - pz8;
+                    const dl2 = Math.hypot(dx4, dz4);
+                    if (dl2 > 0.08) {
+                        pl2.pos.x += (dx4 / dl2) * sp5 * dt;
+                        pl2.pos.y += (dz4 / dl2) * sp5 * dt;
+                        pl2.moved = sp5;
+                        pl2.g.rotation.y = Math.atan2(dx4, dz4);
+                    } else {
+                        pl2.moved = 0;
+                    }
+                    // stay out of the furniture and off each other's toes
+                    if (Math.abs(pl2.pos.x) < 1.7 && Math.abs(pl2.pos.y) < 1.15) {
+                        pl2.pos.x += Math.sign(pl2.pos.x || 1) * 1.5 * dt;
+                    }
+                    for (const other of players) {
+                        if (other === pl2) continue;
+                        const ox2 = pl2.pos.x - other.pos.x, oz2 = pl2.pos.y - other.pos.y;
+                        const od2 = Math.hypot(ox2, oz2);
+                        if (od2 > 0.001 && od2 < 0.7) {
+                            pl2.pos.x += (ox2 / od2) * 0.8 * dt;
+                            pl2.pos.y += (oz2 / od2) * 0.8 * dt;
+                        }
+                    }
+                    pl2.g.position.set(pl2.pos.x, pitchCeleb > 0 && pl2.team === pitchCelebTeam
+                        ? Math.abs(Math.sin(t * 8 + px8)) * 0.25 : 0, pl2.pos.y);
+                    const swing = pl2.moved > 0.1 ? Math.sin(t * (6 + pl2.moved * 2.4)) * 0.65 : 0;
+                    pl2.legL.rotation.x = swing;
+                    pl2.legR.rotation.x = -swing;
+                }
+                // the kick
+                if (pitchCeleb <= 0 && closest && closestD < 0.42 && t > ballState.nextKick) {
+                    ballState.nextKick = t + 0.55;
+                    const goalX = closest.team === 0 ? PF.hl : -PF.hl;
+                    const aim = Math.atan2(goalX - bp3.x, -bp3.z * 0.4 + (Math.random() - 0.5) * 4);
+                    const pow = 3.4 + Math.random() * 3.4;
+                    bv.x = Math.sin(aim) * pow;
+                    bv.z = Math.cos(aim) * pow;
+                    bv.y = Math.random() < 0.3 ? 1.6 + Math.random() * 1.6 : 0;
+                }
+                // ball physics
+                bv.x *= 1 - 0.45 * dt;
+                bv.z *= 1 - 0.45 * dt;
+                bv.y -= 9.8 * dt;
+                bp3.x += bv.x * dt;
+                bp3.z += bv.z * dt;
+                bp3.y += bv.y * dt;
+                if (bp3.y < BALL_R) { bp3.y = BALL_R; bv.y = Math.abs(bv.y) > 1 ? -bv.y * 0.45 : 0; }
+                if (Math.abs(bp3.z) > PF.hw) { bp3.z = Math.sign(bp3.z) * PF.hw; bv.z *= -0.7; }
+                // the desk is a fair obstacle
+                if (Math.abs(bp3.x) < 1.35 + BALL_R && Math.abs(bp3.z) < 0.8 + BALL_R && bp3.y < 1.0) {
+                    const penX = 1.35 + BALL_R - Math.abs(bp3.x);
+                    const penZ = 0.8 + BALL_R - Math.abs(bp3.z);
+                    if (penX < penZ) { bp3.x += Math.sign(bp3.x) * penX; bv.x *= -0.75; }
+                    else { bp3.z += Math.sign(bp3.z) * penZ; bv.z *= -0.75; }
+                }
+                if (Math.abs(bp3.x) > PF.hl) {
+                    if (Math.abs(bp3.z) < PF.mouth && bp3.y < PF.gh) {
+                        // ─ GOAL ─
+                        const scorer = bp3.x > 0 ? 0 : 1;
+                        pitchScore[scorer]++;
+                        drawScore();
+                        pitchCeleb = 3.2;
+                        pitchCelebTeam = scorer;
+                        if (soundOn && audioCtx) { cheer(); whistle(); }
+                        bp3.set(0, BALL_R, 2.6);
+                        bv.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+                    } else {
+                        bp3.x = Math.sign(bp3.x) * PF.hl;
+                        bv.x *= -0.7;
                     }
                 }
-                if (rabbit.visible) {
-                    rabbit.position.set(rbState.pos[0], 0, rbState.pos[1]);
-                    const moving2 = rbState.mode === 'creep' || rbState.mode === 'flee';
-                    const hopF = rbState.mode === 'flee' ? 11 : 5;
-                    rabbit.position.y = moving2 ? Math.abs(Math.sin(t * hopF)) * (rbState.mode === 'flee' ? 0.12 : 0.06) : 0;
-                    rabbit.rotation.y = rbState.mode === 'flee'
-                        ? Math.atan2(RB_HOLE[0] - rbState.pos[0], RB_HOLE[1] - rbState.pos[1])
-                        : Math.atan2(RB_FEAST[0] - RB_HOLE[0], RB_FEAST[1] - RB_HOLE[1]);
-                    rbHead.rotation.x = rbState.mode === 'nibble' ? 0.7 + Math.sin(t * 7) * 0.15 : 0;
-                    rbEarL.rotation.x = rbState.mode === 'flee' ? -0.7 : Math.sin(t * 3) * 0.08;
-                    rbEarR.rotation.x = rbState.mode === 'flee' ? -0.7 : Math.sin(t * 3 + 0.5) * 0.08;
+                ball.position.copy(bp3);
+                ball.rotation.x += bv.z * dt / BALL_R;
+                ball.rotation.z -= bv.x * dt / BALL_R;
+                if (pitchCeleb > 0) pitchCeleb -= dt;
+
+                // the crowd: idle bob, stadium wave when someone scores
+                for (const fan of crowd) {
+                    let fy = fan.y0 + 0.2;
+                    if (pitchCeleb > 0) {
+                        fy += Math.max(0, Math.sin(t * 6 - fan.col * 0.45 + fan.ph * 0.2)) * 0.3;
+                    } else if (Math.sin(t * 1.1 + fan.ph * 3) > 0.93) {
+                        fy += 0.05;
+                    }
+                    fan.b.position.y = fy;
+                    fan.h.position.y = fy + 0.3;
                 }
             }
 
@@ -6812,6 +6729,11 @@
             if (humGain) {
                 const ht2 = (soundOn && theme === 'video') ? 0.012 : 0;
                 humGain.gain.value += (ht2 - humGain.gain.value) * Math.min(1, dt * 2);
+            }
+            // Stadium murmur at the pitch
+            if (murmurGain) {
+                const mt2 = (soundOn && theme === 'pitch') ? 0.05 + Math.sin(t * 0.4) * 0.012 : 0;
+                murmurGain.gain.value += (mt2 - murmurGain.gain.value) * Math.min(1, dt * 2);
             }
 
             // Monitor flicker × brightness
