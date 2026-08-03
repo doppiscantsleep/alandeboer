@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D world where Alan is always at his desk — a neon room, autumn woods, the north pole, an orbital module, a salmon river, a storm lighthouse, and an apiary.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a hot-air balloon at dawn. One beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
-    <meta property="og:description" content="A tiny 3D world where Alan is always at his desk — seven worlds to wander, one beagle named Clark.">
+    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, one beagle named Clark.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alandeboer.computer/">
     <meta property="og:image" content="https://alandeboer.computer/og.png">
@@ -213,6 +213,7 @@
         .world[data-world="apiary"]    { --wc: #f0b428; }
         .world[data-world="tavern"]    { --wc: #d85c28; }
         .world[data-world="video"]     { --wc: #ffec3d; }
+        .world[data-world="balloon"]   { --wc: #ff8a5c; }
 
         .ctrl-sep {
             height: 1px;
@@ -375,6 +376,7 @@
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
+            <button class="world" data-world="balloon"><span class="dot"></span>the balloon</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -441,6 +443,9 @@
         const videoGroup = new THREE.Group();
         videoGroup.visible = false;
         scene.add(videoGroup);
+        const balloonGroup = new THREE.Group();
+        balloonGroup.visible = false;
+        scene.add(balloonGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -4832,6 +4837,232 @@
         addTarget.add(vMarqLight);
         let vFlickerPanel = 0, vNextFlicker = 5;
 
+        addTarget = balloonGroup;
+
+        // ═══════════════════════════════
+        //  BALLOON — sunrise above a sea of clouds
+        // ═══════════════════════════════
+
+        // ── Wicker: woven texture for basket walls and floor ──
+        const wickCv = mkCanvas(256, 256);
+        {
+            const wk = wickCv.getContext('2d');
+            wk.fillStyle = '#9a7a4a'; wk.fillRect(0, 0, 256, 256);
+            for (let y2 = 0; y2 < 256; y2 += 16) {
+                for (let x2 = 0; x2 < 256; x2 += 32) {
+                    const off = (y2 / 16) % 2 ? 16 : 0;
+                    wk.fillStyle = (x2 / 32) % 2 ? '#8a6a3c' : '#aa8a56';
+                    wk.beginPath();
+                    wk.roundRect(x2 + off, y2 + 1, 30, 13, 6);
+                    wk.fill();
+                    wk.fillStyle = 'rgba(255,255,255,0.10)';
+                    wk.fillRect(x2 + off + 2, y2 + 2, 26, 4);
+                }
+            }
+            speckle(wk, 256, 256, 1200, 0.08, '#c8a870', '#5a4426');
+        }
+        const wickTex = new THREE.CanvasTexture(wickCv);
+        wickTex.wrapS = wickTex.wrapT = THREE.RepeatWrapping;
+        wickTex.colorSpace = THREE.SRGBColorSpace;
+        const wickMat = new THREE.MeshStandardMaterial({ map: wickTex, roughness: 0.9 });
+        const wickMatW = () => {
+            const m = wickMat.clone();
+            m.map = wickTex.clone();
+            m.map.needsUpdate = true;
+            return m;
+        };
+
+        // ── The basket: a sky lounge with room for the desk and the dog ──
+        const BK = { hw: 2.35, hd: 2.25, wall: 0.85 };
+        const bkFloor = new THREE.Mesh(new THREE.PlaneGeometry(BK.hw * 2, BK.hd * 2), wickMatW());
+        bkFloor.material.map.repeat.set(4, 4);
+        bkFloor.rotation.x = -Math.PI / 2;
+        bkFloor.receiveShadow = true;
+        addTarget.add(bkFloor);
+        const bkWall = (w, x, z, ry5) => {
+            const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, BK.wall, 0.1), wickMatW());
+            m2.material.map.repeat.set(4, 1.4);
+            m2.position.set(x, BK.wall / 2, z);
+            m2.rotation.y = ry5;
+            m2.castShadow = m2.receiveShadow = true;
+            addTarget.add(m2);
+        };
+        bkWall(BK.hw * 2 + 0.1, 0, -BK.hd, 0);
+        bkWall(BK.hw * 2 + 0.1, 0, BK.hd, 0);
+        bkWall(BK.hd * 2 + 0.1, -BK.hw, 0, Math.PI / 2);
+        bkWall(BK.hd * 2 + 0.1, BK.hw, 0, Math.PI / 2);
+        // leather rim rail
+        const rimMat2 = lm(0x6a4426, 0, 0, 0.7);
+        box(BK.hw * 2 + 0.2, 0.09, 0.16, rimMat2, 0, BK.wall + 0.04, -BK.hd);
+        box(BK.hw * 2 + 0.2, 0.09, 0.16, rimMat2, 0, BK.wall + 0.04, BK.hd);
+        box(0.16, 0.09, BK.hd * 2 + 0.2, rimMat2, -BK.hw, BK.wall + 0.04, 0);
+        box(0.16, 0.09, BK.hd * 2 + 0.2, rimMat2, BK.hw, BK.wall + 0.04, 0);
+        // sandbags on the outside
+        [[-BK.hw - 0.08, -1.2], [BK.hw + 0.08, 0.8], [-BK.hw - 0.08, 1.6]].forEach(([sx4, sz4]) => {
+            const bag = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 7), lm(0xb8a068, 0, 0, 0.95));
+            bag.scale.y = 1.25;
+            bag.position.set(sx4, BK.wall - 0.18, sz4);
+            bag.castShadow = true;
+            addTarget.add(bag);
+            box(0.03, 0.22, 0.03, rimMat2, sx4, BK.wall + 0.02, sz4);
+        });
+
+        // ── Envelope: striped canvas dome high above ──
+        const envCv = mkCanvas(512, 256);
+        {
+            const ev = envCv.getContext('2d');
+            const gores = ['#c83a28', '#e88a28', '#f0c848', '#e8e0d0', '#8a3a5a', '#e88a28'];
+            const gw = 512 / 12;
+            for (let i = 0; i < 12; i++) {
+                ev.fillStyle = gores[i % gores.length];
+                ev.fillRect(i * gw, 0, gw + 1, 256);
+                ev.fillStyle = 'rgba(0,0,0,0.12)';
+                ev.fillRect(i * gw, 0, 4, 256);
+            }
+            ev.fillStyle = 'rgba(255,255,255,0.10)';
+            ev.fillRect(0, 30, 512, 40);
+        }
+        const envTex = new THREE.CanvasTexture(envCv);
+        envTex.colorSpace = THREE.SRGBColorSpace;
+        const envelope = new THREE.Mesh(new THREE.SphereGeometry(3.1, 20, 16),
+            new THREE.MeshStandardMaterial({ map: envTex, roughness: 0.75 }));
+        envelope.scale.y = 1.18;
+        envelope.position.y = 7.4;
+        addTarget.add(envelope);
+        const skirt = new THREE.Mesh(new THREE.ConeGeometry(1.5, 1.7, 14, 1, true),
+            new THREE.MeshStandardMaterial({ map: envTex.clone(), roughness: 0.75, side: THREE.DoubleSide }));
+        skirt.material.map.needsUpdate = true;
+        skirt.position.y = 3.6;
+        skirt.rotation.x = Math.PI;
+        addTarget.add(skirt);
+        // burner ring + uprights + ropes from the basket corners
+        const burnRing = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.045, 8, 18), lm(0x3a3e44, 0, 0, 0.5, 0.7));
+        burnRing.rotation.x = Math.PI / 2;
+        burnRing.position.y = 2.55;
+        addTarget.add(burnRing);
+        const ropeBetween = (ax, ay, az, bx4, by4, bz4) => {
+            const a = new THREE.Vector3(ax, ay, az);
+            const b2 = new THREE.Vector3(bx4, by4, bz4);
+            const d = b2.clone().sub(a);
+            const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, d.length(), 6), rimMat2);
+            rope.position.copy(a).add(b2).multiplyScalar(0.5);
+            rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+            rope.castShadow = true;
+            addTarget.add(rope);
+        };
+        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([ux, uz]) => {
+            ropeBetween(ux * (BK.hw - 0.1), BK.wall + 0.06, uz * (BK.hd - 0.1), ux * 0.4, 2.52, uz * 0.4);
+        });
+        // burner: block + nozzle + the flame jet (burner slider)
+        box(0.34, 0.22, 0.34, lm(0x3a3e44, 0, 0, 0.45, 0.7), 0, 2.4, 0);
+        const burnerFlame = new THREE.Mesh(new THREE.ConeGeometry(0.16, 1.0, 10),
+            new THREE.MeshBasicMaterial({ color: 0xffa030, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+        burnerFlame.position.y = 3.05;
+        addTarget.add(burnerFlame);
+        const burnerCore = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.7, 8),
+            new THREE.MeshBasicMaterial({ color: 0x8ab8ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+        burnerCore.position.y = 2.95;
+        addTarget.add(burnerCore);
+        const burnerLight = new THREE.PointLight(0xff9838, 0, 8);
+        burnerLight.position.y = 2.9;
+        addTarget.add(burnerLight);
+
+        // ── The sky: sun, sea of clouds below, drifters at eye level ──
+        const bSunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.3, 26),
+            new THREE.MeshBasicMaterial({ color: 0xffd9a0, fog: false, transparent: true, opacity: 0.95 }));
+        bSunDisc.renderOrder = 1;
+        addTarget.add(bSunDisc);
+        const bSun = new THREE.DirectionalLight(0xffc890, 0);
+        bSun.castShadow = true;
+        bSun.shadow.mapSize.set(1024, 1024);
+        bSun.shadow.camera.left = -6; bSun.shadow.camera.right = 6;
+        bSun.shadow.camera.top = 10;  bSun.shadow.camera.bottom = -4;
+        bSun.shadow.camera.near = 1;  bSun.shadow.camera.far = 40;
+        addTarget.add(bSun);
+        addTarget.add(bSun.target);
+        // cloud sea: a soft deck far below
+        const cloudDeck = new THREE.Mesh(new THREE.PlaneGeometry(90, 90),
+            new THREE.MeshStandardMaterial({ color: 0xe8e2e6, roughness: 1.0 }));
+        cloudDeck.rotation.x = -Math.PI / 2;
+        cloudDeck.position.y = -9;
+        addTarget.add(cloudDeck);
+        const cloudMat2 = lm(0xf2ecee, 0, 0, 1.0);
+        const cloudBlobs = [];
+        const cloudPuff = (cx6, cy6, cz6, s6) => {
+            const g = new THREE.Group();
+            g.position.set(cx6, cy6, cz6);
+            for (let k = 0; k < 4; k++) {
+                const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(s6 * (0.5 + Math.random() * 0.5), 0), cloudMat2);
+                puff.position.set((Math.random() - 0.5) * s6 * 1.8, (Math.random() - 0.5) * s6 * 0.4, (Math.random() - 0.5) * s6 * 1.1);
+                puff.scale.y = 0.45;
+                g.add(puff);
+            }
+            g.userData.drift = 0.1 + Math.random() * 0.2;
+            g.userData.x0 = cx6;
+            addTarget.add(g);
+            cloudBlobs.push(g);
+        };
+        for (let i = 0; i < 14; i++) {
+            cloudPuff(-30 + Math.random() * 60, -7.5 + Math.random() * 2.5, -28 + Math.random() * 56, 2.5 + Math.random() * 3.5);
+        }
+        cloudPuff(-14, 1.5, -10, 2.2);   // a few drifting past at altitude
+        cloudPuff(16, 3.5, 8, 2.8);
+        cloudPuff(-10, 5.5, 14, 2.0);
+
+        // distant sister balloons on the horizon
+        const farBalloons = [];
+        [[0xc83a28, -22, 2, -16], [0x3a6a9c, 26, 5, -10], [0xe8a828, -18, 7, 20]].forEach(([col, bx3, by3, bz3]) => {
+            const g = new THREE.Group();
+            const env2 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), lm(col, 0, 0, 0.8));
+            env2.scale.y = 1.2;
+            g.add(env2);
+            const bk2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.3), lm(0x6a4426, 0, 0, 0.9));
+            bk2.position.y = -1.65;
+            g.add(bk2);
+            g.position.set(bx3, by3, bz3);
+            g.userData = { y0: by3, ph: Math.random() * 9 };
+            addTarget.add(g);
+            farBalloons.push(g);
+        });
+
+        // geese heading somewhere better, in a V
+        const geese = [];
+        const gooseGrp = new THREE.Group();
+        addTarget.add(gooseGrp);
+        for (let i = 0; i < 7; i++) {
+            const g = new THREE.Group();
+            const rank = Math.ceil(i / 2), side = i === 0 ? 0 : (i % 2 ? -1 : 1);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.2), lm(0x3a3228, 0, 0, 0.85));
+            g.add(body);
+            const neck = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.12), lm(0x2a241c, 0, 0, 0.85));
+            neck.position.set(0, 0.02, -0.14);
+            g.add(neck);
+            const mkGWing = s7 => {
+                const wgeo = new THREE.BoxGeometry(0.3, 0.012, 0.09);
+                wgeo.translate(s7 * 0.15, 0, 0);
+                const w = new THREE.Mesh(wgeo, lm(0x453c30, 0, 0, 0.85));
+                g.add(w);
+                return w;
+            };
+            g.position.set(side * rank * 0.45, -rank * 0.02, rank * 0.5);
+            geese.push({ g, wl: mkGWing(-1), wr: mkGWing(1), ph: i * 0.4 });
+            gooseGrp.add(g);
+        }
+        gooseGrp.visible = false;
+        let gooseNext = 14, gooseT0 = -99;
+
+        // ── Clark's quilt in the basket corner ──
+        box(0.62, 0.028, 0.74, lm(0x8a3a4a, 0, 0, 1.0), BEDX, 0.015, BEDZ);
+        box(0.5, 0.02, 0.6, lm(0xd8b060, 0, 0, 1.0), BEDX, 0.038, BEDZ);
+        box(0.3, 0.018, 0.36, lm(0x4a6a8a, 0, 0, 1.0), BEDX - 0.04, 0.058, BEDZ + 0.03);
+
+        // sky-cycle endpoints (time: 0 first light → 1 blue morning)
+        const bSkyDawn = new THREE.Color(0xd97a3e);
+        const bSkyDay  = new THREE.Color(0x74b2e4);
+        const bSkyCol  = new THREE.Color();
+        const bGrDawn  = new THREE.Color(0xc09a88);
+        const bGrDay   = new THREE.Color(0xd8dce2);
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -4924,6 +5155,7 @@
             const isApiary    = th === 'apiary';
             const isTavern    = th === 'tavern';
             const isVideo     = th === 'video';
+            const isBalloon   = th === 'balloon';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -4933,6 +5165,7 @@
             apiaryGroup.visible    = isApiary;
             tavernGroup.visible    = isTavern;
             videoGroup.visible     = isVideo;
+            balloonGroup.visible   = isBalloon;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -4965,11 +5198,16 @@
                 document.getElementById('lamp-label').textContent = 'hearth';
             } else if (isVideo) {
                 document.getElementById('lamp-label').textContent = 'neon';
+            } else if (isBalloon) {
+                document.getElementById('lamp-label').textContent = 'burner';
+                document.getElementById('time-label').textContent = 'time';
+                params.time = 0.25;
+                document.getElementById('time-slider').value = 0.25;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo || isBalloon));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -4978,7 +5216,7 @@
         // ── River soundscape: synthesized, no audio files ──
         // Brown noise through a lowpass = the constant spillway rush;
         // short descending oscillator sweeps = songbirds on the banks.
-        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, noiseBuf = null, soundOn = false;
+        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, burnGain = null, noiseBuf = null, soundOn = false;
         const buildAudio = () => {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const len = audioCtx.sampleRate * 2;
@@ -5062,6 +5300,37 @@
                 ho.start();
             });
             humGain.connect(audioCtx.destination);
+            // balloon burner: throaty low roar
+            const bsrc2 = audioCtx.createBufferSource();
+            bsrc2.buffer = noiseBuf;
+            bsrc2.loop = true;
+            bsrc2.playbackRate.value = 0.7;
+            const blp2 = audioCtx.createBiquadFilter();
+            blp2.type = 'lowpass';
+            blp2.frequency.value = 320;
+            burnGain = audioCtx.createGain();
+            burnGain.gain.value = 0;
+            bsrc2.connect(blp2).connect(burnGain).connect(audioCtx.destination);
+            bsrc2.start();
+        };
+        // a goose, announcing itself: two-tone honk
+        const honk = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            const o = audioCtx.createOscillator();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(310, st);
+            o.frequency.setValueAtTime(240, st + 0.09);
+            const lp3 = audioCtx.createBiquadFilter();
+            lp3.type = 'lowpass';
+            lp3.frequency.value = 900;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, st);
+            g.gain.linearRampToValueAtTime(0.05, st + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, st + 0.22);
+            o.connect(lp3).connect(g).connect(audioCtx.destination);
+            o.start(st);
+            o.stop(st + 0.25);
         };
         // a VHS rewinding behind the counter: rising whirr, clunk at the end
         const rewind = () => {
@@ -5302,7 +5571,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', balloon: 'balloon', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -6132,6 +6401,71 @@
                     vNextRewind = t + 11 + Math.random() * 14;
                     rewind();
                 }
+            } else if (theme === 'balloon') {
+                // ── Balloon: first light over the cloud sea ──
+                const td = params.time;
+                bSkyCol.copy(bSkyDawn).lerp(bSkyDay, td);
+                scene.background.copy(bSkyCol);
+                scene.fog.color.copy(bSkyCol).multiplyScalar(0.98);
+                scene.fog.density = 0.010 + (1 - td) * 0.008;
+
+                hemiLight.intensity = (1.0 + td * 1.5) * b;
+                hemiLight.color.copy(bSkyCol);
+                hemiLight.groundColor.copy(bGrDawn).lerp(bGrDay, td);
+                fillLight.intensity = 0.45 * b;
+                fillLight.color.copy(bSkyCol);
+                const el = 0.06 + td * 1.0;
+                bSun.position.set(Math.cos(el) * 10, Math.sin(el) * 11, -7);
+                bSun.intensity = (0.6 + td * 1.9) * b;
+                bSun.color.setHex(td < 0.35 ? 0xffb070 : 0xfff0d8);
+                bSunDisc.position.set(Math.cos(el) * 24, Math.sin(el) * 26, -17);
+                bSunDisc.material.opacity = 0.75 + (1 - td) * 0.25;
+                bSunDisc.lookAt(camera.position);
+
+                // burner: flame follows the slider, envelope sways in the wind
+                const burn = params.lampBrightness;
+                const bFlick = 0.7 + Math.sin(t * 19) * 0.2 + Math.sin(t * 41) * 0.12;
+                burnerFlame.scale.set(0.4 + burn * 0.8, (0.25 + burn * 1.1) * bFlick, 0.4 + burn * 0.8);
+                burnerCore.scale.copy(burnerFlame.scale);
+                burnerFlame.material.opacity = Math.min(0.95, 0.25 + burn * 0.7);
+                burnerCore.material.opacity = Math.min(0.9, 0.15 + burn * 0.75);
+                burnerLight.intensity = burn * bFlick * 3.2 * b;
+                envelope.rotation.z = Math.sin(t * 0.4) * 0.02;
+                envelope.rotation.x = Math.sin(t * 0.31) * 0.015;
+                envelope.position.y = 7.4 + Math.sin(t * 0.5) * 0.06 + burn * 0.05;
+                skirt.position.y = 3.6 + Math.sin(t * 0.5) * 0.04;
+
+                // clouds drift by; the far balloons ride their own thermals
+                for (const cb2 of cloudBlobs) {
+                    cb2.position.x = cb2.userData.x0 + ((t * cb2.userData.drift) % 70);
+                    if (cb2.position.x > 35) cb2.position.x -= 70;
+                }
+                for (const fb of farBalloons) {
+                    fb.position.y = fb.userData.y0 + Math.sin(t * 0.22 + fb.userData.ph) * 0.7;
+                    fb.position.x += dt * 0.12;
+                    if (fb.position.x > 34) fb.position.x = -34;
+                }
+
+                // the geese cross the sky in a V, honking about it
+                if (t > gooseNext) {
+                    gooseNext = t + 26 + Math.random() * 20;
+                    gooseT0 = t;
+                    gooseGrp.position.set(-34, 2.5 + Math.random() * 4, -6 + Math.random() * 14);
+                    gooseGrp.rotation.y = Math.PI / 2;
+                    gooseGrp.visible = true;
+                }
+                if (gooseGrp.visible) {
+                    const gp2 = t - gooseT0;
+                    gooseGrp.position.x = -34 + gp2 * 3.4;
+                    if (gooseGrp.position.x > 36) gooseGrp.visible = false;
+                    for (const gs of geese) {
+                        const gf = Math.sin(t * 7 + gs.ph) * 0.55;
+                        gs.wl.rotation.z = gf;
+                        gs.wr.rotation.z = -gf;
+                        gs.g.position.y += Math.sin(t * 2 + gs.ph) * 0.001;
+                    }
+                    if (soundOn && audioCtx && Math.random() < dt * 0.5 && gooseGrp.position.x > -20 && gooseGrp.position.x < 20) honk();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -6162,6 +6496,11 @@
             if (humGain) {
                 const ht2 = (soundOn && theme === 'video') ? 0.012 : 0;
                 humGain.gain.value += (ht2 - humGain.gain.value) * Math.min(1, dt * 2);
+            }
+            // Burner roar rides the slider; light wind aloft otherwise
+            if (burnGain) {
+                const bt3 = (soundOn && theme === 'balloon') ? params.lampBrightness * 0.22 : 0;
+                burnGain.gain.value += (bt3 - burnGain.gain.value) * Math.min(1, dt * 4);
             }
 
             // Monitor flicker × brightness
@@ -6283,6 +6622,7 @@
                 theme === 'lighthouse' ? 0.45 :
                 theme === 'tavern' ? 0.5 :
                 theme === 'video' ? 0.35 :
+                theme === 'balloon' ? 0.10 + (1 - params.time) * 0.12 :
                 0.08 + (1 - params.time) * 0.3;
 
             controls.update();
