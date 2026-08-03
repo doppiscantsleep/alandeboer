@@ -5293,6 +5293,66 @@
             });
         }
 
+        // ── A robin on the birdbath rim ──
+        const robinGrp = new THREE.Group();
+        robinGrp.position.set(2.64, 0.76, -1.2);
+        robinGrp.rotation.y = -0.8;
+        addTarget.add(robinGrp);
+        const robinBody = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), lm(0x7a5a44, 0, 0, 0.9));
+        robinBody.scale.set(0.85, 0.9, 1.15);
+        robinBody.position.y = 0.04;
+        robinBody.castShadow = true;
+        robinGrp.add(robinBody);
+        const robinBreast = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), lm(0xd85a30, 0, 0, 0.85));
+        robinBreast.position.set(0, 0.025, -0.03);
+        robinGrp.add(robinBreast);
+        const robinHead = new THREE.Group();
+        robinHead.position.set(0, 0.085, -0.03);
+        robinGrp.add(robinHead);
+        const rhBall = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), lm(0x6a4c3a, 0, 0, 0.9));
+        robinHead.add(rhBall);
+        const beak2 = new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.03, 5), lm(0xe8b028, 0, 0, 0.7));
+        beak2.rotation.x = -Math.PI / 2;
+        beak2.position.set(0, 0, -0.04);
+        robinHead.add(beak2);
+        const robinTail = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.01, 0.06), lm(0x6a4c3a, 0, 0, 0.9));
+        robinTail.position.set(0, 0.045, 0.07);
+        robinTail.rotation.x = 0.35;
+        robinGrp.add(robinTail);
+
+        // ── A rabbit with designs on the lettuce ──
+        const rabbit = new THREE.Group();
+        rabbit.visible = false;
+        addTarget.add(rabbit);
+        const rbFur = lm(0x9a8a76, 0, 0, 0.95);
+        const rbBody = new THREE.Mesh(new THREE.SphereGeometry(0.11, 9, 7), rbFur);
+        rbBody.scale.set(0.85, 0.8, 1.1);
+        rbBody.position.y = 0.1;
+        rbBody.castShadow = true;
+        rabbit.add(rbBody);
+        const rbHead = new THREE.Group();
+        rbHead.position.set(0, 0.17, -0.1);
+        rabbit.add(rbHead);
+        const rbSkull = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), rbFur);
+        rbSkull.castShadow = true;
+        rbHead.add(rbSkull);
+        const rbNose = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.015, 0.015), lm(0xc08a8a, 0, 0, 0.7));
+        rbNose.position.set(0, -0.01, -0.06);
+        rbHead.add(rbNose);
+        const rbEarL = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.13, 0.035), rbFur);
+        rbEarL.position.set(-0.025, 0.11, 0.01);
+        rbEarL.rotation.z = -0.12;
+        rbHead.add(rbEarL);
+        const rbEarR = rbEarL.clone();
+        rbEarR.position.x = 0.025;
+        rbEarR.rotation.z = 0.12;
+        rbHead.add(rbEarR);
+        const rbTail = new THREE.Mesh(new THREE.SphereGeometry(0.04, 7, 6), lm(0xece8dc, 0, 0, 0.95));
+        rbTail.position.set(0, 0.1, 0.12);
+        rabbit.add(rbTail);
+        const RB_HOLE = [-7.2, 1.6], RB_FEAST = [-5.0, 0.55];
+        const rbState = { mode: 'hidden', t0: 0, next: 8, pos: [RB_HOLE[0], RB_HOLE[1]] };
+
         // ── Sun + sky (time: 0 lantern-lit dusk → 1 bright noon) ──
         const gdSun = new THREE.DirectionalLight(0xfff0d0, 0);
         gdSun.castShadow = true;
@@ -6653,6 +6713,75 @@
 
                 // birdsong, brightest in the middle of the day
                 if (soundOn && audioCtx && Math.random() < dt * (0.06 + td * 0.28)) chirp();
+
+                // the robin scans the yard and dips to drink
+                robinGrp.rotation.y = -0.8 + Math.sin(t * 0.5) * 0.7 + Math.sin(t * 2.3) * 0.1;
+                const sip = (t % 5.5) < 0.9 ? Math.sin(((t % 5.5) / 0.9) * Math.PI) : 0;
+                robinHead.rotation.x = sip * 0.85 + Math.sin(t * 6) * 0.03;
+                robinTail.rotation.x = 0.35 + sip * 0.4;
+
+                // the rabbit runs its lettuce heist; Clark runs security
+                const dogNear = Math.hypot(dogState.pos[0] - rbState.pos[0], dogState.pos[1] - rbState.pos[1]);
+                if (rbState.mode === 'hidden') {
+                    rabbit.visible = false;
+                    if (t > rbState.next && dogNear > 3) {
+                        rbState.mode = 'creep';
+                        rbState.t0 = t;
+                        rbState.pos = [RB_HOLE[0], RB_HOLE[1]];
+                        rabbit.visible = true;
+                    }
+                } else if (rbState.mode === 'creep') {
+                    const k = Math.min(1, (t - rbState.t0) / 7);
+                    rbState.pos[0] = RB_HOLE[0] + (RB_FEAST[0] - RB_HOLE[0]) * k;
+                    rbState.pos[1] = RB_HOLE[1] + (RB_FEAST[1] - RB_HOLE[1]) * k;
+                    if (k >= 1) { rbState.mode = 'nibble'; rbState.t0 = t; }
+                } else if (rbState.mode === 'nibble') {
+                    // Clark clocks the intruder and closes in
+                    if (dogState.mode !== 'inBed') {
+                        if (dogState.mode !== 'walking') dogState.mode = 'walking';
+                        dogState.walkUntil = Math.max(dogState.walkUntil, t + 4);
+                        const ddx = rbState.pos[0] - dogState.pos[0];
+                        const ddz = rbState.pos[1] - dogState.pos[1];
+                        const dl = Math.hypot(ddx, ddz);
+                        if (dl > 0.05) {
+                            dogState.pos[0] += (ddx / dl) * 1.1 * dt;
+                            dogState.pos[1] += (ddz / dl) * 1.1 * dt;
+                            dogState.facing = Math.atan2(ddx, ddz);
+                        }
+                    }
+                    if (dogNear < 1.0 || t - rbState.t0 > 14) {
+                        rbState.mode = 'flee';
+                        rbState.t0 = t;
+                        if (dogNear < 1.0) {   // got 'em — proud wiggle, hearts and all
+                            petStart = t;
+                            petUntil = t + 2.0;
+                            if (soundOn && audioCtx) aroo();
+                        }
+                    }
+                } else if (rbState.mode === 'flee') {
+                    const fdx = RB_HOLE[0] - rbState.pos[0];
+                    const fdz = RB_HOLE[1] - rbState.pos[1];
+                    const fl2 = Math.hypot(fdx, fdz);
+                    if (fl2 < 0.15) {
+                        rbState.mode = 'hidden';
+                        rbState.next = t + 16 + Math.random() * 18;
+                    } else {
+                        rbState.pos[0] += (fdx / fl2) * 3.0 * dt;
+                        rbState.pos[1] += (fdz / fl2) * 3.0 * dt;
+                    }
+                }
+                if (rabbit.visible) {
+                    rabbit.position.set(rbState.pos[0], 0, rbState.pos[1]);
+                    const moving2 = rbState.mode === 'creep' || rbState.mode === 'flee';
+                    const hopF = rbState.mode === 'flee' ? 11 : 5;
+                    rabbit.position.y = moving2 ? Math.abs(Math.sin(t * hopF)) * (rbState.mode === 'flee' ? 0.12 : 0.06) : 0;
+                    rabbit.rotation.y = rbState.mode === 'flee'
+                        ? Math.atan2(RB_HOLE[0] - rbState.pos[0], RB_HOLE[1] - rbState.pos[1])
+                        : Math.atan2(RB_FEAST[0] - RB_HOLE[0], RB_FEAST[1] - RB_HOLE[1]);
+                    rbHead.rotation.x = rbState.mode === 'nibble' ? 0.7 + Math.sin(t * 7) * 0.15 : 0;
+                    rbEarL.rotation.x = rbState.mode === 'flee' ? -0.7 : Math.sin(t * 3) * 0.08;
+                    rbEarR.rotation.x = rbState.mode === 'flee' ? -0.7 : Math.sin(t * 3 + 0.5) * 0.08;
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
