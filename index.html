@@ -2012,24 +2012,122 @@
             ['$ clark --status', '#7ee787'],
             ['● beagle detected: nearby, probably sniffing', '#ffa657'],
         ];
+        // ── The terminal: a real shell once you're zoomed in ──
+        aboutLines.push(['', '']);
+        aboutLines.push(['type help for commands', '#5a6373']);
+        let termHistory = aboutLines.slice();
+        let termInput = '';
+        const termEcho = (txt, col = '#9aa4b2') => termHistory.push([txt, col]);
+        const themeWords = {
+            room: 'room', woods: 'forest', forest: 'forest', northpole: 'northPole',
+            pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
+            lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
+            video: 'video', videostore: 'video', balloon: 'balloon',
+        };
+        const execTerm = raw => {
+            const cmd = raw.trim();
+            termEcho('$ ' + cmd, '#7ee787');
+            const parts = cmd.toLowerCase().split(/\s+/);
+            switch (parts[0]) {
+                case '': break;
+                case 'help':
+                    termEcho('help · about · links · worlds · theme <name>', '#e6edf3');
+                    termEcho('clark · pwd · rewind · clear', '#e6edf3');
+                    break;
+                case 'whoami':
+                    termEcho('Alan DeBoer', '#e6edf3');
+                    break;
+                case 'about':
+                    for (const ln of aboutLines) if (ln[0]) termEcho(ln[0], ln[1]);
+                    break;
+                case 'links':
+                case 'github':
+                    termEcho('opening github.com/doppiscantsleep …', '#79c0ff');
+                    window.open('https://github.com/doppiscantsleep', '_blank');
+                    break;
+                case 'worlds':
+                    termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video · balloon', '#79c0ff');
+                    termEcho('switch with: theme <name>', '#5a6373');
+                    break;
+                case 'theme': {
+                    const th2 = themeWords[parts[1]];
+                    if (th2) {
+                        setTheme(th2);
+                        termEcho(`now entering: ${parts[1]}`, '#ffa657');
+                    } else {
+                        termEcho(`unknown world: ${parts[1] || '?'} (try worlds)`, '#ff7b72');
+                    }
+                    break;
+                }
+                case 'clark':
+                case 'aroo':
+                    termEcho('⌐■-■  arooooooo', '#ffa657');
+                    dogState.mode = 'howling';
+                    dogState.howlUntil = clock.getElapsedTime() + 2.4;
+                    if (soundOn && audioCtx) aroo();
+                    break;
+                case 'pwd':
+                    termEcho(`/worlds/${theme}`, '#e6edf3');
+                    break;
+                case 'rewind':
+                    termEcho('be kind. rewinding …', '#ffd23e');
+                    if (soundOn && audioCtx) rewind();
+                    break;
+                case 'sudo':
+                    termEcho('alan is not in the sudoers file.', '#ff7b72');
+                    termEcho('this incident will be reported to clark.', '#ff7b72');
+                    break;
+                case 'clear':
+                    termHistory = [];
+                    break;
+                default:
+                    termEcho(`command not found: ${parts[0]} (try help)`, '#ff7b72');
+            }
+            if (termHistory.length > 200) termHistory = termHistory.slice(-120);
+        };
+        window.addEventListener('keydown', e => {
+            if (!monZoom) return;
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.key === 'Escape') {
+                monZoom = false;
+            } else if (e.key === 'Enter') {
+                const v = termInput;
+                termInput = '';
+                execTerm(v);
+            } else if (e.key === 'Backspace') {
+                termInput = termInput.slice(0, -1);
+            } else if (e.key.length === 1 && termInput.length < 36) {
+                termInput += e.key;
+            } else {
+                return;
+            }
+            e.preventDefault();
+            monLastDraw = -10;   // repaint on the next frame
+        });
         function drawAbout(elapsed) {
             const W = 1024, H = 440;
             mc.textAlign = 'left';
             mc.fillStyle = '#0d1117'; mc.fillRect(0, 0, W, H);
             mc.fillStyle = '#10141b'; mc.fillRect(0, 0, W, 30);
             mc.fillStyle = '#8a93a3'; mc.font = '13px monospace';
-            mc.fillText('alan@computer — ~/about', 18, 20);
+            mc.fillText('alan@computer — ~/terminal', 18, 20);
             mc.font = '19px monospace';
-            const shown = Math.min(aboutLines.length, 1 + Math.floor(elapsed * 5));
-            for (let i = 0; i < shown; i++) {
-                const [line, col] = aboutLines[i];
-                if (!line) continue;
-                mc.fillStyle = col;
-                mc.fillText(line, 34, 72 + i * 27);
+            // the intro types itself out; once you've used the shell it's instant
+            let lines = termHistory;
+            const introDone = termHistory.length !== aboutLines.length || elapsed * 5 >= aboutLines.length;
+            if (!introDone) lines = lines.slice(0, Math.max(1, Math.floor(elapsed * 5)));
+            const view = lines.slice(-12);
+            for (let i = 0; i < view.length; i++) {
+                if (view[i][0]) {
+                    mc.fillStyle = view[i][1];
+                    mc.fillText(view[i][0], 34, 72 + i * 27);
+                }
             }
-            if (Math.floor(elapsed * 2.5) % 2 === 0) {
-                mc.fillStyle = '#e6edf3';
-                mc.fillRect(34, 72 + shown * 27 - 14, 10, 18);
+            if (introDone) {
+                mc.fillStyle = '#7ee787';
+                const cur = Math.floor(elapsed * 2.5) % 2 === 0 ? '▍' : '';
+                mc.fillText('$ ' + termInput + cur, 34, 72 + Math.min(view.length, 12) * 27);
             }
         }
         drawMonitor(0);
