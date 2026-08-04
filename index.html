@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a floodlit soccer match. One beagle named Clark.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — nine worlds to wander, from a neon room to a storm lighthouse to a 90s video store. One beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
-    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, one beagle named Clark.">
+    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — nine worlds to wander, one beagle named Clark.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alandeboer.computer/">
     <meta property="og:image" content="https://alandeboer.computer/og.png">
@@ -213,7 +213,6 @@
         .world[data-world="apiary"]    { --wc: #f0b428; }
         .world[data-world="tavern"]    { --wc: #d85c28; }
         .world[data-world="video"]     { --wc: #ffec3d; }
-        .world[data-world="pitch"]     { --wc: #e8e8e8; }
 
         .ctrl-sep {
             height: 1px;
@@ -376,7 +375,6 @@
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
-            <button class="world" data-world="pitch"><span class="dot"></span>the pitch</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -443,9 +441,6 @@
         const videoGroup = new THREE.Group();
         videoGroup.visible = false;
         scene.add(videoGroup);
-        const pitchGroup = new THREE.Group();
-        pitchGroup.visible = false;
-        scene.add(pitchGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -2022,7 +2017,7 @@
             room: 'room', woods: 'forest', forest: 'forest', northpole: 'northPole',
             pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
-            video: 'video', videostore: 'video', pitch: 'pitch', soccer: 'pitch', football: 'pitch',
+            video: 'video', videostore: 'video',
         };
         const execTerm = raw => {
             const cmd = raw.trim();
@@ -2047,7 +2042,7 @@
                     break;
                 case 'worlds':
                     termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
-                    termEcho('lighthouse · apiary · tavern · video · pitch', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video', '#79c0ff');
                     termEcho('switch with: theme <name>', '#5a6373');
                     break;
                 case 'theme': {
@@ -4976,241 +4971,6 @@
         addTarget.add(vMarqLight);
         let vFlickerPanel = 0, vNextFlicker = 5;
 
-        addTarget = pitchGroup;
-
-        // ═══════════════════════════════
-        //  THE PITCH — a live match around the desk
-        // ═══════════════════════════════
-        // Red attacks +x, Blue attacks -x. The desk sits in the center
-        // circle and the ball plays off it like furniture-shaped fate.
-
-        const PF = { hl: 11, hw: 6.5, mouth: 1.7, gh: 1.2 };
-
-        // ── Striped turf with painted markings ──
-        const turfCv = mkCanvas(1024, 640);
-        {
-            const tf = turfCv.getContext('2d');
-            for (let i = 0; i < 10; i++) {
-                tf.fillStyle = i % 2 ? '#3f7a34' : '#4a8a3c';
-                tf.fillRect(i * 102.4, 0, 103, 640);
-            }
-            speckle(tf, 1024, 640, 2600, 0.06, '#5a9a48', '#2e5c26');
-            tf.strokeStyle = '#e8ece8';
-            tf.lineWidth = 5;
-            const mx = (x) => ((x + 12.5) / 25) * 1024;
-            const mz = (z) => ((z + 8) / 16) * 640;
-            tf.strokeRect(mx(-PF.hl), mz(-PF.hw), mx(PF.hl) - mx(-PF.hl), mz(PF.hw) - mz(-PF.hw));
-            tf.beginPath(); tf.moveTo(mx(0), mz(-PF.hw)); tf.lineTo(mx(0), mz(PF.hw)); tf.stroke();
-            tf.beginPath(); tf.ellipse(mx(0), mz(0), mx(2.6) - mx(0), mz(2.6) - mz(0), 0, 0, Math.PI * 2); tf.stroke();
-            [-1, 1].forEach(sg => {
-                tf.strokeRect(Math.min(mx(sg * PF.hl), mx(sg * (PF.hl - 3.2))), mz(-3.4),
-                    Math.abs(mx(sg * PF.hl) - mx(sg * (PF.hl - 3.2))), mz(3.4) - mz(-3.4));
-                tf.beginPath();
-                tf.arc(mx(sg * (PF.hl - 2.2)), mz(0), mx(0.55) - mx(0), 0, Math.PI * 2);
-                tf.stroke();
-            });
-        }
-        const turfTex = new THREE.CanvasTexture(turfCv);
-        turfTex.colorSpace = THREE.SRGBColorSpace;
-        turfTex.anisotropy = MAX_ANISO;
-        const turf = new THREE.Mesh(new THREE.PlaneGeometry(25, 16),
-            new THREE.MeshStandardMaterial({ map: turfTex, roughness: 1.0 }));
-        turf.rotation.x = -Math.PI / 2;
-        turf.receiveShadow = true;
-        addTarget.add(turf);
-        const apron = new THREE.Mesh(new THREE.PlaneGeometry(34, 24), lm(0x35652c, 0, 0, 1.0));
-        apron.rotation.x = -Math.PI / 2;
-        apron.position.y = -0.01;
-        addTarget.add(apron);
-
-        // ── Goals with netting ──
-        const postMat = lm(0xeceff0, 0, 0, 0.6);
-        const netCv = mkCanvas(64, 64);
-        {
-            const ng = netCv.getContext('2d');
-            ng.clearRect(0, 0, 64, 64);
-            ng.strokeStyle = 'rgba(232,236,232,0.7)';
-            ng.lineWidth = 1.5;
-            for (let i = 0; i <= 64; i += 8) {
-                ng.beginPath(); ng.moveTo(i, 0); ng.lineTo(i, 64); ng.stroke();
-                ng.beginPath(); ng.moveTo(0, i); ng.lineTo(64, i); ng.stroke();
-            }
-        }
-        const netTex = new THREE.CanvasTexture(netCv);
-        netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
-        netTex.repeat.set(4, 2);
-        const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
-        [-1, 1].forEach(sg => {
-            const gx2 = sg * PF.hl;
-            box(0.07, PF.gh, 0.07, postMat, gx2, PF.gh / 2, -PF.mouth);
-            box(0.07, PF.gh, 0.07, postMat, gx2, PF.gh / 2, PF.mouth);
-            box(0.07, 0.07, PF.mouth * 2 + 0.07, postMat, gx2, PF.gh + 0.03, 0);
-            const netBack = new THREE.Mesh(new THREE.PlaneGeometry(PF.mouth * 2, PF.gh), netMat);
-            netBack.position.set(gx2 + sg * 0.75, PF.gh / 2, 0);
-            netBack.rotation.y = Math.PI / 2;
-            addTarget.add(netBack);
-            const netTop = new THREE.Mesh(new THREE.PlaneGeometry(PF.mouth * 2, 0.78), netMat);
-            netTop.position.set(gx2 + sg * 0.38, PF.gh - 0.02, 0);
-            netTop.rotation.set(Math.PI / 2, sg * -0.25, Math.PI / 2);
-            addTarget.add(netTop);
-        });
-
-        // ── Stands: stepped tiers packed with a painted crowd ──
-        const crowd = [];
-        const skinT = [0xc08a5c, 0x8a5c38, 0xe0b088, 0x6a4428];
-        const fanCols = [0xd83030, 0x3060d8, 0xe8e4d8, 0x3a3a40, 0xe8c020, 0x2a7a4a, 0xc06ab0];
-        [-1, 1].forEach(side => {
-            for (let row = 0; row < 5; row++) {
-                const sz6 = side * (8.6 + row * 0.85);
-                const sy6 = 0.35 + row * 0.5;
-                box(24, 0.5, 0.85, lm(0x5a5e66, 0, 0, 0.9), 0, sy6 - 0.25, sz6);
-                for (let seat = 0; seat < 22; seat++) {
-                    if (Math.random() < 0.12) continue;   // a few empty seats
-                    const fx4 = -10.5 + seat * 1.0 + Math.random() * 0.3;
-                    const fanCol = fanCols[(Math.random() * fanCols.length) | 0];
-                    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.4, 0.2), lm(fanCol, 0, 0, 0.95));
-                    bodyM.position.set(fx4, sy6 + 0.2, sz6);
-                    addTarget.add(bodyM);
-                    const headM = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), lm(skinT[(Math.random() * 4) | 0], 0, 0, 0.9));
-                    headM.position.set(fx4, sy6 + 0.5, sz6);
-                    addTarget.add(headM);
-                    crowd.push({ b: bodyM, h: headM, y0: sy6, col: seat, ph: Math.random() * 9 });
-                }
-            }
-            // stand roof
-            box(24.4, 0.12, 4.6, lm(0x3a3e46, 0, 0, 0.7, 0.4), 0, 3.4, side * 10.3, side * 0.16, 0, 0);
-        });
-
-        // ── Floodlight pylons + scoreboard ──
-        const floodHeads = [];
-        [[-12, -8.2], [12, -8.2], [-12, 8.2], [12, 8.2]].forEach(([fx5, fz5]) => {
-            box(0.16, 5.2, 0.16, lm(0x4a4e56, 0, 0, 0.6, 0.5), fx5, 2.6, fz5);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.12),
-                new THREE.MeshStandardMaterial({ color: 0xd8dce0, emissive: 0xf0f4ff, emissiveIntensity: 0.4, roughness: 0.6 }));
-            head.position.set(fx5, 5.5, fz5);
-            head.lookAt(0, 0.5, 0);
-            addTarget.add(head);
-            floodHeads.push(head);
-        });
-        const floodA = new THREE.SpotLight(0xf0f4ff, 0, 0, 0.7, 0.6, 0.6);
-        floodA.position.set(-12, 5.5, -8.2);
-        floodA.target.position.set(-3, 0, 0);
-        addTarget.add(floodA); addTarget.add(floodA.target);
-        const floodB = new THREE.SpotLight(0xf0f4ff, 0, 0, 0.7, 0.6, 0.6);
-        floodB.position.set(12, 5.5, 8.2);
-        floodB.target.position.set(3, 0, 0);
-        addTarget.add(floodB); addTarget.add(floodB.target);
-        // scoreboard above the far stand
-        const sbCv = mkCanvas(512, 160);
-        const sbTex = new THREE.CanvasTexture(sbCv);
-        sbTex.colorSpace = THREE.SRGBColorSpace;
-        const pitchScore = [0, 0];
-        const drawScore = () => {
-            const sb = sbCv.getContext('2d');
-            sb.fillStyle = '#0c0e14'; sb.fillRect(0, 0, 512, 160);
-            sb.strokeStyle = '#2a2e3a'; sb.lineWidth = 6; sb.strokeRect(4, 4, 504, 152);
-            sb.textAlign = 'center'; sb.font = '900 64px Arial';
-            sb.fillStyle = '#e05050'; sb.fillText('RED', 110, 92);
-            sb.fillStyle = '#f0f0e8'; sb.fillText(`${pitchScore[0]} : ${pitchScore[1]}`, 256, 92);
-            sb.fillStyle = '#5080e8'; sb.fillText('BLU', 402, 92);
-            sb.font = '600 22px Arial';
-            sb.fillStyle = '#8a93a3'; sb.fillText('ALANDEBOER PARK', 256, 136);
-            sbTex.needsUpdate = true;
-        };
-        drawScore();
-        box(0.18, 2.2, 0.18, lm(0x4a4e56, 0, 0, 0.6, 0.5), -2.1, 4.2, -12.4);
-        box(0.18, 2.2, 0.18, lm(0x4a4e56, 0, 0, 0.6, 0.5), 2.1, 4.2, -12.4);
-        const sbMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.45),
-            new THREE.MeshBasicMaterial({ map: sbTex }));
-        sbMesh.position.set(0, 5.6, -12.35);
-        addTarget.add(sbMesh);
-
-        // ── The ball ──
-        const ballCv = mkCanvas(128, 128);
-        {
-            const bc2 = ballCv.getContext('2d');
-            bc2.fillStyle = '#eef0ee'; bc2.fillRect(0, 0, 128, 128);
-            for (let i = 0; i < 9; i++) {
-                bc2.fillStyle = '#16181c';
-                const px7 = (i % 3) * 48 + 12, py7 = ((i / 3) | 0) * 48 + 12;
-                bc2.beginPath();
-                for (let v3 = 0; v3 < 5; v3++) {
-                    const a6 = (v3 / 5) * Math.PI * 2 - Math.PI / 2;
-                    const vx3 = px7 + Math.cos(a6) * 13, vy3 = py7 + Math.sin(a6) * 13;
-                    v3 === 0 ? bc2.moveTo(vx3, vy3) : bc2.lineTo(vx3, vy3);
-                }
-                bc2.closePath(); bc2.fill();
-            }
-        }
-        const ballTex = new THREE.CanvasTexture(ballCv);
-        ballTex.colorSpace = THREE.SRGBColorSpace;
-        const BALL_R = 0.14;
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 12, 10),
-            new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.5 }));
-        ball.castShadow = true;
-        addTarget.add(ball);
-        const ballState = { p: new THREE.Vector3(0, BALL_R, 2.6), v: new THREE.Vector3(1.5, 0, 0.8), nextKick: 0 };
-
-        // ── Players ──
-        const players = [];
-        const mkPlayer = (team, home, keeper) => {
-            const kit = keeper ? (team ? 0x2a9a4a : 0xe8c020) : (team ? 0x3060d8 : 0xd83030);
-            const shorts = team ? 0x18287a : 0xe8e6e0;
-            const g = new THREE.Group();
-            addTarget.add(g);
-            const pAdd = (w, h, d, col, x, y, z) => {
-                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lm(col, 0, 0, 0.9));
-                m.position.set(x, y, z);
-                m.castShadow = true;
-                g.add(m);
-                return m;
-            };
-            const legL = new THREE.Group(); legL.position.set(-0.07, 0.42, 0); g.add(legL);
-            const legR = new THREE.Group(); legR.position.set(0.07, 0.42, 0); g.add(legR);
-            [[legL], [legR]].forEach(([lg]) => {
-                const upper = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.11), lm(shorts, 0, 0, 0.9));
-                upper.position.y = -0.09;
-                upper.castShadow = true;
-                lg.add(upper);
-                const sock = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.22, 0.09), lm(kit, 0, 0, 0.9));
-                sock.position.y = -0.3;
-                sock.castShadow = true;
-                lg.add(sock);
-            });
-            pAdd(0.3, 0.36, 0.18, kit, 0, 0.66, 0);                     // shirt
-            pAdd(0.09, 0.26, 0.09, kit, -0.19, 0.62, 0);                // arms
-            pAdd(0.09, 0.26, 0.09, kit, 0.19, 0.62, 0);
-            pAdd(0.16, 0.17, 0.16, skinT[(Math.random() * 4) | 0], 0, 0.95, 0);  // head
-            pAdd(0.17, 0.05, 0.17, 0x2a2016, 0, 1.04, 0);               // hair
-            players.push({ g, legL, legR, team, home, keeper, pos: new THREE.Vector2(home[0], home[1]), moved: 0 });
-        };
-        // team 0 = RED attacks +x, team 1 = BLUE attacks -x
-        [[-6, -2.5], [-6, 2.5], [-3.5, 0], [-1.2, -3.2], [-1.2, 3.2]].forEach(h => mkPlayer(0, h, false));
-        [[6, -2.5], [6, 2.5], [3.5, 0], [1.2, -3.2], [1.2, 3.2]].forEach(h => mkPlayer(1, h, false));
-        mkPlayer(0, [-10.4, 0], true);
-        mkPlayer(1, [10.4, 0], true);
-        let pitchCeleb = 0, pitchCelebTeam = 0;
-
-        // ── Clark's touchline towel (he's the club mascot) ──
-        box(0.62, 0.026, 0.74, lm(0xd83030, 0, 0, 1.0), BEDX, 0.014, BEDZ);
-        box(0.5, 0.018, 0.6, lm(0xe8e6dc, 0, 0, 1.0), BEDX, 0.034, BEDZ);
-
-        // ── Sky + sun (time: 0 night match → 1 sunny afternoon) ──
-        const pSun = new THREE.DirectionalLight(0xfff0d0, 0);
-        pSun.castShadow = true;
-        pSun.shadow.mapSize.set(2048, 2048);
-        pSun.shadow.camera.left = -14; pSun.shadow.camera.right = 14;
-        pSun.shadow.camera.top = 14;   pSun.shadow.camera.bottom = -14;
-        pSun.shadow.camera.near = 1;   pSun.shadow.camera.far = 40;
-        pSun.shadow.bias = -0.0015;
-        addTarget.add(pSun);
-        addTarget.add(pSun.target);
-        const pSkyNight = new THREE.Color(0x0a1020);
-        const pSkyDay   = new THREE.Color(0x8ec4e8);
-        const pSkyCol   = new THREE.Color();
-        const pGrNight  = new THREE.Color(0x1a2418);
-        const pGrDay    = new THREE.Color(0x5c8a4c);
-
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -5303,7 +5063,6 @@
             const isApiary    = th === 'apiary';
             const isTavern    = th === 'tavern';
             const isVideo     = th === 'video';
-            const isPitch     = th === 'pitch';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -5313,7 +5072,6 @@
             apiaryGroup.visible    = isApiary;
             tavernGroup.visible    = isTavern;
             videoGroup.visible     = isVideo;
-            pitchGroup.visible     = isPitch;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -5346,16 +5104,11 @@
                 document.getElementById('lamp-label').textContent = 'hearth';
             } else if (isVideo) {
                 document.getElementById('lamp-label').textContent = 'neon';
-            } else if (isPitch) {
-                document.getElementById('lamp-label').textContent = 'floodlights';
-                document.getElementById('time-label').textContent = 'time';
-                params.time = 0.3;
-                document.getElementById('time-slider').value = 0.3;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo || isPitch));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -5364,7 +5117,7 @@
         // ── River soundscape: synthesized, no audio files ──
         // Brown noise through a lowpass = the constant spillway rush;
         // short descending oscillator sweeps = songbirds on the banks.
-        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, murmurGain = null, noiseBuf = null, soundOn = false;
+        let audioCtx = null, rushGain = null, windGain = null, buzzGain = null, crackleGain = null, humGain = null, noiseBuf = null, soundOn = false;
         const buildAudio = () => {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const len = audioCtx.sampleRate * 2;
@@ -5448,57 +5201,6 @@
                 ho.start();
             });
             humGain.connect(audioCtx.destination);
-            // stadium murmur: mid-band noise, the sound of 200 conversations
-            const msrc = audioCtx.createBufferSource();
-            msrc.buffer = noiseBuf;
-            msrc.loop = true;
-            msrc.playbackRate.value = 1.2;
-            const mbp = audioCtx.createBiquadFilter();
-            mbp.type = 'bandpass';
-            mbp.frequency.value = 420;
-            mbp.Q.value = 0.6;
-            murmurGain = audioCtx.createGain();
-            murmurGain.gain.value = 0;
-            msrc.connect(mbp).connect(murmurGain).connect(audioCtx.destination);
-            msrc.start();
-        };
-        // the crowd erupts
-        const cheer = () => {
-            if (!audioCtx || !noiseBuf) return;
-            const st = audioCtx.currentTime + 0.02;
-            const csrc2 = audioCtx.createBufferSource();
-            csrc2.buffer = noiseBuf;
-            csrc2.loop = true;
-            csrc2.playbackRate.value = 1.6;
-            const cbp = audioCtx.createBiquadFilter();
-            cbp.type = 'bandpass';
-            cbp.frequency.value = 700;
-            cbp.Q.value = 0.4;
-            const cg2 = audioCtx.createGain();
-            cg2.gain.setValueAtTime(0, st);
-            cg2.gain.linearRampToValueAtTime(0.35, st + 0.25);
-            cg2.gain.setValueAtTime(0.35, st + 1.4);
-            cg2.gain.exponentialRampToValueAtTime(0.001, st + 3.2);
-            csrc2.connect(cbp).connect(cg2).connect(audioCtx.destination);
-            csrc2.start(st);
-            csrc2.stop(st + 3.4);
-        };
-        const whistle = () => {
-            if (!audioCtx) return;
-            const st = audioCtx.currentTime + 0.02;
-            [0, 0.22].forEach(off => {
-                const o = audioCtx.createOscillator();
-                o.type = 'square';
-                o.frequency.value = 2350;
-                const g = audioCtx.createGain();
-                g.gain.setValueAtTime(0, st + off);
-                g.gain.linearRampToValueAtTime(0.03, st + off + 0.02);
-                g.gain.setValueAtTime(0.03, st + off + 0.12);
-                g.gain.linearRampToValueAtTime(0, st + off + 0.16);
-                o.connect(g).connect(audioCtx.destination);
-                o.start(st + off);
-                o.stop(st + off + 0.2);
-            });
         };
         // a VHS rewinding behind the counter: rising whirr, clunk at the end
         const rewind = () => {
@@ -5739,7 +5441,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', pitch: 'pitch', soccer: 'pitch', football: 'pitch', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -6569,136 +6271,6 @@
                     vNextRewind = t + 11 + Math.random() * 14;
                     rewind();
                 }
-            } else if (theme === 'pitch') {
-                // ── The pitch: night match under floodlights → sunny afternoon ──
-                const td = params.time;
-                pSkyCol.copy(pSkyNight).lerp(pSkyDay, td);
-                scene.background.copy(pSkyCol);
-                scene.fog.color.copy(pSkyCol).multiplyScalar(0.96);
-                scene.fog.density = 0.006 + (1 - td) * 0.008;
-                hemiLight.intensity = (0.9 + td * 2.4) * b;
-                hemiLight.color.copy(pSkyCol).lerp(new THREE.Color(0xf0f4ff), (1 - td) * 0.6);
-                hemiLight.groundColor.copy(pGrNight).lerp(pGrDay, td);
-                fillLight.intensity = (0.5 + td * 0.4) * b;
-                fillLight.color.setHex(0xf0f4ff);
-                const el = 0.2 + td * 1.0;
-                pSun.position.set(Math.cos(el) * 10, Math.sin(el) * 11, -5);
-                pSun.intensity = td * 2.6 * b;
-                // floodlights carry the night (floodlights slider)
-                const fl3 = params.lampBrightness * (0.3 + (1 - td) * 0.7);
-                floodA.intensity = fl3 * 14 * b;
-                floodB.intensity = fl3 * 14 * b;
-                for (const fh4 of floodHeads) fh4.material.emissiveIntensity = 0.15 + fl3 * 1.4;
-
-                // ── Match engine ──
-                const bp3 = ballState.p, bv = ballState.v;
-                // find the closest player; they hunt the ball, everyone else shades
-                let closest = null, closestD = 1e9;
-                for (const pl2 of players) {
-                    const d3 = Math.hypot(pl2.pos.x - bp3.x, pl2.pos.y - bp3.z);
-                    if (!pl2.keeper && d3 < closestD) { closestD = d3; closest = pl2; }
-                }
-                for (const pl2 of players) {
-                    const px8 = pl2.pos.x, pz8 = pl2.pos.y;
-                    let tx6, tz6, sp5;
-                    if (pl2.keeper) {
-                        tx6 = pl2.home[0];
-                        tz6 = THREE.MathUtils.clamp(bp3.z * 0.55, -PF.mouth + 0.2, PF.mouth - 0.2);
-                        sp5 = 2.2;
-                    } else if (pl2 === closest && pitchCeleb <= 0) {
-                        tx6 = bp3.x; tz6 = bp3.z; sp5 = 2.6;
-                    } else {
-                        tx6 = pl2.home[0] + (bp3.x - pl2.home[0]) * 0.3;
-                        tz6 = pl2.home[1] + (bp3.z - pl2.home[1]) * 0.3;
-                        sp5 = 1.5;
-                    }
-                    let dx4 = tx6 - px8, dz4 = tz6 - pz8;
-                    const dl2 = Math.hypot(dx4, dz4);
-                    if (dl2 > 0.08) {
-                        pl2.pos.x += (dx4 / dl2) * sp5 * dt;
-                        pl2.pos.y += (dz4 / dl2) * sp5 * dt;
-                        pl2.moved = sp5;
-                        pl2.g.rotation.y = Math.atan2(dx4, dz4);
-                    } else {
-                        pl2.moved = 0;
-                    }
-                    // stay out of the furniture and off each other's toes
-                    if (Math.abs(pl2.pos.x) < 1.7 && Math.abs(pl2.pos.y) < 1.15) {
-                        pl2.pos.x += Math.sign(pl2.pos.x || 1) * 1.5 * dt;
-                    }
-                    for (const other of players) {
-                        if (other === pl2) continue;
-                        const ox2 = pl2.pos.x - other.pos.x, oz2 = pl2.pos.y - other.pos.y;
-                        const od2 = Math.hypot(ox2, oz2);
-                        if (od2 > 0.001 && od2 < 0.7) {
-                            pl2.pos.x += (ox2 / od2) * 0.8 * dt;
-                            pl2.pos.y += (oz2 / od2) * 0.8 * dt;
-                        }
-                    }
-                    pl2.g.position.set(pl2.pos.x, pitchCeleb > 0 && pl2.team === pitchCelebTeam
-                        ? Math.abs(Math.sin(t * 8 + px8)) * 0.25 : 0, pl2.pos.y);
-                    const swing = pl2.moved > 0.1 ? Math.sin(t * (6 + pl2.moved * 2.4)) * 0.65 : 0;
-                    pl2.legL.rotation.x = swing;
-                    pl2.legR.rotation.x = -swing;
-                }
-                // the kick
-                if (pitchCeleb <= 0 && closest && closestD < 0.42 && t > ballState.nextKick) {
-                    ballState.nextKick = t + 0.55;
-                    const goalX = closest.team === 0 ? PF.hl : -PF.hl;
-                    const aim = Math.atan2(goalX - bp3.x, -bp3.z * 0.4 + (Math.random() - 0.5) * 4);
-                    const pow = 3.4 + Math.random() * 3.4;
-                    bv.x = Math.sin(aim) * pow;
-                    bv.z = Math.cos(aim) * pow;
-                    bv.y = Math.random() < 0.3 ? 1.6 + Math.random() * 1.6 : 0;
-                }
-                // ball physics
-                bv.x *= 1 - 0.45 * dt;
-                bv.z *= 1 - 0.45 * dt;
-                bv.y -= 9.8 * dt;
-                bp3.x += bv.x * dt;
-                bp3.z += bv.z * dt;
-                bp3.y += bv.y * dt;
-                if (bp3.y < BALL_R) { bp3.y = BALL_R; bv.y = Math.abs(bv.y) > 1 ? -bv.y * 0.45 : 0; }
-                if (Math.abs(bp3.z) > PF.hw) { bp3.z = Math.sign(bp3.z) * PF.hw; bv.z *= -0.7; }
-                // the desk is a fair obstacle
-                if (Math.abs(bp3.x) < 1.35 + BALL_R && Math.abs(bp3.z) < 0.8 + BALL_R && bp3.y < 1.0) {
-                    const penX = 1.35 + BALL_R - Math.abs(bp3.x);
-                    const penZ = 0.8 + BALL_R - Math.abs(bp3.z);
-                    if (penX < penZ) { bp3.x += Math.sign(bp3.x) * penX; bv.x *= -0.75; }
-                    else { bp3.z += Math.sign(bp3.z) * penZ; bv.z *= -0.75; }
-                }
-                if (Math.abs(bp3.x) > PF.hl) {
-                    if (Math.abs(bp3.z) < PF.mouth && bp3.y < PF.gh) {
-                        // ─ GOAL ─
-                        const scorer = bp3.x > 0 ? 0 : 1;
-                        pitchScore[scorer]++;
-                        drawScore();
-                        pitchCeleb = 3.2;
-                        pitchCelebTeam = scorer;
-                        if (soundOn && audioCtx) { cheer(); whistle(); }
-                        bp3.set(0, BALL_R, 2.6);
-                        bv.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
-                    } else {
-                        bp3.x = Math.sign(bp3.x) * PF.hl;
-                        bv.x *= -0.7;
-                    }
-                }
-                ball.position.copy(bp3);
-                ball.rotation.x += bv.z * dt / BALL_R;
-                ball.rotation.z -= bv.x * dt / BALL_R;
-                if (pitchCeleb > 0) pitchCeleb -= dt;
-
-                // the crowd: idle bob, stadium wave when someone scores
-                for (const fan of crowd) {
-                    let fy = fan.y0 + 0.2;
-                    if (pitchCeleb > 0) {
-                        fy += Math.max(0, Math.sin(t * 6 - fan.col * 0.45 + fan.ph * 0.2)) * 0.3;
-                    } else if (Math.sin(t * 1.1 + fan.ph * 3) > 0.93) {
-                        fy += 0.05;
-                    }
-                    fan.b.position.y = fy;
-                    fan.h.position.y = fy + 0.3;
-                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -6729,11 +6301,6 @@
             if (humGain) {
                 const ht2 = (soundOn && theme === 'video') ? 0.012 : 0;
                 humGain.gain.value += (ht2 - humGain.gain.value) * Math.min(1, dt * 2);
-            }
-            // Stadium murmur at the pitch
-            if (murmurGain) {
-                const mt2 = (soundOn && theme === 'pitch') ? 0.05 + Math.sin(t * 0.4) * 0.012 : 0;
-                murmurGain.gain.value += (mt2 - murmurGain.gain.value) * Math.min(1, dt * 2);
             }
 
             // Monitor flicker × brightness
