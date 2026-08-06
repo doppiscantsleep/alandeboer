@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — nine worlds to wander, from a neon room to a storm lighthouse to a 90s video store. One beagle named Clark.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a Halloween street in Romeo, Michigan. One beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
-    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — nine worlds to wander, one beagle named Clark.">
+    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, one beagle named Clark.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alandeboer.computer/">
     <meta property="og:image" content="https://alandeboer.computer/og.png">
@@ -148,8 +148,8 @@
             top: 20px;
             right: 20px;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            width: 396px;
+            grid-template-columns: repeat(5, 1fr);
+            width: 648px;
             gap: 3px;
             pointer-events: all;
             padding: 5px;
@@ -213,6 +213,7 @@
         .world[data-world="apiary"]    { --wc: #f0b428; }
         .world[data-world="tavern"]    { --wc: #d85c28; }
         .world[data-world="video"]     { --wc: #ffec3d; }
+        .world[data-world="tillson"]   { --wc: #ff7418; }
 
         .ctrl-sep {
             height: 1px;
@@ -267,7 +268,7 @@
 
         /* narrow desktops: the picker grid would overlap the centered
            site name, so the name joins the hint at the bottom */
-        @media (max-width: 1240px) and (min-width: 861px) {
+        @media (max-width: 1500px) and (min-width: 861px) {
             #site-name {
                 top: auto;
                 bottom: 46px;
@@ -375,6 +376,7 @@
             <button class="world" data-world="apiary"><span class="dot"></span>the apiary</button>
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
+            <button class="world" data-world="tillson"><span class="dot"></span>tillson st</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
     </div>
@@ -441,6 +443,9 @@
         const videoGroup = new THREE.Group();
         videoGroup.visible = false;
         scene.add(videoGroup);
+        const tillsonGroup = new THREE.Group();
+        tillsonGroup.visible = false;
+        scene.add(tillsonGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -2017,7 +2022,7 @@
             room: 'room', woods: 'forest', forest: 'forest', northpole: 'northPole',
             pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
-            video: 'video', videostore: 'video',
+            video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson',
         };
         const execTerm = raw => {
             const cmd = raw.trim();
@@ -2042,7 +2047,7 @@
                     break;
                 case 'worlds':
                     termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
-                    termEcho('lighthouse · apiary · tavern · video', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video · tillson', '#79c0ff');
                     termEcho('switch with: theme <name>', '#5a6373');
                     break;
                 case 'theme': {
@@ -4971,6 +4976,702 @@
         addTarget.add(vMarqLight);
         let vFlickerPanel = 0, vNextFlicker = 5;
 
+        addTarget = tillsonGroup;
+
+        // ═══════════════════════════════
+        //  TILLSON ST — Romeo, Michigan, the week before Halloween
+        // ═══════════════════════════════
+        // Street runs along z; five houses face each other across it.
+        // The desk sits in the middle of the road like it belongs there.
+
+        const TL = { half: 2.8, curb: 3.9, lawn: 8.4, houseX: 12.0, span: 6.6 };
+
+        // ── Textures ──
+        const asphaltCv = mkCanvas(256, 256);
+        {
+            const ag2 = asphaltCv.getContext('2d');
+            ag2.fillStyle = '#26262a'; ag2.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 4200; i++) {
+                const v4 = 26 + Math.random() * 34 | 0;
+                ag2.fillStyle = `rgb(${v4},${v4},${v4 + 2})`;
+                ag2.globalAlpha = 0.4 + Math.random() * 0.5;
+                ag2.fillRect(Math.random() * 256, Math.random() * 256, 1.6, 1.6);
+            }
+            ag2.globalAlpha = 1;
+            for (let i = 0; i < 7; i++) {   // tar-patched cracks
+                ag2.strokeStyle = '#15151a'; ag2.lineWidth = 1 + Math.random() * 2.4;
+                ag2.beginPath();
+                let cx8 = Math.random() * 256, cy8 = 0;
+                ag2.moveTo(cx8, cy8);
+                while (cy8 < 256) { cx8 += (Math.random() - 0.5) * 40; cy8 += 30; ag2.lineTo(cx8, cy8); }
+                ag2.stroke();
+            }
+        }
+        const asphaltTex = asTex(asphaltCv, 3, 12);
+        // clapboard siding
+        const sidingCv = mkCanvas(128, 128);
+        {
+            const sg3 = sidingCv.getContext('2d');
+            sg3.fillStyle = '#ffffff'; sg3.fillRect(0, 0, 128, 128);
+            for (let y3 = 0; y3 < 128; y3 += 11) {
+                sg3.fillStyle = 'rgba(0,0,0,0.16)'; sg3.fillRect(0, y3 + 9, 128, 2);
+                sg3.fillStyle = 'rgba(255,255,255,0.5)'; sg3.fillRect(0, y3, 128, 3);
+            }
+            speckle(sg3, 128, 128, 700, 0.06, '#ffffff', '#8a8a8a');
+        }
+        const sidingTex = asTex(sidingCv, 3, 2);
+        // roof shingles
+        const shingleCv = mkCanvas(128, 128);
+        {
+            const hg2 = shingleCv.getContext('2d');
+            hg2.fillStyle = '#ffffff'; hg2.fillRect(0, 0, 128, 128);
+            for (let r2 = 0; r2 < 9; r2++) {
+                const off2 = (r2 % 2) * 16;
+                for (let c6 = -1; c6 < 5; c6++) {
+                    hg2.fillStyle = `rgba(0,0,0,${0.08 + Math.random() * 0.14})`;
+                    hg2.fillRect(c6 * 32 + off2 + 1, r2 * 14, 30, 13);
+                }
+                hg2.fillStyle = 'rgba(0,0,0,0.3)'; hg2.fillRect(0, r2 * 14 + 12, 128, 2);
+            }
+        }
+        const shingleTex = asTex(shingleCv, 4, 3);
+
+        // ── Shared materials (hoisted: ten houses' worth of meshes) ──
+        const tlM = {
+            road:   new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92 }),
+            walk:   lm(0x8e8b84, 0, 0, 0.95),
+            curbC:  lm(0x9a978f, 0, 0, 0.95),
+            lawn:   lm(0x2c4426, 0, 0, 1.0),
+            trim:   lm(0xf0ece2, 0, 0, 0.85),
+            roof:   new THREE.MeshStandardMaterial({ map: shingleTex, color: 0x3a3138, roughness: 0.95 }),
+            brick:  lm(0x7a4438, 0, 0, 0.95),
+            porch:  lm(0x6a5a48, 0, 0, 0.9),
+            dark:   lm(0x16161c, 0, 0, 0.9),
+            glassD: lm(0x1a1e28, 0, 0, 0.35, 0.2),
+            bone:   lm(0xe4e0d2, 0, 0, 0.85),
+            stone:  lm(0x8a8a86, 0, 0, 0.95),
+            web:    new THREE.MeshBasicMaterial({ color: 0xdfe4ec, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false }),
+            sheet:  lm(0xe8e6de, 0, 0, 0.95),
+            vine:   lm(0x3a5a2c, 0, 0, 0.95),
+            hay:    lm(0xc9a45a, 0, 0, 0.95),
+            pump:   lm(0xe07818, 0, 0, 0.75),
+            stem:   lm(0x4a5a2a, 0, 0, 0.9),
+            bark:   lm(0x3a2e26, 0, 0, 0.98),
+        };
+
+        // flicker registries, driven in the animate loop
+        const tlFlames = [];   // jack-o'-lanterns + candles
+        const tlWindows = [];  // lit house windows
+        const tlOrange = [];   // orange string lights
+
+        // ── Ground: lawn, road, curbs, sidewalks, center line ──
+        const tlGround = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), tlM.lawn);
+        tlGround.rotation.x = -Math.PI / 2;
+        tlGround.receiveShadow = true;
+        addTarget.add(tlGround);
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(TL.half * 2, 46),
+            new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92 }));
+        road.rotation.x = -Math.PI / 2;
+        road.position.y = 0.01;
+        road.receiveShadow = true;
+        addTarget.add(road);
+        for (let dz = -21; dz < 21; dz += 3.2) {   // dashed center line
+            box(0.14, 0.005, 1.7, lm(0xc8c090, 0, 0, 0.9), 0, 0.018, dz);
+        }
+        [-1, 1].forEach(sd => {
+            box(0.22, 0.16, 46, tlM.curbC, sd * (TL.half + 0.11), 0.08, 0);          // curb
+            const walk = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 46), tlM.walk);
+            walk.rotation.x = -Math.PI / 2;
+            walk.position.set(sd * (TL.curb - 0.05), 0.155, 0);
+            walk.receiveShadow = true;
+            addTarget.add(walk);
+            for (let dz = -21; dz < 22; dz += 1.6) {   // sidewalk joints
+                box(0.95, 0.004, 0.03, lm(0x76736c, 0, 0, 0.95), sd * (TL.curb - 0.05), 0.158, dz);
+            }
+        });
+
+        // ── Decoration kit ──
+        const tlPumpkin = (px, py, pz, s, carved) => {
+            const p = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), tlM.pump);
+            p.scale.y = 0.78;
+            p.position.set(px, py + s * 0.75, pz);
+            p.castShadow = true;
+            addTarget.add(p);
+            const st = new THREE.Mesh(new THREE.BoxGeometry(0.02, s * 0.5, 0.02), tlM.stem);
+            st.position.set(px, py + s * 1.5, pz);
+            st.rotation.z = 0.22;
+            addTarget.add(st);
+            if (carved) {
+                const fm = lm(0x3a1400, 0xffb838, 1.8);
+                tlFlames.push({ m: fm, ph: Math.random() * 9, base: 1.7 });
+                const fz = s * 0.88;
+                [[-0.36, 0.16], [0.36, 0.16]].forEach(([ex, ey]) => {
+                    const eye = new THREE.Mesh(new THREE.ConeGeometry(s * 0.18, s * 0.3, 3), fm);
+                    eye.position.set(px + ex * s, py + s * (0.75 + ey), pz + fz);
+                    addTarget.add(eye);
+                });
+                const mo = new THREE.Mesh(new THREE.BoxGeometry(s * 0.78, s * 0.14, 0.012), fm);
+                mo.position.set(px, py + s * 0.5, pz + fz);
+                addTarget.add(mo);
+                [[-0.26, 1], [0.02, -1], [0.28, 1]].forEach(([tx, dr]) => {
+                    const th = new THREE.Mesh(new THREE.BoxGeometry(s * 0.12, s * 0.12, 0.012), fm);
+                    th.position.set(px + tx * s, py + s * (0.5 + dr * 0.11), pz + fz);
+                    addTarget.add(th);
+                });
+            }
+            return p;
+        };
+        const tlGrave = (gx, gz, ry) => {
+            const lean = (Math.random() - 0.5) * 0.22;
+            const round = Math.random() < 0.5;
+            const slab = round
+                ? new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.07, 10, 1, false, 0, Math.PI), tlM.stone)
+                : new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.07), tlM.stone);
+            if (round) { slab.rotation.z = Math.PI / 2; slab.rotation.y = Math.PI / 2; }
+            slab.position.set(gx, round ? 0.42 : 0.3, gz);
+            slab.rotation.x = lean;
+            slab.castShadow = slab.receiveShadow = true;
+            addTarget.add(slab);
+            if (round) box(0.38, 0.34, 0.07, tlM.stone, gx, 0.19, gz, lean, 0, 0);
+            box(0.46, 0.06, 0.16, tlM.stone, gx, 0.03, gz);          // base
+            box(0.2, 0.03, 0.012, lm(0x5c5c58, 0, 0, 0.95), gx, 0.36, gz + 0.04, lean, 0, 0);  // "RIP"
+            box(0.13, 0.03, 0.012, lm(0x5c5c58, 0, 0, 0.95), gx, 0.29, gz + 0.04, lean, 0, 0);
+        };
+        const tlSkeleton = (sx, sz, ry, pose) => {
+            const g = new THREE.Group();
+            g.position.set(sx, 0, sz);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            const sb = (w, h, d, x, y, z, rz = 0) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), tlM.bone);
+                m.position.set(x, y, z);
+                m.rotation.z = rz;
+                m.castShadow = true;
+                g.add(m);
+                return m;
+            };
+            const lift = pose === 'wave' ? 1 : 0;
+            sb(0.24, 0.34, 0.14, 0, 1.06, 0);                   // ribcage
+            for (let i = 0; i < 4; i++) {                        // rib shadow lines
+                const rib = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.018, 0.005), tlM.dark);
+                rib.position.set(0, 1.18 - i * 0.08, -0.072);
+                g.add(rib);
+            }
+            sb(0.1, 0.16, 0.1, 0, 0.84, 0);                     // pelvis
+            sb(0.07, 0.4, 0.07, -0.06, 0.6, 0);                 // legs
+            sb(0.07, 0.4, 0.07, 0.06, 0.6, 0);
+            sb(0.09, 0.06, 0.16, -0.06, 0.37, 0.03);            // feet
+            sb(0.09, 0.06, 0.16, 0.06, 0.37, 0.03);
+            sb(0.06, 0.34, 0.06, -0.17, 1.02, 0, lift ? -0.9 : -0.12);   // arms
+            sb(0.06, 0.34, 0.06, 0.17, 1.02, 0, 0.12);
+            const skull = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.2, 0.18), tlM.bone);
+            skull.position.set(0, 1.36, 0);
+            skull.castShadow = true;
+            g.add(skull);
+            [-0.045, 0.045].forEach(ex => {
+                const socket = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.05, 0.02), tlM.dark);
+                socket.position.set(ex, 1.38, -0.09);
+                g.add(socket);
+            });
+            const jaw2 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.03, 0.02), tlM.dark);
+            jaw2.position.set(0, 1.28, -0.09);
+            g.add(jaw2);
+            return g;
+        };
+        const tlWeb = (wx, wy, wz, s, ry) => {
+            const g = new THREE.Group();
+            g.position.set(wx, wy, wz);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            for (let i = 0; i < 7; i++) {
+                const a = (i / 7) * Math.PI * 0.5 + Math.PI;
+                const sp = new THREE.Mesh(new THREE.BoxGeometry(s, 0.012, 0.012), tlM.web);
+                sp.position.set(Math.cos(a) * s / 2, Math.sin(a) * s / 2, 0);
+                sp.rotation.z = a;
+                g.add(sp);
+            }
+            for (let r = 1; r <= 4; r++) {
+                const ring = new THREE.Mesh(
+                    new THREE.TorusGeometry(s * 0.12 * r, 0.008, 4, 14, Math.PI * 0.5), tlM.web);
+                ring.rotation.z = Math.PI;
+                g.add(ring);
+            }
+            return g;
+        };
+        const tlSpider = (sx, sy, sz, s) => {
+            const g = new THREE.Group();
+            g.position.set(sx, sy, sz);
+            addTarget.add(g);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(s, 9, 7), tlM.dark);
+            body.scale.set(1, 0.8, 1.3);
+            body.castShadow = true;
+            g.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(s * 0.55, 8, 6), tlM.dark);
+            head.position.z = -s * 1.3;
+            g.add(head);
+            [[-1, 0.5], [-1, 0], [-1, -0.5], [-1, -1], [1, 0.5], [1, 0], [1, -0.5], [1, -1]].forEach(([sd2, off]) => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(s * 1.7, 0.035, 0.035), tlM.dark);
+                leg.position.set(sd2 * s * 0.9, s * 0.1, off * s * 0.7);
+                leg.rotation.z = sd2 * -0.5;
+                leg.rotation.y = off * 0.35;
+                g.add(leg);
+            });
+            [[-0.22], [0.22]].forEach(([ex]) => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(s * 0.16, 6, 5), lm(0xd82020, 0xd82020, 1.6));
+                eye.position.set(ex * s, s * 0.3, -s * 1.6);
+                g.add(eye);
+            });
+            return g;
+        };
+        const tlGhost = (gx, gy, gz, s) => {
+            const g = new THREE.Group();
+            g.position.set(gx, gy, gz);
+            addTarget.add(g);
+            const hood = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), tlM.sheet);
+            hood.castShadow = true;
+            g.add(hood);
+            const drape = new THREE.Mesh(new THREE.ConeGeometry(s * 1.05, s * 2.1, 10, 1, true), tlM.sheet);
+            drape.position.y = -s * 0.95;
+            drape.rotation.x = Math.PI;
+            drape.castShadow = true;
+            g.add(drape);
+            [[-0.35], [0.35]].forEach(([ex]) => {
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(s * 0.22, s * 0.3, 0.02), tlM.dark);
+                eye.position.set(ex * s, -s * 0.1, -s * 0.85);
+                g.add(eye);
+            });
+            return g;
+        };
+        const tlHayBale = (hx, hz, ry) => {
+            const b = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.42, 10), tlM.hay);
+            b.rotation.z = Math.PI / 2;
+            b.rotation.y = ry;
+            b.position.set(hx, 0.26, hz);
+            b.castShadow = b.receiveShadow = true;
+            addTarget.add(b);
+            [-0.1, 0.1].forEach(o => box(0.44, 0.5, 0.03, lm(0x8a6a2a, 0, 0, 0.95), hx, 0.26, hz + o, 0, ry, 0));
+        };
+        const tlCornStalk = (cx, cz) => {
+            const h = 1.1 + Math.random() * 0.4;
+            box(0.05, h, 0.05, lm(0xa89050, 0, 0, 0.98), cx, h / 2, cz, 0, 0, (Math.random() - 0.5) * 0.12);
+            for (let i = 0; i < 5; i++) {
+                const lf = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.09), lm(0x9a8a48, 0, 0, 0.98));
+                lf.position.set(cx + (i % 2 ? 0.18 : -0.18), h * (0.35 + i * 0.13), cz);
+                lf.rotation.z = (i % 2 ? -1 : 1) * 0.5;
+                lf.rotation.y = i * 1.1;
+                addTarget.add(lf);
+            }
+        };
+
+        // ── The houses ──
+        const tlHouse = (side, z, cfg) => {
+            const x = side * TL.houseX;
+            const g = new THREE.Group();
+            g.position.set(x, 0, z);
+            g.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;   // face the street
+            addTarget.add(g);
+            const W = cfg.w, D = 4.2, H = cfg.stories * 1.5;
+            const sideMat = new THREE.MeshStandardMaterial({ map: sidingTex, color: cfg.siding, roughness: 0.9 });
+            const hb = (w, h, d, m, px, py, pz, rx = 0, ry = 0, rz = 0) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+                mesh.position.set(px, py, pz);
+                mesh.rotation.set(rx, ry, rz);
+                mesh.castShadow = mesh.receiveShadow = true;
+                g.add(mesh);
+                return mesh;
+            };
+            // body + foundation
+            hb(W, H, D, sideMat, 0, H / 2, 0);
+            hb(W + 0.12, 0.34, D + 0.12, tlM.stone, 0, 0.17, 0);
+            // gabled roof (two slabs + end triangles)
+            const rp = Math.atan2(cfg.roofH, W / 2);
+            const slope = Math.hypot(W / 2, cfg.roofH);
+            [-1, 1].forEach(sd2 => {
+                hb(slope, 0.11, D + 0.5, tlM.roof, sd2 * W / 4, H + cfg.roofH / 2, 0, 0, 0, -sd2 * rp);
+            });
+            [-1, 1].forEach(sd2 => {
+                const tri = new THREE.Shape();
+                tri.moveTo(-W / 2, 0); tri.lineTo(W / 2, 0); tri.lineTo(0, cfg.roofH);
+                const gable = new THREE.Mesh(new THREE.ShapeGeometry(tri), sideMat);
+                gable.position.set(0, H, sd2 * D / 2);
+                if (sd2 < 0) gable.rotation.y = Math.PI;
+                g.add(gable);
+            });
+            // porch: deck, posts, rail, shed roof
+            const pD = 1.5;
+            hb(W - 0.3, 0.14, pD, tlM.porch, 0, 0.4, D / 2 + pD / 2);
+            for (let i = 0; i < 4; i++) {
+                const px2 = -W / 2 + 0.3 + i * ((W - 0.6) / 3);
+                hb(0.11, 1.85, 0.11, tlM.trim, px2, 1.4, D / 2 + pD - 0.12);
+            }
+            hb(W - 0.3, 0.1, pD + 0.24, tlM.roof, 0, 2.36, D / 2 + pD / 2, -0.12, 0, 0);
+            hb(W - 0.5, 0.07, 0.06, tlM.trim, 0, 0.86, D / 2 + pD - 0.12);
+            for (let i = 0; i < 9; i++)
+                hb(0.035, 0.42, 0.035, tlM.trim, -W / 2 + 0.4 + i * ((W - 0.8) / 8), 0.65, D / 2 + pD - 0.12);
+            [0, 1, 2].forEach(i => hb(1.0, 0.08, 0.3, tlM.stone, 0, 0.32 - i * 0.12, D / 2 + pD + 0.16 + i * 0.28));
+            // door + porch light
+            hb(0.72, 1.24, 0.09, lm(cfg.door, 0, 0, 0.7), 0, 1.09, D / 2 + 0.02);
+            hb(0.08, 0.08, 0.05, lm(0xd8c088, 0, 0, 0.5), 0.24, 1.05, D / 2 + 0.07);
+            const pl = lm(0x443320, 0xffc070, 1.6);
+            hb(0.12, 0.16, 0.12, pl, 0.62, 1.7, D / 2 + 0.06);
+            tlFlames.push({ m: pl, ph: Math.random() * 9, base: 1.5 });
+            // windows, lit warm on both floors
+            const winMat = () => {
+                const m = lm(0x2a2418, 0xffcf7a, 1.35);
+                tlWindows.push({ m, ph: Math.random() * 9, base: 1.25 + Math.random() * 0.4 });
+                return m;
+            };
+            const winAt = (wx, wy, front) => {
+                const m = winMat();
+                hb(0.62, 0.86, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.01 : -D / 2 - 0.01);
+                hb(0.5, 0.74, 0.05, m, wx, wy, front ? D / 2 + 0.04 : -D / 2 - 0.04);
+                hb(0.05, 0.74, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.06 : -D / 2 - 0.06);
+                hb(0.5, 0.05, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.06 : -D / 2 - 0.06);
+            };
+            winAt(-W / 2 + 0.75, 1.15, true);
+            winAt(W / 2 - 0.75, 1.15, true);
+            for (let i = 0; i < 3; i++) winAt(-W / 2 + 0.8 + i * ((W - 1.6) / 2), H - 0.7, true);
+            // side windows
+            [-1, 1].forEach(sd2 => {
+                const m = winMat();
+                hb(0.05, 0.74, 0.5, m, sd2 * (W / 2 + 0.03), 1.2, -0.8);
+                hb(0.06, 0.86, 0.62, tlM.trim, sd2 * (W / 2 + 0.01), 1.2, -0.8);
+            });
+            // chimney + optional dormer
+            hb(0.5, cfg.roofH + 1.1, 0.5, tlM.brick, W / 2 - 0.7, H + (cfg.roofH + 1.1) / 2 - 0.2, -0.9);
+            if (cfg.dormer) {
+                hb(0.9, 0.7, 0.9, sideMat, 0, H + cfg.roofH * 0.42, D / 2 - 0.75);
+                hb(1.05, 0.09, 1.0, tlM.roof, 0, H + cfg.roofH * 0.42 + 0.38, D / 2 - 0.75);
+                const dm = winMat();
+                hb(0.42, 0.42, 0.05, dm, 0, H + cfg.roofH * 0.42, D / 2 - 0.31);
+            }
+            // orange string lights along the porch roof edge
+            for (let i = 0; i < 11; i++) {
+                const om = lm(0x3a1a00, 0xff7418, 1.6);
+                const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), om);
+                bulb.position.set(-W / 2 + 0.25 + i * ((W - 0.5) / 10),
+                    2.3 - Math.sin((i / 10) * Math.PI) * 0.12, D / 2 + pD + 0.1);
+                g.add(bulb);
+                tlOrange.push({ m: om, ph: i * 0.6 });
+            }
+            return { g, W, D, pD };
+        };
+
+        // ── Ten houses, five a side ──
+        const tlPalette = [
+            { siding: 0xb8ada0, door: 0x7a2418, roofH: 1.5, w: 5.0, stories: 2, dormer: true },
+            { siding: 0x8fa4a8, door: 0x2a3a5a, roofH: 1.3, w: 4.4, stories: 2, dormer: false },
+            { siding: 0xc9bda6, door: 0x3a5a3a, roofH: 1.6, w: 5.4, stories: 2, dormer: true },
+            { siding: 0x9a8f9c, door: 0x5a2a4a, roofH: 1.35, w: 4.6, stories: 2, dormer: false },
+            { siding: 0xa8b09a, door: 0x6a4418, roofH: 1.45, w: 4.8, stories: 2, dormer: true },
+        ];
+        const tlStyles = ['graveyard', 'spiders', 'witch', 'classic', 'inflatable'];
+        const tlSway = [];      // inflatables that breathe
+        const tlHang = [];      // ghosts hanging from trees
+        const tlCauldrons = [];
+
+        [-1, 1].forEach((side, si) => {
+            for (let i = 0; i < 5; i++) {
+                const z = -TL.span * 2 + i * TL.span;
+                const cfg = tlPalette[(i + si * 2) % 5];
+                const h = tlHouse(side, z, cfg);
+                const style = tlStyles[(i + si * 3) % 5];
+                // yard coordinate helpers (world space)
+                const yx = (t2) => side * (TL.lawn - t2);        // t2: distance in from lawn edge
+                const front = side * (TL.houseX - (4.2 / 2 + 1.5));  // porch front edge
+
+                // walkway from sidewalk to porch
+                for (let k = 0; k < 6; k++) {
+                    const wxp = side * (TL.curb + 0.4 + k * 0.72);
+                    box(0.62, 0.02, 0.62, tlM.walk, wxp, 0.02, z);
+                }
+                // a tree on most lawns
+                if (i !== 2) {
+                    const tx2 = yx(3.4), tz2 = z + (i % 2 ? 2.1 : -2.2);
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 3.0, 7), tlM.bark);
+                    trunk.position.set(tx2, 1.5, tz2);
+                    trunk.castShadow = trunk.receiveShadow = true;
+                    addTarget.add(trunk);
+                    for (let b2 = 0; b2 < 5; b2++) {
+                        const a2 = (b2 / 5) * Math.PI * 2;
+                        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.09, 1.5, 5), tlM.bark);
+                        br.position.set(tx2 + Math.sin(a2) * 0.5, 2.9 + (b2 % 2) * 0.35, tz2 + Math.cos(a2) * 0.5);
+                        br.rotation.set(Math.cos(a2) * 0.75, 0, -Math.sin(a2) * 0.75);
+                        br.castShadow = true;
+                        addTarget.add(br);
+                    }
+                    if (Math.random() < 0.6) {   // a ghost swinging from a branch
+                        const gh = tlGhost(tx2 + 0.6, 2.5, tz2 + 0.4, 0.24);
+                        tlHang.push({ g: gh, y0: 2.5, ph: Math.random() * 9 });
+                    }
+                }
+                // mailbox + a pumpkin or two on the steps
+                box(0.07, 0.9, 0.07, tlM.bark, side * (TL.curb + 0.55), 0.45, z - 1.5);
+                box(0.16, 0.2, 0.34, tlM.dark, side * (TL.curb + 0.55), 1.0, z - 1.5);
+                tlPumpkin(front + side * 0.3, 0.42, z - 0.55, 0.17, true);
+                tlPumpkin(front + side * 0.3, 0.42, z + 0.55, 0.14, Math.random() < 0.6);
+
+                // ── per-house decoration style ──
+                if (style === 'graveyard') {
+                    for (let k = 0; k < 7; k++) {
+                        tlGrave(yx(0.6 + Math.random() * 3.0), z - 2.2 + Math.random() * 4.4, Math.random());
+                    }
+                    tlSkeleton(yx(1.6), z - 1.4, side > 0 ? -1.4 : 1.4, 'wave');
+                    tlSkeleton(yx(2.8), z + 1.6, side > 0 ? -1.9 : 1.9, 'stand');
+                    for (let k = 0; k < 9; k++) {   // wrought-iron fence
+                        box(0.05, 0.62, 0.05, tlM.dark, yx(3.6), 0.31, z - 2.6 + k * 0.65);
+                    }
+                    box(0.05, 0.05, 5.4, tlM.dark, yx(3.6), 0.58, z);
+                } else if (style === 'spiders') {
+                    tlWeb(front + side * 0.05, 2.05, z - 1.7, 1.5, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+                    tlWeb(front + side * 0.05, 2.05, z + 1.7, 1.5, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+                    const sp2 = tlSpider(yx(2.4), 1.5, z, 0.42);
+                    tlSway.push({ g: sp2, y0: 1.5, ph: Math.random() * 9, amp: 0.18 });
+                    for (let k = 0; k < 5; k++) {
+                        const sm = tlSpider(yx(0.9 + Math.random() * 2.7), 0.14, z - 2 + Math.random() * 4, 0.12);
+                        sm.rotation.y = Math.random() * 3;
+                    }
+                } else if (style === 'witch') {
+                    const cx9 = yx(2.2), cz9 = z + 0.4;
+                    const pot = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 9), tlM.dark);
+                    pot.scale.y = 0.8;
+                    pot.position.set(cx9, 0.4, cz9);
+                    pot.castShadow = true;
+                    addTarget.add(pot);
+                    const brew2 = new THREE.Mesh(new THREE.CircleGeometry(0.29, 16), lm(0x2a4a14, 0x52c832, 1.0));
+                    brew2.rotation.x = -Math.PI / 2;
+                    brew2.position.set(cx9, 0.63, cz9);
+                    addTarget.add(brew2);
+                    const cl2 = new THREE.PointLight(0x52c832, 1.6, 5);
+                    cl2.position.set(cx9, 1.0, cz9);
+                    addTarget.add(cl2);
+                    tlCauldrons.push({ l: cl2, m: brew2.material, ph: Math.random() * 9 });
+                    for (let k = 0; k < 3; k++) {   // logs under the pot
+                        box(0.5, 0.07, 0.07, tlM.bark, cx9, 0.06, cz9, 0, k * 1.0, 0);
+                    }
+                    // the witch herself
+                    const wg = new THREE.Group();
+                    wg.position.set(yx(3.3), 0, z - 1.2);
+                    wg.rotation.y = side > 0 ? -1.7 : 1.7;
+                    addTarget.add(wg);
+                    const robe = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.25, 9), lm(0x1e1826, 0, 0, 0.95));
+                    robe.position.y = 0.62;
+                    robe.castShadow = true;
+                    wg.add(robe);
+                    const wh = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), lm(0x8ab04a, 0, 0, 0.9));
+                    wh.position.y = 1.36;
+                    wg.add(wh);
+                    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.55, 9), lm(0x1e1826, 0, 0, 0.95));
+                    hat.position.y = 1.72;
+                    hat.castShadow = true;
+                    wg.add(hat);
+                    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 10), lm(0x1e1826, 0, 0, 0.95));
+                    brim.position.y = 1.46;
+                    wg.add(brim);
+                    for (let k = 0; k < 4; k++) tlGrave(yx(1.0 + k * 0.9), z + 2.4, 0);
+                } else if (style === 'classic') {
+                    for (let k = 0; k < 8; k++)
+                        tlPumpkin(yx(0.7 + Math.random() * 2.9), 0, z - 2.4 + Math.random() * 4.8,
+                            0.14 + Math.random() * 0.13, Math.random() < 0.5);
+                    tlHayBale(yx(1.5), z - 1.9, 0.3);
+                    tlHayBale(yx(2.3), z - 1.6, 1.1);
+                    for (let k = 0; k < 6; k++) tlCornStalk(yx(0.8 + Math.random() * 0.6), z + 1.4 + k * 0.4);
+                    // scarecrow
+                    const scz = z + 0.6, scx = yx(2.6);
+                    box(0.09, 1.8, 0.09, tlM.bark, scx, 0.9, scz);
+                    box(1.3, 0.08, 0.08, tlM.bark, scx, 1.42, scz, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
+                    const sc = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.3), lm(0x8a5a2a, 0, 0, 0.95));
+                    sc.position.set(scx, 1.2, scz);
+                    sc.castShadow = true;
+                    addTarget.add(sc);
+                    tlPumpkin(scx, 1.62, scz, 0.19, true);
+                } else {   // inflatable
+                    const big = new THREE.Group();
+                    big.position.set(yx(2.6), 0, z);
+                    addTarget.add(big);
+                    const kind = i % 2;
+                    if (kind === 0) {   // giant ghost
+                        const bb3 = new THREE.Mesh(new THREE.SphereGeometry(0.95, 14, 11), tlM.sheet);
+                        bb3.position.y = 1.5;
+                        bb3.castShadow = true;
+                        big.add(bb3);
+                        const bd = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.7, 12), tlM.sheet);
+                        bd.position.y = 0.72;
+                        bd.castShadow = true;
+                        big.add(bd);
+                        [[-0.32], [0.32]].forEach(([ex]) => {
+                            const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 6), tlM.dark);
+                            e2.position.set(ex, 1.62, -0.82);
+                            big.add(e2);
+                        });
+                        const mo2 = new THREE.Mesh(new THREE.SphereGeometry(0.19, 7, 6), tlM.dark);
+                        mo2.position.set(0, 1.24, -0.86);
+                        big.add(mo2);
+                    } else {           // giant jack-o'-lantern
+                        const bb3 = new THREE.Mesh(new THREE.SphereGeometry(1.15, 14, 11), tlM.pump);
+                        bb3.scale.y = 0.8;
+                        bb3.position.y = 1.0;
+                        bb3.castShadow = true;
+                        big.add(bb3);
+                        const stm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.4, 7), tlM.stem);
+                        stm.position.y = 2.0;
+                        big.add(stm);
+                        const fm2 = lm(0x3a1400, 0xffb838, 1.9);
+                        tlFlames.push({ m: fm2, ph: Math.random() * 9, base: 1.8 });
+                        [[-0.42], [0.42]].forEach(([ex]) => {
+                            const e3 = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.34, 3), fm2);
+                            e3.position.set(ex, 1.28, -1.0);
+                            e3.rotation.x = -Math.PI / 2;
+                            big.add(e3);
+                        });
+                        const gm = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.18, 0.06), fm2);
+                        gm.position.set(0, 0.78, -1.05);
+                        big.add(gm);
+                    }
+                    tlSway.push({ g: big, y0: 0, ph: Math.random() * 9, amp: 0.05, rot: true });
+                    for (let k = 0; k < 4; k++)
+                        tlPumpkin(yx(0.9 + Math.random() * 1.2), 0, z - 2 + Math.random() * 4, 0.15, true);
+                }
+            }
+        });
+
+        // ── Street lamps ──
+        const tlLampLights = [];
+        [-14, 0, 14].forEach((lz, i) => {
+            const sd3 = i % 2 ? 1 : -1;
+            const lx2 = sd3 * (TL.curb + 0.3);
+            box(0.13, 4.4, 0.13, tlM.dark, lx2, 2.2, lz);
+            box(0.9, 0.09, 0.09, tlM.dark, lx2 - sd3 * 0.45, 4.35, lz);
+            const hd = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.34, 8), tlM.dark);
+            hd.position.set(lx2 - sd3 * 0.85, 4.2, lz);
+            addTarget.add(hd);
+            const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), lm(0x4a3a10, 0xffcb70, 1.8));
+            glow.position.set(lx2 - sd3 * 0.85, 4.0, lz);
+            addTarget.add(glow);
+            const sl = new THREE.PointLight(0xffbe66, 2.4, 13);
+            sl.position.set(lx2 - sd3 * 0.85, 3.9, lz);
+            addTarget.add(sl);
+            tlLampLights.push(sl);
+        });
+
+        // ── Trick-or-treaters working the street ──
+        const tlKids = [];
+        const kidCostumes = [
+            { robe: 0xe8e6de, hat: null, name: 'ghost' },
+            { robe: 0xe07818, hat: 0x4a5a2a, name: 'pumpkin' },
+            { robe: 0x1e1826, hat: 0x1e1826, name: 'witch' },
+            { robe: 0x24242a, hat: null, name: 'skeleton' },
+            { robe: 0x8a2028, hat: null, name: 'vampire' },
+        ];
+        for (let i = 0; i < 7; i++) {
+            const cs = kidCostumes[i % kidCostumes.length];
+            const g = new THREE.Group();
+            addTarget.add(g);
+            const body = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 8), lm(cs.robe, 0, 0, 0.95));
+            body.position.y = 0.25;
+            body.castShadow = true;
+            g.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6),
+                lm(cs.name === 'skeleton' ? 0xe4e0d2 : cs.name === 'ghost' ? 0xe8e6de : 0xc08a5c, 0, 0, 0.9));
+            head.position.y = 0.58;
+            head.castShadow = true;
+            g.add(head);
+            if (cs.hat) {
+                const ht = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 8), lm(cs.hat, 0, 0, 0.95));
+                ht.position.y = 0.78;
+                g.add(ht);
+            }
+            if (cs.name === 'skeleton') {
+                [-0.035, 0.035].forEach(ex => {
+                    const sk = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.035, 0.015), tlM.dark);
+                    sk.position.set(ex, 0.6, -0.09);
+                    g.add(sk);
+                });
+            }
+            const pail = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.1, 8), tlM.pump);
+            pail.position.set(0.16, 0.3, 0.02);
+            g.add(pail);
+            const side2 = i % 2 ? 1 : -1;
+            tlKids.push({
+                g, side: side2, z: -18 + i * 5.4, sp: 0.7 + Math.random() * 0.5,
+                dir: i % 3 === 0 ? -1 : 1, ph: Math.random() * 9,
+            });
+        }
+
+        // ── Low ground fog + bats ──
+        const FOG_N = 150;
+        const tlFogPos = new Float32Array(FOG_N * 3);
+        const tlFogBase = [];
+        for (let i = 0; i < FOG_N; i++) {
+            const fx6 = (Math.random() - 0.5) * 30, fz6 = (Math.random() - 0.5) * 40;
+            tlFogBase.push(fx6, fz6, Math.random());
+            tlFogPos[i * 3] = fx6; tlFogPos[i * 3 + 1] = 0.3; tlFogPos[i * 3 + 2] = fz6;
+        }
+        const tlFogGeo = new THREE.BufferGeometry();
+        tlFogGeo.setAttribute('position', new THREE.BufferAttribute(tlFogPos, 3));
+        // soft round sprite — raw Points render as hard squares otherwise
+        const puffCv = mkCanvas(64, 64);
+        {
+            const pg2 = puffCv.getContext('2d');
+            const pgr = pg2.createRadialGradient(32, 32, 0, 32, 32, 32);
+            pgr.addColorStop(0, 'rgba(255,255,255,0.85)');
+            pgr.addColorStop(0.45, 'rgba(255,255,255,0.30)');
+            pgr.addColorStop(1, 'rgba(255,255,255,0)');
+            pg2.fillStyle = pgr;
+            pg2.fillRect(0, 0, 64, 64);
+        }
+        const puffTex = new THREE.CanvasTexture(puffCv);
+        const tlFogMat = new THREE.PointsMaterial({
+            color: 0xaebccc, size: 2.9, map: puffTex, transparent: true, opacity: 0.075,
+            sizeAttenuation: true, depthWrite: false, blending: THREE.NormalBlending,
+        });
+        const tlFog = new THREE.Points(tlFogGeo, tlFogMat);
+        addTarget.add(tlFog);
+        const tlBats = [];
+        for (let i = 0; i < 9; i++) {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.13), tlM.dark);
+            g.add(body);
+            const mkBat = sd4 => {
+                const wg2 = new THREE.BoxGeometry(0.22, 0.012, 0.1);
+                wg2.translate(sd4 * 0.11, 0, 0);
+                const w = new THREE.Mesh(wg2, tlM.dark);
+                g.add(w);
+                return w;
+            };
+            addTarget.add(g);
+            tlBats.push({
+                g, wl: mkBat(-1), wr: mkBat(1),
+                r: 4 + Math.random() * 7, h: 4.5 + Math.random() * 2.5,
+                sp: 0.25 + Math.random() * 0.3, ph: Math.random() * 9,
+                cz: (Math.random() - 0.5) * 20,
+            });
+        }
+
+        // ── Clark in a little bat costume, on his porch blanket ──
+        box(0.62, 0.026, 0.74, lm(0x3a2a4a, 0, 0, 1.0), BEDX, 0.014, BEDZ);
+        box(0.5, 0.018, 0.6, lm(0xe07818, 0, 0, 1.0), BEDX, 0.034, BEDZ);
+
+        // ── Moon + sky ──
+        const tlMoonLight = new THREE.DirectionalLight(0x9fb0d8, 0);
+        tlMoonLight.castShadow = true;
+        tlMoonLight.shadow.mapSize.set(2048, 2048);
+        tlMoonLight.shadow.camera.left = -18; tlMoonLight.shadow.camera.right = 18;
+        tlMoonLight.shadow.camera.top = 18;   tlMoonLight.shadow.camera.bottom = -18;
+        tlMoonLight.shadow.camera.near = 1;   tlMoonLight.shadow.camera.far = 60;
+        tlMoonLight.shadow.bias = -0.0015;
+        tlMoonLight.position.set(-14, 20, -18);
+        addTarget.add(tlMoonLight);
+        addTarget.add(tlMoonLight.target);
+        const tlMoon = new THREE.Mesh(new THREE.CircleGeometry(1.5, 26),
+            new THREE.MeshBasicMaterial({ color: 0xf0e8c8, fog: false }));
+        tlMoon.position.set(-16, 15, -26);
+        addTarget.add(tlMoon);
+        const tlSkyDeep = new THREE.Color(0x0a0a16);
+        const tlSkyDusk = new THREE.Color(0x2e2440);
+        const tlSkyCol  = new THREE.Color();
+        let tlNextOwl = 6;
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -5063,6 +5764,7 @@
             const isApiary    = th === 'apiary';
             const isTavern    = th === 'tavern';
             const isVideo     = th === 'video';
+            const isTillson   = th === 'tillson';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -5072,6 +5774,7 @@
             apiaryGroup.visible    = isApiary;
             tavernGroup.visible    = isTavern;
             videoGroup.visible     = isVideo;
+            tillsonGroup.visible   = isTillson;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -5102,13 +5805,18 @@
                 document.getElementById('time-slider').value = 0.75;
             } else if (isTavern) {
                 document.getElementById('lamp-label').textContent = 'hearth';
+            } else if (isTillson) {
+                document.getElementById('lamp-label').textContent = 'decorations';
+                document.getElementById('time-label').textContent = 'time';
+                params.time = 0.25;
+                document.getElementById('time-slider').value = 0.25;
             } else if (isVideo) {
                 document.getElementById('lamp-label').textContent = 'neon';
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
-            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo));
+            document.getElementById('sound-btn').classList.toggle('hidden', !(isRiver || isLH || isApiary || isTavern || isVideo || isTillson));
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
         };
@@ -5338,6 +6046,30 @@
             o.start(st); vib.start(st);
             o.stop(st + 1.8); vib.stop(st + 1.8);
         };
+        // an owl up in the maples: two soft breathy hoots
+        const owl = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            [0, 0.62].forEach((off, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine';
+                const f0 = i ? 300 : 340;
+                o.frequency.setValueAtTime(f0, st + off);
+                o.frequency.linearRampToValueAtTime(f0 * 0.86, st + off + 0.32);
+                const vib2 = audioCtx.createOscillator();
+                vib2.frequency.value = 11;
+                const vg2 = audioCtx.createGain();
+                vg2.gain.value = 5;
+                vib2.connect(vg2).connect(o.frequency);
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0, st + off);
+                g.gain.linearRampToValueAtTime(i ? 0.05 : 0.038, st + off + 0.09);
+                g.gain.exponentialRampToValueAtTime(0.001, st + off + 0.42);
+                o.connect(g).connect(audioCtx.destination);
+                o.start(st + off); vib2.start(st + off);
+                o.stop(st + off + 0.45); vib2.stop(st + off + 0.45);
+            });
+        };
         const soundBtn = document.getElementById('sound-btn');
         soundBtn.addEventListener('click', () => {
             soundOn = !soundOn;
@@ -5441,7 +6173,7 @@
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -6271,6 +7003,87 @@
                     vNextRewind = t + 11 + Math.random() * 14;
                     rewind();
                 }
+            } else if (theme === 'tillson') {
+                // ── Tillson St: deep night → last of the dusk ──
+                const td = params.time;
+                tlSkyCol.copy(tlSkyDeep).lerp(tlSkyDusk, td);
+                scene.background.copy(tlSkyCol);
+                scene.fog.color.copy(tlSkyCol).multiplyScalar(1.05);
+                scene.fog.density = 0.020 - td * 0.006;
+                hemiLight.intensity = (0.8 + td * 1.0) * b;
+                hemiLight.color.copy(tlSkyCol).lerp(new THREE.Color(0x6a7ab0), 0.5);
+                hemiLight.groundColor.setHex(0x161a20);
+                fillLight.intensity = (0.25 + td * 0.3) * b;
+                fillLight.color.setHex(0x8a9ac8);
+                tlMoonLight.intensity = (1.9 - td * 0.5) * b;
+                tlMoon.material.opacity = 1;
+
+                // decorations slider drives every glowing prop
+                const deco = params.lampBrightness;
+                for (const f4 of tlFlames) {
+                    f4.m.emissiveIntensity = deco * f4.base *
+                        (0.75 + Math.sin(t * 11 + f4.ph) * 0.16 + Math.sin(t * 27 + f4.ph * 2) * 0.09);
+                }
+                for (const w4 of tlWindows) {
+                    // most windows hold steady; a few flicker like a TV is on
+                    w4.m.emissiveIntensity = w4.base * (0.9 + Math.sin(t * 0.7 + w4.ph) * 0.06)
+                        + (Math.sin(w4.ph * 5) > 0.8 ? Math.sin(t * 14 + w4.ph) * 0.25 : 0);
+                }
+                for (const o3 of tlOrange) {
+                    o3.m.emissiveIntensity = deco * (1.2 + Math.sin(t * 2.2 - o3.ph) * 0.5);
+                }
+                for (const lp2 of tlLampLights) lp2.intensity = 2.2 * b;
+                for (const c7 of tlCauldrons) {
+                    const pulse2 = 0.75 + Math.sin(t * 2.6 + c7.ph) * 0.22 + Math.sin(t * 6.3) * 0.1;
+                    c7.l.intensity = deco * 2.2 * pulse2 * b;
+                    c7.m.emissiveIntensity = deco * 1.2 * pulse2;
+                }
+                // inflatables breathe, hung ghosts swing
+                for (const sw of tlSway) {
+                    sw.g.position.y = sw.y0 + Math.sin(t * 0.9 + sw.ph) * sw.amp;
+                    if (sw.rot) {
+                        sw.g.rotation.z = Math.sin(t * 0.7 + sw.ph) * 0.045;
+                        sw.g.scale.set(1 + Math.sin(t * 1.3 + sw.ph) * 0.02, 1 + Math.sin(t * 1.1 + sw.ph) * 0.03, 1);
+                    }
+                }
+                for (const hg3 of tlHang) {
+                    hg3.g.position.y = hg3.y0 + Math.sin(t * 1.2 + hg3.ph) * 0.14;
+                    hg3.g.rotation.z = Math.sin(t * 0.8 + hg3.ph) * 0.2;
+                    hg3.g.rotation.y = Math.sin(t * 0.5 + hg3.ph) * 0.5;
+                }
+                // fog rolls slowly down the street
+                const fp2 = tlFog.geometry.attributes.position.array;
+                for (let i = 0; i < FOG_N; i++) {
+                    const dr2 = tlFogBase[i * 3 + 2];
+                    fp2[i * 3] = tlFogBase[i * 3] + Math.sin(t * 0.15 + dr2 * 9) * 1.4;
+                    fp2[i * 3 + 1] = 0.3 + Math.sin(t * 0.5 + dr2 * 6) * 0.07;
+                    fp2[i * 3 + 2] = ((tlFogBase[i * 3 + 1] + t * (0.25 + dr2 * 0.3) + 22) % 44) - 22;
+                }
+                tlFog.geometry.attributes.position.needsUpdate = true;
+                // bats wheel over the rooftops
+                for (const bt4 of tlBats) {
+                    const a7 = t * bt4.sp + bt4.ph;
+                    bt4.g.position.set(Math.cos(a7) * bt4.r, bt4.h + Math.sin(t * 1.6 + bt4.ph) * 0.5,
+                        bt4.cz + Math.sin(a7) * bt4.r * 0.8);
+                    bt4.g.rotation.y = -a7 + Math.PI / 2;
+                    const fl4 = Math.sin(t * 15 + bt4.ph) * 0.9;
+                    bt4.wl.rotation.z = fl4;
+                    bt4.wr.rotation.z = -fl4;
+                }
+                // trick-or-treaters work their way along the sidewalks
+                for (const kd of tlKids) {
+                    kd.z += kd.sp * kd.dir * dt;
+                    if (kd.z > 22) kd.z = -22;
+                    if (kd.z < -22) kd.z = 22;
+                    kd.g.position.set(kd.side * (TL.curb - 0.05), 0.155 + Math.abs(Math.sin(t * 5 + kd.ph)) * 0.035, kd.z);
+                    kd.g.rotation.y = kd.dir > 0 ? 0 : Math.PI;
+                    kd.g.rotation.z = Math.sin(t * 5 + kd.ph) * 0.05;
+                }
+                // an owl somewhere up in the maples
+                if (soundOn && audioCtx && t > tlNextOwl) {
+                    tlNextOwl = t + 14 + Math.random() * 16;
+                    owl();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -6281,7 +7094,10 @@
             // Storm wind gusts at the lighthouse, swelling with the slider
             if (windGain) {
                 const gust = 0.75 + Math.sin(t * 0.6) * 0.15 + Math.sin(t * 1.7) * 0.10;
-                const wt = (soundOn && theme === 'lighthouse') ? (0.06 + params.time * 0.30) * gust : 0;
+                const wt = soundOn
+                    ? (theme === 'lighthouse' ? (0.06 + params.time * 0.30) * gust
+                        : theme === 'tillson' ? 0.055 * gust : 0)
+                    : 0;
                 windGain.gain.value += (wt - windGain.gain.value) * Math.min(1, dt * 2);
             }
             // The apiary hums — swells slightly as bees pass near
@@ -6422,6 +7238,7 @@
                 theme === 'lighthouse' ? 0.45 :
                 theme === 'tavern' ? 0.5 :
                 theme === 'video' ? 0.35 :
+                theme === 'tillson' ? 0.6 :
                 0.08 + (1 - params.time) * 0.3;
 
             controls.update();
