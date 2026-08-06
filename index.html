@@ -1278,6 +1278,9 @@
         const WZ = -2.74;
         const NZ = WZ + 0.06; // neon tube plane — slightly in front of wall
 
+        // Every shape + light gets tracked so the whole sign can hue-cycle on click
+        const neonMeshes = [];
+        const neonLightsArr = [];
         // Neon stroke (thin glowing box)
         const neon = (w,h,d,color,x,y,z=NZ,rz=0) => {
             const m = new THREE.Mesh(
@@ -1287,6 +1290,7 @@
             m.position.set(x,y,z);
             m.rotation.z = rz;
             addTarget.add(m);
+            neonMeshes.push(m);
             return m;
         };
         // Neon ring (torus)
@@ -1298,6 +1302,7 @@
             m.position.set(x,y,z);
             m.rotation.set(rx,ry,0);
             addTarget.add(m);
+            neonMeshes.push(m);
             return m;
         };
         // Cast colored light on the wall behind each shape
@@ -1305,6 +1310,8 @@
             const L = new THREE.PointLight(color,intensity,distance);
             L.position.set(x, y, NZ + 0.18);
             addTarget.add(L);
+            neonLightsArr.push(L);
+            return L;
         };
 
         // Color palette
@@ -1354,6 +1361,7 @@
             const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), dotMat);
             dot.position.set(dx, dy, NZ);
             addTarget.add(dot);
+            neonMeshes.push(dot);
         });
         neonLight(C_LIME, 0, 3.40, 1.5, 2.4);
 
@@ -2245,12 +2253,14 @@
                 cone.castShadow = cone.receiveShadow = true;
                 addTarget.add(cone);
             });
+            return trunk;
         };
         // Ring sits beyond the default orbit radius (~6) so the camera never clips a tree
+        const forestTreeTrunks = [];
         for (let i = 0; i < 26; i++) {
             const a = (i / 26) * Math.PI * 2 + Math.random() * 0.4;
             const r = 6.8 + Math.random() * 2.2;
-            pine(Math.sin(a) * r, Math.cos(a) * r, 0.9 + Math.random() * 1.3);
+            forestTreeTrunks.push(pine(Math.sin(a) * r, Math.cos(a) * r, 0.9 + Math.random() * 1.3));
         }
 
         // ── Rocks, fallen log, stump, mushrooms ──
@@ -2275,6 +2285,7 @@
         const stumpTop = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.012, 8), lm(0x8a6a42));
         stumpTop.position.set(-2.75, 0.266, 0.9);
         addTarget.add(stumpTop);
+        const mushroomCaps = [];
         [[-2.55, 1.08], [-2.92, 0.70], [2.5, 2.12], [2.95, 2.62], [1.95, -2.6]].forEach(([mx, mz], i) => {
             const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.05, 5), lm(0xc9bfa8));
             stem.position.set(mx, 0.025, mz);
@@ -2283,6 +2294,7 @@
             cap.position.set(mx, 0.062, mz);
             cap.castShadow = true;
             addTarget.add(cap);
+            mushroomCaps.push(cap);
         });
 
         // ── Bushes + grass tufts ──
@@ -3066,6 +3078,7 @@
             g.traverse(o => { o.castShadow = true; });
             addTarget.add(g);
             spFloatItems.push(g);
+            return g;
         };
         floatItem(g => {   // silver drink pouch with straw
             g.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.035), lm(0xb8bcc4, 0, 0, 0.35, 0.8)));
@@ -3091,7 +3104,7 @@
             jaw.position.y = 0.075;
             g.add(jaw);
         }, -0.8, 2.1, 2.2);
-        floatItem(g => {   // Clark's red ball, drifting out of reach
+        const clarkBallItem = floatItem(g => {   // Clark's red ball, drifting out of reach
             g.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), lm(0xc83a28, 0, 0, 0.6)));
         }, 0.4, 1.1, 2.8);
 
@@ -4015,9 +4028,11 @@
 
         // ── Langstroth hives: stand, brood box, painted supers, tin lid ──
         const hiveEntrances = [];
+        const hiveGroups = [];
         const hivePaints = [0xe8e2d4, 0xc8d8e0, 0xe4d8b0, 0xd4e0c8, 0xe0ccc0];
         const hive = (hx, hz, ry, tint, supers) => {
             const g = new THREE.Group();
+            hiveGroups.push(g);
             g.position.set(hx, 0, hz);
             g.rotation.y = ry;
             addTarget.add(g);
@@ -4060,6 +4075,7 @@
         // ── Wildflowers: stems with bright blossom heads ──
         const flowerCols = [0xe8e0f0, 0xf0d048, 0xe07898, 0xa8b8e8, 0xf0f0e8, 0xe89040];
         const flowerSpots = [];
+        const flowerBlooms = [];
         for (let i = 0; i < 46; i++) {
             const fx = -8 + Math.random() * 16, fz = -1 + Math.random() * 9;
             if (Math.hypot(fx, fz) < 1.6) continue;   // keep the desk clearing open
@@ -4073,6 +4089,7 @@
             bloom.castShadow = true;
             addTarget.add(bloom);
             flowerSpots.push([fx, fh + 0.05, fz]);
+            flowerBlooms.push(bloom);
         }
 
         // ── Blossoming orchard trees + a rail fence behind the hives ──
@@ -4122,7 +4139,7 @@
         bkP(0.13, 0.5, 0.14, suitMat, 0.08, 0.25, 0);
         bkP(0.32, 0.42, 0.20, suitMat, 0, 0.70, 0);      // suit torso
         bkP(0.10, 0.34, 0.10, suitMat, -0.21, 0.62, 0.02, 0.5, 0.15);  // arms, one reaching
-        bkP(0.10, 0.34, 0.10, suitMat, 0.22, 0.60, -0.02, 0.9, -0.1);
+        const bkArmR = bkP(0.10, 0.34, 0.10, suitMat, 0.22, 0.60, -0.02, 0.9, -0.1);
         bkP(0.19, 0.20, 0.19, suitMat, 0, 1.03, 0);      // hood
         bkP(0.15, 0.15, 0.02, veilMat, 0, 1.02, 0.095);  // dark veil screen
         bkP(0.06, 0.06, 0.06, lm(0xc8a860, 0, 0, 0.8), 0.24, 0.44, 0.14); // glove
@@ -4459,7 +4476,7 @@
             const jl = new THREE.PointLight(0xff9830, 0.6, 1.6);
             jl.position.set(0, s3 * 0.85, s3 * 0.4);
             g.add(jl);
-            jacks.push({ l: jl, ph: Math.random() * 9 });
+            jacks.push({ l: jl, ph: Math.random() * 9, g });
         };
         jackOLantern(2.6, -2.3, 0.2, -0.7);
         jackOLantern(-2.6, -0.4, 0.16, 1.1);
@@ -4785,6 +4802,7 @@
         // ── VHS shelving: wall runs + a center gondola, spines jittered ──
         const shelfDk = lm(0x2a2c30, 0, 0, 0.7);
         const tapeCols = [0x1a1a1e, 0x24242a, 0x8a2020, 0x20408a, 0x207a40, 0x6a3a9a, 0xc8a020, 0x18181c, 0x30303a];
+        const vhsRuns = [];
         const vhsRun = (x, z, ry4, len, shelves) => {
             const g = new THREE.Group();
             g.position.set(x, 0, z);
@@ -4794,6 +4812,7 @@
             back.position.y = 1.0;
             back.castShadow = back.receiveShadow = true;
             g.add(back);
+            const tapes = [];
             for (let s = 0; s < shelves; s++) {
                 const sy2 = 0.35 + s * 0.45;
                 const shelf = new THREE.Mesh(new THREE.BoxGeometry(len, 0.03, 0.26), shelfDk);
@@ -4808,9 +4827,12 @@
                     tape.position.set(tx3, sy2 + 0.11, 0.1);
                     tape.rotation.z = Math.random() < 0.06 ? 0.12 : 0;
                     g.add(tape);
+                    tape.userData.homeX = tx3;
+                    tapes.push(tape);
                     tx3 += 0.034;
                 }
             }
+            vhsRuns.push({ back, tapes });
         };
         vhsRun(-3.45, -1.4, Math.PI / 2, 2.4, 4);   // ACTION
         vhsRun(-3.45, 0.6, Math.PI / 2, 1.4, 4);    // COMEDY
@@ -5103,7 +5125,7 @@
             addTarget.add(st);
             if (carved) {
                 const fm = lm(0x3a1400, 0xffb838, 1.8);
-                tlFlames.push({ m: fm, ph: Math.random() * 9, base: 1.7 });
+                tlFlames.push({ m: fm, ph: Math.random() * 9, base: 1.7, mesh: p });
                 const fz = s * 0.88;
                 [[-0.36, 0.16], [0.36, 0.16]].forEach(([ex, ey]) => {
                     const eye = new THREE.Mesh(new THREE.ConeGeometry(s * 0.18, s * 0.3, 3), fm);
@@ -5445,7 +5467,7 @@
                     const cl2 = new THREE.PointLight(0x52c832, 1.6, 5);
                     cl2.position.set(cx9, 1.0, cz9);
                     addTarget.add(cl2);
-                    tlCauldrons.push({ l: cl2, m: brew2.material, ph: Math.random() * 9 });
+                    tlCauldrons.push({ l: cl2, m: brew2.material, ph: Math.random() * 9, pot });
                     for (let k = 0; k < 3; k++) {   // logs under the pot
                         box(0.5, 0.07, 0.07, tlM.bark, cx9, 0.06, cz9, 0, k * 1.0, 0);
                     }
@@ -6070,6 +6092,29 @@
                 o.stop(st + off + 0.45); vib2.stop(st + off + 0.45);
             });
         };
+        // a witch's cackle: three descending warbly blips
+        const cackle = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            [0, 0.14, 0.28].forEach((off, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sawtooth';
+                const f0 = 620 - i * 90;
+                o.frequency.setValueAtTime(f0, st + off);
+                o.frequency.setValueAtTime(f0 * 0.7, st + off + 0.05);
+                o.frequency.setValueAtTime(f0 * 0.85, st + off + 0.09);
+                const lp5 = audioCtx.createBiquadFilter();
+                lp5.type = 'lowpass';
+                lp5.frequency.value = 1400;
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0, st + off);
+                g.gain.linearRampToValueAtTime(0.045, st + off + 0.015);
+                g.gain.exponentialRampToValueAtTime(0.001, st + off + 0.16);
+                o.connect(lp5).connect(g).connect(audioCtx.destination);
+                o.start(st + off);
+                o.stop(st + off + 0.18);
+            });
+        };
         const soundBtn = document.getElementById('sound-btn');
         soundBtn.addEventListener('click', () => {
             soundOn = !soundOn;
@@ -6133,40 +6178,579 @@
             };
         };
 
+        // ═══════════════════════════════
+        //  INTERACT FRAMEWORK — hover glow + click registry, shared by
+        //  every world below. addInteract() registers a mesh/group as
+        //  clickable; addEffect() runs a one-off timed animation.
+        // ═══════════════════════════════
+        const interactRecords = [];
+        const interactMeshMap = new Map();
+        const addInteract = (objOrArray, opts) => {
+            const roots = Array.isArray(objOrArray) ? objOrArray : [objOrArray];
+            const meshes = [];
+            roots.forEach(o => o.traverse(c => { if (c.isMesh) meshes.push(c); }));
+            const box3 = new THREE.Box3();
+            meshes.forEach(m => box3.expandByObject(m));
+            const sphere = box3.isEmpty() ? { radius: 0.14 } : box3.getBoundingSphere(new THREE.Sphere());
+            const rec = {
+                meshes, theme: opts.theme || 'global', onClick: opts.onClick,
+                radius: Math.max(0.14, sphere.radius),
+                followObj: opts.followObj || roots[0],
+            };
+            interactRecords.push(rec);
+            meshes.forEach(m => interactMeshMap.set(m, rec));
+            return rec;
+        };
+        const activeEffects = [];
+        const addEffect = fn => activeEffects.push(fn);
+
+        // Soft round halo used to highlight whatever's under the cursor
+        const hoverGlowCv = mkCanvas(64, 64);
+        {
+            const hgc = hoverGlowCv.getContext('2d');
+            const hgr = hgc.createRadialGradient(32, 32, 0, 32, 32, 32);
+            hgr.addColorStop(0, 'rgba(255,232,160,0.95)');
+            hgr.addColorStop(0.45, 'rgba(255,214,120,0.45)');
+            hgr.addColorStop(1, 'rgba(255,214,120,0)');
+            hgc.fillStyle = hgr; hgc.fillRect(0, 0, 64, 64);
+        }
+        const hoverGlowTex = new THREE.CanvasTexture(hoverGlowCv);
+        const hoverSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: hoverGlowTex, transparent: true, opacity: 0, depthWrite: false,
+            blending: THREE.AdditiveBlending, fog: false,
+        }));
+        hoverSprite.renderOrder = 999;
+        hoverSprite.visible = false;
+        hoverSprite.scale.setScalar(0.3);
+        scene.add(hoverSprite);
+        let hoverGlowOpacity = 0;
+        const _hoverWP = new THREE.Vector3();
+
         // Clicks only — a drag that orbits the camera never triggers anything
         const raycaster = new THREE.Raycaster();
         const pointerV = new THREE.Vector2();
         let downX = 0, downY = 0;
+        let hoverRec = null;
+        const pickInteract = (clientX, clientY) => {
+            pointerV.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(pointerV, camera);
+            const candidates = [];
+            for (const rec of interactRecords) {
+                if (rec.theme === 'global' || rec.theme === theme) candidates.push(...rec.meshes);
+            }
+            const hits = raycaster.intersectObjects(candidates, false);
+            return hits.length ? { rec: interactMeshMap.get(hits[0].object), point: hits[0].point } : null;
+        };
         renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+        renderer.domElement.addEventListener('pointermove', e => {
+            if (monZoom || e.buttons !== 0) return;
+            const hit = pickInteract(e.clientX, e.clientY);
+            const rec = hit ? hit.rec : null;
+            if (rec !== hoverRec) {
+                hoverRec = rec;
+                renderer.domElement.style.cursor = rec ? 'pointer' : '';
+            }
+        });
         renderer.domElement.addEventListener('pointerup', e => {
             if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
             if (monZoom) {   // any click flies back out
                 monZoom = false;
                 return;
             }
-            pointerV.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
-            raycaster.setFromCamera(pointerV, camera);
-            if (raycaster.intersectObject(dogGroup, true).length) { petDog(); return; }
-            if (raycaster.intersectObject(monHit).length) {
+            const hit = pickInteract(e.clientX, e.clientY);
+            if (hit) hit.rec.onClick(hit.point);
+        });
+
+        // ── Global: the beagle and the monitor exist in every world ──
+        addInteract(dogGroup, { theme: 'global', onClick: petDog });
+        addInteract(monHit, {
+            theme: 'global',
+            onClick: () => {
                 zoomSaved = { cam: camera.position.clone(), tgt: controls.target.clone(), auto: controls.autoRotate };
                 controls.enabled = false;
                 controls.autoRotate = false;
                 monZoom = true;
                 monZoomStart = clock.getElapsedTime();
-                return;
-            }
-            if (theme === 'room') {
-                const hit = raycaster.intersectObject(roomGroup, true);
-                if (hit.length) {
-                    const p = hit[0].point;
-                    if (Math.hypot(p.x - LX, p.z - LZ) < 0.5 && p.y < 2.0) { toggleLamp(); return; }
-                }
-            }
-            if (theme === 'river') {
-                const hit = raycaster.intersectObject(riverWater);
-                if (hit.length) spookFish(hit[0].point);
-            }
+            },
         });
+
+        // ── ROOM ──
+        addInteract(lampShade, { theme: 'room', onClick: toggleLamp });
+        // Neon sign: click any shape, the whole sign hue-shifts and buzzes to life
+        const neonPaletteShift = () => {
+            const hsl = { h: 0, s: 0, l: 0 };
+            const seenMat = new Set();
+            neonMeshes.forEach(m => {
+                if (seenMat.has(m.material)) return;
+                seenMat.add(m.material);
+                m.material.color.getHSL(hsl);
+                m.material.color.setHSL((hsl.h + 0.13) % 1, hsl.s, hsl.l);
+            });
+            const hsl2 = { h: 0, s: 0, l: 0 };
+            neonLightsArr.forEach(L => {
+                L.color.getHSL(hsl2);
+                L.color.setHSL((hsl2.h + 0.13) % 1, hsl2.s, hsl2.l);
+            });
+        };
+        addInteract(neonMeshes, {
+            theme: 'room',
+            onClick: () => {
+                neonPaletteShift();
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.45) { neonMeshes.forEach(m => { m.visible = true; }); return false; }
+                    neonMeshes.forEach(m => { m.visible = Math.random() < 0.8; });
+                    return true;
+                });
+            },
+        });
+        // Coffee mug: a little sip — tilt, then a fresh puff of steam
+        addInteract([mugMesh, cofMesh, rimMesh], {
+            theme: 'room',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                const baseRZ = mugMesh.rotation.z;
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.1) { mugMesh.rotation.z = cofMesh.rotation.z = rimMesh.rotation.z = baseRZ; return false; }
+                    const k = Math.sin((el / 1.1) * Math.PI) * 0.28;
+                    mugMesh.rotation.z = cofMesh.rotation.z = rimMesh.rotation.z = baseRZ + k;
+                    return true;
+                });
+                steamMat.opacity = Math.min(0.9, steamMat.opacity + 0.3);
+                steamMat2.opacity = Math.min(0.7, steamMat2.opacity + 0.25);
+            },
+        });
+        // Trash bin: toss another crumpled page in
+        addInteract(binMesh, {
+            theme: 'room',
+            onClick: () => {
+                const ball = new THREE.Mesh(new THREE.DodecahedronGeometry(0.028, 0), lm(0xc9c4b4));
+                const from = new THREE.Vector3(binMesh.position.x - 0.5, 0.75, binMesh.position.z - 0.3);
+                const to = binMesh.position.clone().setY(0.22);
+                scene.add(ball);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start, dur = 0.55, k = Math.min(1, el / dur);
+                    if (k >= 1) { ball.position.copy(to); return false; }
+                    ball.position.lerpVectors(from, to, k);
+                    ball.position.y += Math.sin(k * Math.PI) * 0.35;
+                    ball.rotation.x += 0.3; ball.rotation.y += 0.22;
+                    return true;
+                });
+            },
+        });
+
+        // ── FOREST ──
+        addInteract(flames, {
+            theme: 'forest',
+            onClick: () => {
+                const log2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.55, 7), lm(0x2e1c10, 0x8a2a04, 0.2));
+                log2.position.set(FX, 0.9, FZ);
+                log2.rotation.set(0, Math.random() * 3, Math.PI / 2 + 0.3);
+                scene.add(log2);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.5) { log2.position.y = 0.22; return false; }
+                    log2.position.y = THREE.MathUtils.lerp(0.9, 0.22, el / 0.5);
+                    return true;
+                });
+                fireLight.intensity += 3.5;
+            },
+        });
+        mushroomCaps.forEach(cap => addInteract(cap, {
+            theme: 'forest',
+            onClick: pt => {
+                const N = 8;
+                const pos = new Float32Array(N * 3);
+                for (let i = 0; i < N; i++) { pos[i*3]=pt.x; pos[i*3+1]=pt.y; pos[i*3+2]=pt.z; }
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const mat = new THREE.PointsMaterial({ color: 0xd8c8a0, size: 0.03, transparent: true, opacity: 0.8, depthWrite: false });
+                const puff = new THREE.Points(geo, mat);
+                scene.add(puff);
+                const dirs = Array.from({ length: N }, () => new THREE.Vector3((Math.random()-0.5), Math.random()*0.6+0.2, (Math.random()-0.5)));
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.1) { scene.remove(puff); return false; }
+                    const arr = geo.attributes.position.array;
+                    for (let i = 0; i < N; i++) {
+                        arr[i*3]   = pt.x + dirs[i].x * el * 0.3;
+                        arr[i*3+1] = pt.y + dirs[i].y * el * 0.3;
+                        arr[i*3+2] = pt.z + dirs[i].z * el * 0.3;
+                    }
+                    geo.attributes.position.needsUpdate = true;
+                    mat.opacity = 0.8 * (1 - el / 1.1);
+                    return true;
+                });
+            },
+        }));
+        forestTreeTrunks.forEach(trunk => addInteract(trunk, {
+            theme: 'forest',
+            onClick: () => {
+                const bird = new THREE.Group();
+                const bMat = lm(0x2a2420, 0, 0, 0.85);
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.1), bMat);
+                bird.add(body);
+                const mkWing = s => {
+                    const wg = new THREE.BoxGeometry(0.16, 0.01, 0.06);
+                    wg.translate(s * 0.08, 0, 0);
+                    return new THREE.Mesh(wg, bMat);
+                };
+                const wl = mkWing(-1), wr = mkWing(1);
+                bird.add(wl, wr);
+                bird.position.set(trunk.position.x, 2.4, trunk.position.z);
+                scene.add(bird);
+                const dir = Math.random() < 0.5 ? -1 : 1;
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.8) { scene.remove(bird); return false; }
+                    bird.position.y += 0.028;
+                    bird.position.x += dir * 0.02;
+                    const flap = Math.sin(t2 * 26) * 0.9;
+                    wl.rotation.z = flap; wr.rotation.z = -flap;
+                    return true;
+                });
+            },
+        }));
+
+        // ── NORTH POLE ──
+        addInteract(auroraRibbons, {
+            theme: 'northPole',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.3) return false;
+                    const k = Math.sin((el / 1.3) * Math.PI);
+                    auroraRibbons.forEach(r => { r.material.opacity = Math.min(1, r.material.opacity + k * 0.02); });
+                    return true;
+                });
+            },
+        });
+        addInteract(npIgloo, {
+            theme: 'northPole',
+            onClick: () => {
+                const l2 = new THREE.PointLight(0xffb060, 0, 2.2);
+                l2.position.set(-2.9, 0.35, -2.2);
+                scene.add(l2);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 3) { scene.remove(l2); return false; }
+                    l2.intensity = Math.sin((el / 3) * Math.PI) * 1.8;
+                    return true;
+                });
+            },
+        });
+        addInteract(npGround, {
+            theme: 'northPole',
+            onClick: pt => {
+                const print = new THREE.Mesh(new THREE.CircleGeometry(0.05, 10),
+                    new THREE.MeshBasicMaterial({ color: 0x8ea0bc, transparent: true, opacity: 0.4 }));
+                print.rotation.x = -Math.PI / 2;
+                print.position.set(pt.x, 0.012, pt.z);
+                scene.add(print);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 6) { scene.remove(print); return false; }
+                    print.material.opacity = 0.4 * (1 - el / 6);
+                    return true;
+                });
+            },
+        });
+
+        // ── SPACESHIP ──
+        addInteract([portView, stbView], {
+            theme: 'spaceship',
+            onClick: () => {
+                const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.012),
+                    new THREE.MeshBasicMaterial({ color: 0xdfe8ff, transparent: true, opacity: 0.9, fog: false }));
+                streak.position.set(-2.1, 1.7, -0.6);
+                streak.rotation.set(0, Math.PI / 2, Math.PI / 5);
+                scene.add(streak);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.6) { scene.remove(streak); return false; }
+                    const k = el / 0.6;
+                    streak.position.y = 1.9 - k * 0.5;
+                    streak.position.z = -0.85 + k * 0.5;
+                    streak.material.opacity = 0.9 * (1 - k);
+                    return true;
+                });
+            },
+        });
+        addInteract(clarkBallItem, {
+            theme: 'spaceship',
+            onClick: () => {
+                const vx = (Math.random() - 0.5) * 0.9, vz = (Math.random() - 0.5) * 0.9;
+                const start = clock.getElapsedTime();
+                addEffect((t2, dt2) => {
+                    const el = t2 - start;
+                    if (el > 2.2) return false;
+                    const decay = 1 - el / 2.2;
+                    clarkBallItem.position.x += vx * decay * dt2;
+                    clarkBallItem.position.z += vz * decay * dt2;
+                    return true;
+                });
+            },
+        });
+        spStatusLEDs.forEach(led => addInteract(led, {
+            theme: 'spaceship',
+            onClick: () => {
+                const origHex = led.material.emissive.getHex();
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 2) { led.material.emissive.setHex(origHex); return false; }
+                    led.material.emissive.setHex(0xff2222);
+                    led.material.emissiveIntensity = Math.sin(t2 * 40) > 0 ? 1.8 : 0.1;
+                    return true;
+                });
+            },
+        }));
+
+        // ── RIVER ──
+        anglers.forEach(a => addInteract(a.rodGrp, {
+            theme: 'river',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 2.4) return false;
+                    a.rodGrp.rotation.x = a.baseRX + 0.5 + Math.sin(t2 * 16) * 0.07;
+                    return true;
+                });
+            },
+        }));
+        addInteract(spillSheets, {
+            theme: 'river',
+            onClick: pt => {
+                const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.09, 20),
+                    new THREE.MeshBasicMaterial({ color: 0xe4f4f2, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false }));
+                ring2.rotation.x = -Math.PI / 2;
+                ring2.position.set(pt.x, RIV.water + 0.02, pt.z);
+                scene.add(ring2);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.9) { scene.remove(ring2); return false; }
+                    const k = el / 0.9;
+                    ring2.scale.setScalar(0.5 + k * 3.5);
+                    ring2.material.opacity = 0.7 * (1 - k);
+                    return true;
+                });
+            },
+        });
+
+        // ── LIGHTHOUSE ──
+        let beaconFast = false;
+        addInteract(beaconGrp, { theme: 'lighthouse', onClick: () => { beaconFast = !beaconFast; } });
+        addInteract(seaMesh, {
+            theme: 'lighthouse',
+            onClick: pt => {
+                const splash = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.2, 22),
+                    new THREE.MeshBasicMaterial({ color: 0xdfeef0, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+                splash.rotation.x = -Math.PI / 2;
+                splash.position.copy(pt);
+                scene.add(splash);
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.0) { scene.remove(splash); return false; }
+                    const k = el / 1.0;
+                    splash.scale.setScalar(0.6 + k * 4);
+                    splash.material.opacity = 0.6 * (1 - k);
+                    return true;
+                });
+            },
+        });
+        gulls.forEach(gl => addInteract(gl.g, {
+            theme: 'lighthouse',
+            onClick: () => {
+                const origR = gl.r;
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 2.4) { gl.r = origR; return false; }
+                    const k = el < 0.7 ? el / 0.7 : 1 - (el - 0.7) / 1.7;
+                    gl.r = origR + Math.max(0, k) * 3.2;
+                    return true;
+                });
+            },
+        }));
+
+        // ── APIARY ──
+        hiveGroups.forEach(hg => addInteract(hg, {
+            theme: 'apiary',
+            onClick: () => {
+                const wp = new THREE.Vector3();
+                hg.getWorldPosition(wp);
+                const N = 12;
+                const pos = new Float32Array(N * 3);
+                for (let i = 0; i < N; i++) { pos[i*3]=wp.x; pos[i*3+1]=wp.y+0.3; pos[i*3+2]=wp.z; }
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const mat = new THREE.PointsMaterial({ color: 0xe8b428, size: 0.035, transparent: true, opacity: 0.9, depthWrite: false });
+                const burst = new THREE.Points(geo, mat);
+                scene.add(burst);
+                const dirs = Array.from({ length: N }, () => new THREE.Vector3((Math.random()-0.5)*2, Math.random(), (Math.random()-0.5)*2));
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.3) { scene.remove(burst); return false; }
+                    const arr = geo.attributes.position.array;
+                    for (let i = 0; i < N; i++) {
+                        arr[i*3]   = wp.x + dirs[i].x * el * 0.8 + Math.sin(t2*10+i)*0.05;
+                        arr[i*3+1] = wp.y + 0.3 + dirs[i].y * el * 0.5;
+                        arr[i*3+2] = wp.z + dirs[i].z * el * 0.8;
+                    }
+                    geo.attributes.position.needsUpdate = true;
+                    mat.opacity = 0.9 * (1 - el / 1.3);
+                    return true;
+                });
+            },
+        }));
+        flowerBlooms.forEach((bloom, i) => addInteract(bloom, {
+            theme: 'apiary',
+            onClick: () => {
+                const hb = heroBees[(Math.random() * heroBees.length) | 0];
+                hb.fl = flowerSpots[i];
+            },
+        }));
+        addInteract(bk, {
+            theme: 'apiary',
+            onClick: () => {
+                const origRZ = bkArmR.rotation.z;
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.4) { bkArmR.rotation.z = origRZ; return false; }
+                    bkArmR.rotation.z = origRZ + Math.sin(t2 * 10) * 0.4;
+                    return true;
+                });
+            },
+        });
+
+        // ── TAVERN ──
+        addInteract(cauldron, {
+            theme: 'tavern',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.0) return false;
+                    const k = Math.sin((el / 1.0) * Math.PI);
+                    brewLight.intensity += k * 1.8;
+                    brew.material.emissiveIntensity += k * 0.6;
+                    bubMat.opacity = Math.min(0.95, bubMat.opacity + k * 0.2);
+                    return true;
+                });
+            },
+        });
+        jacks.forEach(j => addInteract(j.g, {
+            theme: 'tavern',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.16) return false;
+                    j.l.intensity = 0;
+                    return true;
+                });
+            },
+        }));
+        addInteract(cat, {
+            theme: 'tavern',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.9) { catTail.scale.setScalar(1); return false; }
+                    catTail.rotation.y = Math.sin(t2 * 24) * 0.6;
+                    catTail.scale.setScalar(1 + Math.sin(el * 12) * 0.15);
+                    catHead.rotation.z = Math.sin(t2 * 20) * 0.1;
+                    return true;
+                });
+            },
+        });
+
+        // ── VIDEO STORE ──
+        vhsRuns.forEach(run => addInteract(run.back, {
+            theme: 'video',
+            onClick: () => {
+                const tape = run.tapes[(Math.random() * run.tapes.length) | 0];
+                if (!tape) return;
+                const homeZ = tape.position.z;
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.6) { tape.position.z = homeZ; return false; }
+                    const k = el < 0.35 ? el / 0.35 : el < 1.2 ? 1 : 1 - (el - 1.2) / 0.4;
+                    tape.position.z = homeZ + Math.max(0, k) * 0.16;
+                    return true;
+                });
+            },
+        }));
+        let crtForceBlue = 0;
+        addInteract(crt, { theme: 'video', onClick: () => { crtForceBlue = clock.getElapsedTime() + 2.5; } });
+        addInteract(openSign, {
+            theme: 'video',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.7) return false;
+                    openSign.material.opacity = Math.random() < 0.6 ? 0 : 0.9;
+                    return true;
+                });
+            },
+        });
+
+        // ── TILLSON ST ──
+        tlFlames.filter(f => f.mesh).forEach(f => addInteract(f.mesh, {
+            theme: 'tillson',
+            onClick: () => { f.boostUntil = clock.getElapsedTime() + 2; },
+        }));
+        tlKids.forEach(kd => addInteract(kd.g, {
+            theme: 'tillson',
+            onClick: () => { kd.waveUntil = clock.getElapsedTime() + 1.8; },
+        }));
+        tlCauldrons.filter(c => c.pot).forEach(c => addInteract(c.pot, {
+            theme: 'tillson',
+            onClick: () => {
+                if (soundOn && audioCtx) cackle();
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.2) return false;
+                    const k = Math.sin((el / 1.2) * Math.PI);
+                    c.l.intensity += k * 2.2;
+                    c.m.emissiveIntensity += k * 0.6;
+                    return true;
+                });
+            },
+        }));
+        tlBats.forEach(bt => addInteract(bt.g, {
+            theme: 'tillson',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                const baseY = bt.g.position.y;
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.2) return false;
+                    const k = Math.sin((el / 1.2) * Math.PI);
+                    bt.g.position.y = baseY - k * 2.0;
+                    return true;
+                });
+            },
+        }));
 
         // ?clean hides the UI chrome — for screenshots and embeds
         if (new URLSearchParams(location.search).has('clean'))
@@ -6713,7 +7297,7 @@
 
                 // Beacon sweeps; brightness rides the beacon slider
                 const beacon = params.lampBrightness;
-                beaconGrp.rotation.y = t * 0.55;
+                beaconGrp.rotation.y = t * 0.55 * (beaconFast ? 2.6 : 1);
                 beamMat.opacity = 0.022 + beacon * 0.04 + storm * 0.01;
                 beaconSpot.intensity = beacon * 9;
                 lanternLight.intensity = 2.0 + beacon * 3.0 + Math.sin(t * 0.55 * 4) * 0.3;
@@ -6976,7 +7560,7 @@
 
                 // CRT: rolling static with the occasional blue screen
                 if (t - monLastDraw > -1) {   // cheap: redraw each frame at 128x96
-                    const blue = Math.sin(t * 0.21) > 0.93;
+                    const blue = t < crtForceBlue || Math.sin(t * 0.21) > 0.93;
                     if (blue) {
                         crtCtx.fillStyle = '#1030c8';
                         crtCtx.fillRect(0, 0, 128, 96);
@@ -7022,7 +7606,8 @@
                 const deco = params.lampBrightness;
                 for (const f4 of tlFlames) {
                     f4.m.emissiveIntensity = deco * f4.base *
-                        (0.75 + Math.sin(t * 11 + f4.ph) * 0.16 + Math.sin(t * 27 + f4.ph * 2) * 0.09);
+                        (0.75 + Math.sin(t * 11 + f4.ph) * 0.16 + Math.sin(t * 27 + f4.ph * 2) * 0.09) *
+                        (f4.boostUntil && f4.boostUntil > t ? 1.7 : 1);
                 }
                 for (const w4 of tlWindows) {
                     // most windows hold steady; a few flicker like a TV is on
@@ -7072,12 +7657,14 @@
                 }
                 // trick-or-treaters work their way along the sidewalks
                 for (const kd of tlKids) {
-                    kd.z += kd.sp * kd.dir * dt;
+                    const waving = kd.waveUntil > t;
+                    if (!waving) kd.z += kd.sp * kd.dir * dt;
                     if (kd.z > 22) kd.z = -22;
                     if (kd.z < -22) kd.z = 22;
-                    kd.g.position.set(kd.side * (TL.curb - 0.05), 0.155 + Math.abs(Math.sin(t * 5 + kd.ph)) * 0.035, kd.z);
-                    kd.g.rotation.y = kd.dir > 0 ? 0 : Math.PI;
-                    kd.g.rotation.z = Math.sin(t * 5 + kd.ph) * 0.05;
+                    const bounce = waving ? Math.abs(Math.sin(t * 9 + kd.ph)) * 0.07 : Math.abs(Math.sin(t * 5 + kd.ph)) * 0.035;
+                    kd.g.position.set(kd.side * (TL.curb - 0.05), 0.155 + bounce, kd.z);
+                    kd.g.rotation.y = waving ? (kd.side > 0 ? Math.PI / 2 : -Math.PI / 2) : (kd.dir > 0 ? 0 : Math.PI);
+                    kd.g.rotation.z = waving ? Math.sin(t * 9 + kd.ph) * 0.22 : Math.sin(t * 5 + kd.ph) * 0.05;
                 }
                 // an owl somewhere up in the maples
                 if (soundOn && audioCtx && t > tlNextOwl) {
@@ -7240,6 +7827,26 @@
                 theme === 'video' ? 0.35 :
                 theme === 'tillson' ? 0.6 :
                 0.08 + (1 - params.time) * 0.3;
+
+            // ── Hover glow: a soft halo over whatever's under the cursor ──
+            if (hoverRec) {
+                hoverRec.followObj.getWorldPosition(_hoverWP);
+                hoverSprite.position.copy(_hoverWP);
+                hoverSprite.visible = true;
+                const targetR = hoverRec.radius * 2.4;
+                hoverSprite.scale.x += (targetR - hoverSprite.scale.x) * Math.min(1, dt * 10);
+                hoverSprite.scale.y = hoverSprite.scale.x;
+                hoverGlowOpacity += (0.5 - hoverGlowOpacity) * Math.min(1, dt * 8);
+            } else {
+                hoverGlowOpacity += (0 - hoverGlowOpacity) * Math.min(1, dt * 8);
+                if (hoverGlowOpacity < 0.01) hoverSprite.visible = false;
+            }
+            hoverSprite.material.opacity = hoverGlowOpacity * (0.8 + Math.sin(t * 5) * 0.2);
+
+            // ── One-off click reactions ──
+            for (let i = activeEffects.length - 1; i >= 0; i--) {
+                if (activeEffects[i](t, dt) === false) activeEffects.splice(i, 1);
+            }
 
             controls.update();
             composer.render();
