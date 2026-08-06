@@ -6204,28 +6204,6 @@
         const activeEffects = [];
         const addEffect = fn => activeEffects.push(fn);
 
-        // Soft round halo used to highlight whatever's under the cursor
-        const hoverGlowCv = mkCanvas(64, 64);
-        {
-            const hgc = hoverGlowCv.getContext('2d');
-            const hgr = hgc.createRadialGradient(32, 32, 0, 32, 32, 32);
-            hgr.addColorStop(0, 'rgba(255,232,160,0.95)');
-            hgr.addColorStop(0.45, 'rgba(255,214,120,0.45)');
-            hgr.addColorStop(1, 'rgba(255,214,120,0)');
-            hgc.fillStyle = hgr; hgc.fillRect(0, 0, 64, 64);
-        }
-        const hoverGlowTex = new THREE.CanvasTexture(hoverGlowCv);
-        const hoverSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: hoverGlowTex, transparent: true, opacity: 0, depthWrite: false,
-            blending: THREE.AdditiveBlending, fog: false,
-        }));
-        hoverSprite.renderOrder = 999;
-        hoverSprite.visible = false;
-        hoverSprite.scale.setScalar(0.3);
-        scene.add(hoverSprite);
-        let hoverGlowOpacity = 0;
-        const _hoverWP = new THREE.Vector3();
-
         // Clicks only — a drag that orbits the camera never triggers anything
         const raycaster = new THREE.Raycaster();
         const pointerV = new THREE.Vector2();
@@ -7827,21 +7805,6 @@
                 theme === 'video' ? 0.35 :
                 theme === 'tillson' ? 0.6 :
                 0.08 + (1 - params.time) * 0.3;
-
-            // ── Hover glow: a soft halo over whatever's under the cursor ──
-            if (hoverRec) {
-                hoverRec.followObj.getWorldPosition(_hoverWP);
-                hoverSprite.position.copy(_hoverWP);
-                hoverSprite.visible = true;
-                const targetR = hoverRec.radius * 2.4;
-                hoverSprite.scale.x += (targetR - hoverSprite.scale.x) * Math.min(1, dt * 10);
-                hoverSprite.scale.y = hoverSprite.scale.x;
-                hoverGlowOpacity += (0.5 - hoverGlowOpacity) * Math.min(1, dt * 8);
-            } else {
-                hoverGlowOpacity += (0 - hoverGlowOpacity) * Math.min(1, dt * 8);
-                if (hoverGlowOpacity < 0.01) hoverSprite.visible = false;
-            }
-            hoverSprite.material.opacity = hoverGlowOpacity * (0.8 + Math.sin(t * 5) * 0.2);
 
             // ── One-off click reactions ──
             for (let i = activeEffects.length - 1; i >= 0; i--) {
