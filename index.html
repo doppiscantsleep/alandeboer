@@ -1667,72 +1667,87 @@
         mbCanvas.width = 620; mbCanvas.height = 390;
         const mbc = mbCanvas.getContext('2d');
 
-        // Dark space wallpaper
-        const mbWG = mbc.createLinearGradient(0,0,620,390);
-        mbWG.addColorStop(0,'#04061c'); mbWG.addColorStop(0.45,'#0f0838'); mbWG.addColorStop(1,'#040e26');
-        mbc.fillStyle=mbWG; mbc.fillRect(0,0,620,390);
-        // Stars
-        for (let i=0;i<90;i++){
-            const a=0.2+Math.random()*0.65, s=Math.random()<0.14?2:1;
-            mbc.fillStyle=`rgba(210,220,255,${a})`;
-            mbc.fillRect(Math.random()*620, 24+Math.random()*270, s, s);
-        }
-        // Nebula glow
-        const mbNeb=mbc.createRadialGradient(310,190,8,310,190,190);
-        mbNeb.addColorStop(0,'rgba(80,20,120,0.28)'); mbNeb.addColorStop(1,'rgba(0,0,0,0)');
-        mbc.fillStyle=mbNeb; mbc.fillRect(0,0,620,390);
+        // Idle wallpaper + Messages mockup — shown until the laptop is opened for real
+        const drawMBIdle = () => {
+            // Dark space wallpaper
+            const mbWG = mbc.createLinearGradient(0,0,620,390);
+            mbWG.addColorStop(0,'#04061c'); mbWG.addColorStop(0.45,'#0f0838'); mbWG.addColorStop(1,'#040e26');
+            mbc.fillStyle=mbWG; mbc.fillRect(0,0,620,390);
+            // Stars
+            for (let i=0;i<90;i++){
+                const a=0.2+Math.random()*0.65, s=Math.random()<0.14?2:1;
+                mbc.fillStyle=`rgba(210,220,255,${a})`;
+                mbc.fillRect(Math.random()*620, 24+Math.random()*270, s, s);
+            }
+            // Nebula glow
+            const mbNeb=mbc.createRadialGradient(310,190,8,310,190,190);
+            mbNeb.addColorStop(0,'rgba(80,20,120,0.28)'); mbNeb.addColorStop(1,'rgba(0,0,0,0)');
+            mbc.fillStyle=mbNeb; mbc.fillRect(0,0,620,390);
 
-        // macOS menu bar
-        mbc.fillStyle='rgba(8,8,18,0.93)'; mbc.fillRect(0,0,620,22);
-        mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='bold 11px sans-serif';
-        mbc.fillText('',9,15);
-        mbc.font='11px sans-serif'; mbc.fillText('Messages',32,15);
-        mbc.textAlign='right'; mbc.fillStyle='rgba(255,255,255,0.38)'; mbc.font='10px sans-serif';
-        mbc.fillText('23:47',612,15); mbc.textAlign='left';
+            // macOS menu bar
+            mbc.fillStyle='rgba(8,8,18,0.93)'; mbc.fillRect(0,0,620,22);
+            mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='bold 11px sans-serif';
+            mbc.fillText('',9,15);
+            mbc.font='11px sans-serif'; mbc.fillText('Messages',32,15);
+            mbc.textAlign='right'; mbc.fillStyle='rgba(255,255,255,0.38)'; mbc.font='10px sans-serif';
+            mbc.fillText('23:47',612,15); mbc.textAlign='left';
 
-        // Chat window
-        const mbCW=340, mbCH=272, mbCX=140, mbCY=32;
-        // Shadow
-        mbc.fillStyle='rgba(0,0,0,0.45)'; mbc.fillRect(mbCX+4,mbCY+4,mbCW,mbCH);
-        // Body
-        mbc.fillStyle='#0e0e1a'; mbc.fillRect(mbCX,mbCY,mbCW,mbCH);
-        // Title bar
-        const mbTB=mbc.createLinearGradient(mbCX,mbCY,mbCX,mbCY+28);
-        mbTB.addColorStop(0,'#252534'); mbTB.addColorStop(1,'#1b1b28');
-        mbc.fillStyle=mbTB; mbc.fillRect(mbCX,mbCY,mbCW,28);
-        // Traffic lights
-        [[mbCX+13,'#ff5f57'],[mbCX+29,'#febc2e'],[mbCX+45,'#28c840']].forEach(([cx,c])=>{
-            mbc.fillStyle=c; mbc.beginPath(); mbc.arc(cx,mbCY+14,5,0,Math.PI*2); mbc.fill();
-        });
-        mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='11px sans-serif';
-        mbc.textAlign='center'; mbc.fillText('Messages',mbCX+mbCW/2,mbCY+19); mbc.textAlign='left';
-        mbc.fillStyle='rgba(255,255,255,0.07)'; mbc.fillRect(mbCX,mbCY+28,mbCW,1);
+            // Chat window
+            const mbCW=340, mbCH=272, mbCX=140, mbCY=32;
+            // Shadow
+            mbc.fillStyle='rgba(0,0,0,0.45)'; mbc.fillRect(mbCX+4,mbCY+4,mbCW,mbCH);
+            // Body
+            mbc.fillStyle='#0e0e1a'; mbc.fillRect(mbCX,mbCY,mbCW,mbCH);
+            // Title bar
+            const mbTB=mbc.createLinearGradient(mbCX,mbCY,mbCX,mbCY+28);
+            mbTB.addColorStop(0,'#252534'); mbTB.addColorStop(1,'#1b1b28');
+            mbc.fillStyle=mbTB; mbc.fillRect(mbCX,mbCY,mbCW,28);
+            // Traffic lights
+            [[mbCX+13,'#ff5f57'],[mbCX+29,'#febc2e'],[mbCX+45,'#28c840']].forEach(([cx,c])=>{
+                mbc.fillStyle=c; mbc.beginPath(); mbc.arc(cx,mbCY+14,5,0,Math.PI*2); mbc.fill();
+            });
+            mbc.fillStyle='rgba(255,255,255,0.55)'; mbc.font='11px sans-serif';
+            mbc.textAlign='center'; mbc.fillText('Messages',mbCX+mbCW/2,mbCY+19); mbc.textAlign='left';
+            mbc.fillStyle='rgba(255,255,255,0.07)'; mbc.fillRect(mbCX,mbCY+28,mbCW,1);
 
-        // Message bubbles
-        mbc.font='10px sans-serif';
-        let mbMY=mbCY+42;
-        [['hey, still up?',false],['yeah just coding',true],
-         ['building something?',false],['always 🙌',true],
-         ['send the link when live',false],['will do 🤙',true]
-        ].forEach(([txt,right])=>{
-            const bw=mbc.measureText(txt).width+20, bx=right?mbCX+mbCW-bw-8:mbCX+8;
-            mbc.fillStyle=right?'#1a52e8':'#232336';
-            mbc.fillRect(bx,mbMY,bw,21);
-            mbc.fillStyle=right?'rgba(255,255,255,0.94)':'rgba(255,255,255,0.76)';
-            mbc.fillText(txt,bx+8,mbMY+14); mbMY+=29;
-        });
-        // Typing dots
-        mbc.fillStyle='#1e1e2e'; mbc.fillRect(mbCX+8,mbMY,42,20);
-        mbc.fillStyle='rgba(255,255,255,0.30)'; mbc.font='14px sans-serif';
-        mbc.fillText('• • •',mbCX+11,mbMY+15);
+            // Message bubbles
+            mbc.font='10px sans-serif';
+            let mbMY=mbCY+42;
+            [['hey, still up?',false],['yeah just coding',true],
+             ['building something?',false],['always 🙌',true],
+             ['send the link when live',false],['will do 🤙',true]
+            ].forEach(([txt,right])=>{
+                const bw=mbc.measureText(txt).width+20, bx=right?mbCX+mbCW-bw-8:mbCX+8;
+                mbc.fillStyle=right?'#1a52e8':'#232336';
+                mbc.fillRect(bx,mbMY,bw,21);
+                mbc.fillStyle=right?'rgba(255,255,255,0.94)':'rgba(255,255,255,0.76)';
+                mbc.fillText(txt,bx+8,mbMY+14); mbMY+=29;
+            });
+            // Typing dots
+            mbc.fillStyle='#1e1e2e'; mbc.fillRect(mbCX+8,mbMY,42,20);
+            mbc.fillStyle='rgba(255,255,255,0.30)'; mbc.font='14px sans-serif';
+            mbc.fillText('• • •',mbCX+11,mbMY+15);
+        };
+        drawMBIdle();
 
         const mbTex = new THREE.CanvasTexture(mbCanvas);
+        mbTex.generateMipmaps = false;
+        mbTex.minFilter = THREE.LinearFilter;
         const mbScrMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.295, 0.190, 0.002),
             new THREE.MeshBasicMaterial({map: mbTex})
         );
         mbScrMesh.position.set(0, 0.108, 0.010);
         mbPivot.add(mbScrMesh);
+
+        // Camera fly-to target for the laptop screen, computed from its world transform
+        mbScrMesh.updateWorldMatrix(true, false);
+        const mbScreenCenter = new THREE.Vector3();
+        mbScrMesh.getWorldPosition(mbScreenCenter);
+        const mbScreenNormal = new THREE.Vector3(0, 0, 1)
+            .applyQuaternion(mbPivot.getWorldQuaternion(new THREE.Quaternion())).normalize();
+        const zoomCamToMB = mbScreenCenter.clone().addScaledVector(mbScreenNormal, 0.60);
+        const zoomTgtToMB = mbScreenCenter.clone();
 
         // ── Coffee Mug ──
         const CFX = -0.75, CFZ = 0.22;
@@ -2049,25 +2064,94 @@
         aboutLines.push(['type help for commands', '#5a6373']);
         let termHistory = aboutLines.slice();
         let termInput = '';
+        let termCmdHistory = [];
+        let termHistIdx = -1;
         const termEcho = (txt, col = '#9aa4b2') => termHistory.push([txt, col]);
+
+        // ── Tiny in-memory filesystem, Ubuntu-flavored ──
+        const mkDir = children => ({ type: 'dir', children });
+        const mkFile = content => ({ type: 'file', content });
+        const vfsRoot = mkDir({
+            home: mkDir({
+                alan: mkDir({
+                    'about.txt': mkFile('I build small worlds and the software around them.\nMichigan — salmon rivers, storm coasts, long winters.'),
+                    'links.txt': mkFile('github.com/doppiscantsleep\nalandeboer.computer'),
+                    '.bashrc': mkFile('# nothing to see here\nalias ll="ls -la"\nalias clark="echo good boy"'),
+                    worlds: mkDir({
+                        'room.world': mkFile('The Room — a night-lit desk, city lights through the window.'),
+                        'forest.world': mkFile('The Woods — a campfire clearing, seasons turning through the pines.'),
+                        'northpole.world': mkFile('North Pole — aurora over a snow-globe workshop.'),
+                        'spaceship.world': mkFile('Spaceship — an orbital module, Earth out the porthole.'),
+                        'river.world': mkFile('The River — a dam, salmon running, anglers on the bank.'),
+                        'lighthouse.world': mkFile('Lighthouse — storms rolling in off a rocky coast.'),
+                        'apiary.world': mkFile('The Apiary — hives, honey, a very interested bear.'),
+                        'tavern.world': mkFile('The Tavern — firelit, a cauldron, a cat who owns the place.'),
+                        'video.world': mkFile('Video Store — fluorescent-lit, Friday-night VHS energy.'),
+                        'tillson.world': mkFile('Tillson St — Halloween night in Romeo, Michigan.'),
+                    }),
+                    projects: mkDir({
+                        'alandeboer.computer': mkDir({
+                            'README.md': mkFile('A single-file three.js site with 10 worlds and a beagle named Clark.\nBuilt in the browser, no build step, no backend.'),
+                        }),
+                    }),
+                }),
+            }),
+        });
+        let cwd = ['home', 'alan'];
+        const vfsNode = path => {
+            let n = vfsRoot;
+            for (const seg of path) {
+                if (!n || n.type !== 'dir' || !n.children[seg]) return null;
+                n = n.children[seg];
+            }
+            return n;
+        };
+        const resolvePath = raw => {
+            let segs = raw.startsWith('/') ? [] : cwd.slice();
+            for (const part of raw.split('/')) {
+                if (!part || part === '.') continue;
+                else if (part === '..') segs.pop();
+                else if (part === '~') segs = ['home', 'alan'];
+                else segs.push(part);
+            }
+            return segs;
+        };
+        const pathStr = segs => segs.join('/') === 'home/alan' ? '~'
+            : ('/' + segs.join('/')).replace(/^\/home\/alan\//, '~/');
         const themeWords = {
             room: 'room', woods: 'forest', forest: 'forest', northpole: 'northPole',
             pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
             video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson',
         };
+        const manPages = {
+            ls: 'list directory contents', cd: 'change the working directory',
+            cat: 'print a file to the screen', pwd: 'print working directory',
+            mkdir: 'make a directory', touch: 'create an empty file',
+            rm: 'remove a file', echo: 'print text, or > file to write it',
+            curl: 'transfer data from a URL', wget: 'fetch a URL to the screen',
+            ping: 'send requests to a host and time the replies',
+            nslookup: 'query DNS for a hostname', neofetch: 'show system info, with flair',
+            theme: 'switch the 3d scene: theme <name>', clark: 'summon a howl',
+            history: 'list previously run commands', ps: 'list running processes',
+        };
         const execTerm = raw => {
             const cmd = raw.trim();
             termEcho('$ ' + cmd, '#7ee787');
+            if (cmd) { termCmdHistory.push(cmd); if (termCmdHistory.length > 60) termCmdHistory.shift(); }
+            const rawParts = cmd.split(/\s+/);
             const parts = cmd.toLowerCase().split(/\s+/);
             switch (parts[0]) {
                 case '': break;
                 case 'help':
-                    termEcho('help · about · links · worlds · theme <name>', '#e6edf3');
-                    termEcho('clark · pwd · rewind · clear', '#e6edf3');
+                    termEcho('files: ls · cd · pwd · cat · mkdir · touch · rm · echo', '#e6edf3');
+                    termEcho('system: whoami · hostname · uname · date · uptime · ps · df · free', '#e6edf3');
+                    termEcho('more: neofetch · history · man <cmd> · clear', '#e6edf3');
+                    termEcho('network: curl · ping · nslookup · ifconfig', '#e6edf3');
+                    termEcho('site: about · links · worlds · theme <name> · clark · rewind', '#e6edf3');
                     break;
                 case 'whoami':
-                    termEcho('Alan DeBoer', '#e6edf3');
+                    termEcho('alan', '#e6edf3');
                     break;
                 case 'about':
                     for (const ln of aboutLines) if (ln[0]) termEcho(ln[0], ln[1]);
@@ -2099,9 +2183,6 @@
                     dogState.howlUntil = clock.getElapsedTime() + 2.4;
                     if (soundOn && audioCtx) aroo();
                     break;
-                case 'pwd':
-                    termEcho(`/worlds/${theme}`, '#e6edf3');
-                    break;
                 case 'rewind':
                     termEcho('be kind. rewinding …', '#ffd23e');
                     if (soundOn && audioCtx) rewind();
@@ -2113,29 +2194,381 @@
                 case 'clear':
                     termHistory = [];
                     break;
+
+                // ── filesystem ──
+                case 'pwd':
+                    termEcho(pathStr(cwd), '#e6edf3');
+                    break;
+                case 'ls': {
+                    const argPath = rawParts[1] && !rawParts[1].startsWith('-') ? resolvePath(rawParts[1]) : cwd;
+                    const node = vfsNode(argPath);
+                    if (!node) { termEcho(`ls: cannot access '${rawParts[1]}': No such file or directory`, '#ff7b72'); break; }
+                    if (node.type === 'file') { termEcho(argPath[argPath.length - 1], '#e6edf3'); break; }
+                    const names = Object.keys(node.children).sort();
+                    if (names.length) termEcho(names.map(n2 => node.children[n2].type === 'dir' ? `${n2}/` : n2).join('  '), '#79c0ff');
+                    break;
+                }
+                case 'cd': {
+                    const target = rawParts[1] ? resolvePath(rawParts[1]) : ['home', 'alan'];
+                    const node = vfsNode(target);
+                    if (!node) termEcho(`cd: no such file or directory: ${rawParts[1]}`, '#ff7b72');
+                    else if (node.type !== 'dir') termEcho(`cd: not a directory: ${rawParts[1]}`, '#ff7b72');
+                    else cwd = target;
+                    break;
+                }
+                case 'cat': {
+                    if (!rawParts[1]) { termEcho('usage: cat <file>', '#ff7b72'); break; }
+                    const node = vfsNode(resolvePath(rawParts[1]));
+                    if (!node) termEcho(`cat: ${rawParts[1]}: No such file or directory`, '#ff7b72');
+                    else if (node.type === 'dir') termEcho(`cat: ${rawParts[1]}: Is a directory`, '#ff7b72');
+                    else for (const ln of node.content.split('\n')) termEcho(ln, '#e6edf3');
+                    break;
+                }
+                case 'mkdir': {
+                    if (!rawParts[1]) { termEcho('usage: mkdir <name>', '#ff7b72'); break; }
+                    const parent = vfsNode(cwd);
+                    if (parent && !parent.children[rawParts[1]]) parent.children[rawParts[1]] = mkDir({});
+                    break;
+                }
+                case 'touch': {
+                    if (!rawParts[1]) { termEcho('usage: touch <name>', '#ff7b72'); break; }
+                    const parent = vfsNode(cwd);
+                    if (parent && !parent.children[rawParts[1]]) parent.children[rawParts[1]] = mkFile('');
+                    break;
+                }
+                case 'rm': {
+                    if (!rawParts[1]) { termEcho('usage: rm <name>', '#ff7b72'); break; }
+                    const parent = vfsNode(cwd);
+                    if (parent && parent.children[rawParts[1]]) delete parent.children[rawParts[1]];
+                    else termEcho(`rm: cannot remove '${rawParts[1]}': No such file or directory`, '#ff7b72');
+                    break;
+                }
+                case 'echo': {
+                    const rest = rawParts.slice(1).join(' ');
+                    const gtIdx = rest.indexOf('>');
+                    if (gtIdx !== -1) {
+                        const text = rest.slice(0, gtIdx).trim().replace(/^"|"$/g, '');
+                        const fname = rest.slice(gtIdx + 1).trim();
+                        const parent = vfsNode(cwd);
+                        if (fname && parent) parent.children[fname] = mkFile(text);
+                    } else {
+                        termEcho(rest, '#e6edf3');
+                    }
+                    break;
+                }
+
+                // ── system ──
+                case 'hostname':
+                    termEcho('computer', '#e6edf3');
+                    break;
+                case 'uname':
+                    termEcho(parts[1] === '-a'
+                        ? 'Linux computer 6.8.0-alandeboer #1 SMP canvas-tty x86_64 GNU/Linux'
+                        : 'Linux', '#e6edf3');
+                    break;
+                case 'lsb_release':
+                    termEcho('Distributor ID: Ubuntu', '#e6edf3');
+                    termEcho('Description:    Ubuntu 24.04.1 LTS (browser edition)', '#e6edf3');
+                    termEcho('Release:        24.04    Codename: noble', '#e6edf3');
+                    break;
+                case 'date':
+                    termEcho(new Date().toString(), '#e6edf3');
+                    break;
+                case 'uptime': {
+                    const secs = clock.getElapsedTime() | 0;
+                    termEcho(`up ${(secs / 60) | 0}m ${secs % 60}s, 1 user, load average: 0.42, 0.31, 0.19`, '#e6edf3');
+                    break;
+                }
+                case 'history':
+                    termCmdHistory.forEach((h2, i2) => termEcho(`  ${i2 + 1}  ${h2}`, '#e6edf3'));
+                    break;
+                case 'ps':
+                    termEcho('USER   PID  CMD', '#e6edf3');
+                    termEcho('alan     1  /sbin/init', '#9aa4b2');
+                    termEcho('alan    42  three.js render-loop', '#9aa4b2');
+                    termEcho('alan    88  dog-ai.service (clark)', '#9aa4b2');
+                    termEcho('alan   103  audio.worklet (ambient)', '#9aa4b2');
+                    termEcho('alan   777  you', '#9aa4b2');
+                    break;
+                case 'df':
+                    termEcho('Filesystem       Size  Used Avail Use% Mounted on', '#e6edf3');
+                    termEcho('/dev/imagination 1.0P   42G  958G   1% /', '#9aa4b2');
+                    break;
+                case 'free':
+                    termEcho('             total       used       free', '#e6edf3');
+                    termEcho('Mem:        16384Mi     4096Mi    12288Mi', '#9aa4b2');
+                    break;
+                case 'apt':
+                case 'apt-get':
+                    termEcho("this isn't a real package manager — nice try though", '#ff7b72');
+                    break;
+                case 'man': {
+                    const page = manPages[parts[1]];
+                    termEcho(page ? `${parts[1]}: ${page}` : `No manual entry for ${parts[1] || ''}`, page ? '#e6edf3' : '#ff7b72');
+                    break;
+                }
+                case 'neofetch': {
+                    const upSecs = clock.getElapsedTime() | 0;
+                    const art = ["   ,   ,     ", "  ('\\_/')    ", "  ('.'.)     ", "  (\")_(\")    "];
+                    const info = [
+                        'alan@computer', '-------------',
+                        'OS: Ubuntu-ish 24.04 (browser edition)',
+                        'Host: alandeboer.computer', 'Kernel: three.js r160',
+                        `Uptime: ${(upSecs / 60) | 0}m`, 'Shell: fakebash 1.0',
+                        `Theme: ${theme}`, 'Terminal: canvas-tty',
+                    ];
+                    for (let i2 = 0; i2 < info.length; i2++) {
+                        termEcho(`${art[i2] || '              '} ${info[i2]}`, i2 < art.length ? '#ffa657' : '#e6edf3');
+                    }
+                    break;
+                }
+
+                // ── network — real requests, browser-sandboxed ──
+                case 'curl':
+                case 'wget': {
+                    const url = rawParts[1];
+                    if (!url) { termEcho(`usage: ${parts[0]} <url>`, '#ff7b72'); break; }
+                    const target = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+                    termEcho(`connecting to ${target} …`, '#5a6373');
+                    fetch(target).then(r => r.text().then(txt => ({ ok: r.ok, status: r.status, txt })))
+                        .then(({ ok, status, txt }) => {
+                            termEcho(`HTTP/1.1 ${status}`, ok ? '#7ee787' : '#ffa657');
+                            termEcho(txt.replace(/\s+/g, ' ').trim().slice(0, 220) || '(empty body)', '#9aa4b2');
+                        })
+                        .catch(() => termEcho(`${parts[0]}: (7) couldn't connect — blocked by CORS or unreachable`, '#ff7b72'))
+                        .finally(() => { monLastDraw = -10; });
+                    break;
+                }
+                case 'ping': {
+                    const host = rawParts[1];
+                    if (!host) { termEcho('usage: ping <host>', '#ff7b72'); break; }
+                    const target = /^https?:\/\//i.test(host) ? host : `https://${host}`;
+                    termEcho(`PING ${host}`, '#5a6373');
+                    let sent = 0, recv = 0;
+                    const doPing = () => {
+                        if (sent >= 4) {
+                            termEcho(`--- ${host} ping statistics ---`, '#5a6373');
+                            termEcho(`${sent} packets transmitted, ${recv} received`, '#9aa4b2');
+                            monLastDraw = -10;
+                            return;
+                        }
+                        sent++;
+                        const t0 = performance.now();
+                        fetch(target, { mode: 'no-cors', cache: 'no-store' })
+                            .then(() => { recv++; termEcho(`reply from ${host}: time=${(performance.now() - t0).toFixed(0)}ms`, '#7ee787'); })
+                            .catch(() => termEcho(`request to ${host} timed out`, '#ff7b72'))
+                            .finally(() => { monLastDraw = -10; setTimeout(doPing, 350); });
+                    };
+                    doPing();
+                    break;
+                }
+                case 'nslookup':
+                case 'dig': {
+                    const host = rawParts[1];
+                    if (!host) { termEcho(`usage: ${parts[0]} <host>`, '#ff7b72'); break; }
+                    termEcho(`resolving ${host} via 1.1.1.1 …`, '#5a6373');
+                    fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=A`, {
+                        headers: { accept: 'application/dns-json' },
+                    }).then(r => r.json()).then(data => {
+                        const answers = (data.Answer || []).filter(a2 => a2.type === 1);
+                        if (!answers.length) { termEcho(`no A records found for ${host}`, '#ff7b72'); return; }
+                        termEcho(`Name:    ${host}`, '#e6edf3');
+                        for (const a2 of answers) termEcho(`Address: ${a2.data}`, '#79c0ff');
+                    }).catch(() => termEcho(`${parts[0]}: lookup failed (network unreachable)`, '#ff7b72'))
+                        .finally(() => { monLastDraw = -10; });
+                    break;
+                }
+                case 'ifconfig':
+                case 'ip':
+                    termEcho('eth0: flags=4163<UP,BROADCAST,RUNNING>  mtu 1500', '#e6edf3');
+                    termEcho('      inet 10.0.0.42  netmask 255.255.255.0', '#9aa4b2');
+                    termEcho('      ether 02:1a:4c:8e:9b:03  txqueuelen 1000', '#9aa4b2');
+                    break;
+
                 default:
                     termEcho(`command not found: ${parts[0]} (try help)`, '#ff7b72');
             }
             if (termHistory.length > 200) termHistory = termHistory.slice(-120);
         };
-        window.addEventListener('keydown', e => {
-            if (!monZoom) return;
-            if (e.metaKey || e.ctrlKey || e.altKey) return;
-            if (e.key === 'Escape') {
-                monZoom = false;
-            } else if (e.key === 'Enter') {
-                const v = termInput;
-                termInput = '';
-                execTerm(v);
-            } else if (e.key === 'Backspace') {
-                termInput = termInput.slice(0, -1);
-            } else if (e.key.length === 1 && termInput.length < 36) {
-                termInput += e.key;
-            } else {
+
+        // ── The MacBook: a small Slack-a-like with fake coworkers ──
+        let lapZoom = false, lapZoomStart = 0, lapLastDraw = 0;
+        let lapInput = '';
+        let lapTyping = null;
+        const slackUserColor = { you: '#7ee787', jamie: '#79c0ff', priya: '#ffa657', theo: '#d2a8ff', sam: '#ff9bce' };
+        const slackChannels = {
+            general: {
+                topic: 'day-to-day stuff',
+                members: ['jamie', 'priya'],
+                messages: [
+                    { user: 'jamie', text: 'hey, still up?' },
+                    { user: 'you', text: 'yeah just coding' },
+                    { user: 'priya', text: 'building something?' },
+                    { user: 'you', text: 'always' },
+                    { user: 'jamie', text: 'send the link when live' },
+                ],
+            },
+            random: {
+                topic: 'no rules',
+                members: ['theo', 'sam'],
+                messages: [
+                    { user: 'theo', text: "anyone else's coffee gone cold" },
+                    { user: 'sam', text: 'this is a support group now' },
+                ],
+            },
+            'clark-sightings': {
+                topic: 'a very good beagle',
+                members: ['priya', 'theo'],
+                messages: [
+                    { user: 'priya', text: 'clark update: sniffing something intently' },
+                    { user: 'theo', text: 'incredible work from him as always' },
+                ],
+            },
+        };
+        let slackChannel = 'general';
+        const slackReplyPools = {
+            clark: ['clark??', 'attach a photo!', 'good boy privileges reinstated', '10/10 beagle', "screenshot or it didn't happen"],
+            hi: ['hey!', 'yo', 'sup', 'hii', 'o/'],
+            work: ['ship it', 'just push to main lol', 'did you write tests? kidding, ship it', 'lgtm 🚀'],
+            default: ['lol', 'based', 'wait really?', 'big if true', 'same', 'no way', '🙌', 'haha yeah', 'huh, neat'],
+        };
+        const pickSlackReply = text => {
+            const low = text.toLowerCase();
+            let pool = slackReplyPools.default;
+            if (low.includes('clark')) pool = slackReplyPools.clark;
+            else if (/\b(hi|hey|hello|yo)\b/.test(low)) pool = slackReplyPools.hi;
+            else if (/\b(work|ship|deploy|bug|code|push)\b/.test(low)) pool = slackReplyPools.work;
+            return pool[(Math.random() * pool.length) | 0];
+        };
+        const sendSlackMessage = raw => {
+            const text = raw.trim();
+            if (!text) return;
+            if (text.startsWith('/')) {
+                const name = text.slice(1).toLowerCase();
+                if (slackChannels[name]) slackChannel = name;
                 return;
             }
+            const chan = slackChannels[slackChannel];
+            chan.messages.push({ user: 'you', text });
+            if (chan.messages.length > 40) chan.messages.shift();
+            const replyUser = chan.members[(Math.random() * chan.members.length) | 0];
+            lapTyping = { user: replyUser };
+            setTimeout(() => {
+                chan.messages.push({ user: replyUser, text: pickSlackReply(text) });
+                lapTyping = null;
+                lapLastDraw = -10;
+            }, 700 + Math.random() * 900);
+        };
+        function drawSlack(elapsed) {
+            const W = 620, H = 390;
+            const SB = 128, MX = SB;
+            mbc.textAlign = 'left';
+            mbc.fillStyle = '#1e212e'; mbc.fillRect(0, 0, W, H);
+            // Sidebar
+            mbc.fillStyle = '#121420'; mbc.fillRect(0, 0, SB, H);
+            mbc.fillStyle = '#e6edf3'; mbc.font = 'bold 12px sans-serif';
+            mbc.fillText('clarkspace', 12, 20);
+            mbc.font = '11px sans-serif';
+            let sy = 44;
+            for (const key of Object.keys(slackChannels)) {
+                const active = key === slackChannel;
+                if (active) { mbc.fillStyle = 'rgba(255,255,255,0.09)'; mbc.fillRect(4, sy - 13, SB - 8, 18); }
+                mbc.fillStyle = active ? '#ffffff' : '#9aa4b2';
+                mbc.fillText('# ' + key, 12, sy);
+                sy += 21;
+            }
+            sy += 10;
+            mbc.fillStyle = '#5a6373'; mbc.font = '10px sans-serif';
+            mbc.fillText('MEMBERS', 12, sy); sy += 17;
+            mbc.font = '11px sans-serif';
+            for (const u of slackChannels[slackChannel].members) {
+                mbc.fillStyle = '#3fb950';
+                mbc.beginPath(); mbc.arc(16, sy - 4, 3, 0, Math.PI * 2); mbc.fill();
+                mbc.fillStyle = '#9aa4b2';
+                mbc.fillText(u, 24, sy);
+                sy += 17;
+            }
+            // Main pane
+            mbc.fillStyle = 'rgba(255,255,255,0.06)'; mbc.fillRect(MX, 0, W - MX, 1);
+            mbc.fillStyle = '#e6edf3'; mbc.font = 'bold 12px sans-serif';
+            mbc.fillText('# ' + slackChannel, MX + 14, 20);
+            mbc.fillStyle = '#5a6373'; mbc.font = '10px sans-serif';
+            mbc.fillText(slackChannels[slackChannel].topic, MX + 14, 33);
+            mbc.textAlign = 'right';
+            mbc.fillText('esc to close', W - 10, 14);
+            mbc.textAlign = 'left';
+            mbc.fillStyle = 'rgba(255,255,255,0.06)'; mbc.fillRect(MX, 40, W - MX, 1);
+            // Messages
+            const msgs = slackChannels[slackChannel].messages;
+            const rowH = 28;
+            const maxRows = Math.max(1, Math.floor((H - 40 - 44 - 18) / rowH));
+            const shown = msgs.slice(-maxRows);
+            let my = 58;
+            for (const m of shown) {
+                mbc.fillStyle = slackUserColor[m.user] || '#9aa4b2';
+                mbc.font = 'bold 11px sans-serif';
+                mbc.fillText(m.user, MX + 14, my);
+                mbc.fillStyle = '#c9d1d9';
+                mbc.font = '11px sans-serif';
+                mbc.fillText(m.text.length > 68 ? m.text.slice(0, 67) + '…' : m.text, MX + 14, my + 13);
+                my += rowH;
+            }
+            // Typing indicator
+            if (lapTyping) {
+                mbc.fillStyle = '#5a6373'; mbc.font = 'italic 10px sans-serif';
+                mbc.fillText(`${lapTyping.user} is typing…`, MX + 14, H - 42);
+            }
+            // Composer
+            mbc.fillStyle = '#262a38'; mbc.fillRect(MX + 10, H - 32, W - MX - 20, 24);
+            const cursor = Math.floor(elapsed * 2.5) % 2 === 0 ? '▍' : '';
+            const dispInput = lapInput.length > 48 ? '…' + lapInput.slice(-47) : lapInput;
+            mbc.fillStyle = lapInput ? '#e6edf3' : '#5a6373';
+            mbc.font = '11px sans-serif';
+            mbc.fillText(lapInput ? dispInput + cursor : `Message #${slackChannel}`, MX + 18, H - 16);
+        }
+        window.addEventListener('keydown', e => {
+            if (!monZoom && !lapZoom) return;
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.key === 'Escape') {
+                monZoom = false; lapZoom = false;
+            } else if (monZoom) {
+                if (e.key === 'Enter') {
+                    const v = termInput;
+                    termInput = '';
+                    termHistIdx = -1;
+                    execTerm(v);
+                } else if (e.key === 'ArrowUp') {
+                    if (termCmdHistory.length) {
+                        termHistIdx = termHistIdx === -1 ? termCmdHistory.length - 1 : Math.max(0, termHistIdx - 1);
+                        termInput = termCmdHistory[termHistIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    if (termHistIdx !== -1) {
+                        termHistIdx = termHistIdx + 1 >= termCmdHistory.length ? -1 : termHistIdx + 1;
+                        termInput = termHistIdx === -1 ? '' : termCmdHistory[termHistIdx];
+                    }
+                } else if (e.key === 'Backspace') {
+                    termInput = termInput.slice(0, -1);
+                } else if (e.key.length === 1 && termInput.length < 100) {
+                    termInput += e.key;
+                } else {
+                    return;
+                }
+            } else if (lapZoom) {
+                if (e.key === 'Enter') {
+                    const v = lapInput;
+                    lapInput = '';
+                    sendSlackMessage(v);
+                } else if (e.key === 'Backspace') {
+                    lapInput = lapInput.slice(0, -1);
+                } else if (e.key.length === 1 && lapInput.length < 80) {
+                    lapInput += e.key;
+                } else {
+                    return;
+                }
+            }
             e.preventDefault();
-            monLastDraw = -10;   // repaint on the next frame
+            monLastDraw = -10; lapLastDraw = -10;   // repaint on the next frame
         });
         function drawAbout(elapsed) {
             const W = 1024, H = 440;
@@ -2176,7 +2609,7 @@
         monHit.position.set(MOX, MOY, MOZ + 0.03);
         addTarget.add(monHit);
         // click-to-zoom state: fly in to read, click anywhere to fly back
-        let monZoom = false, monZoomStart = 0, zoomSaved = null;
+        let monZoom = false, monZoomStart = 0, zoomSaved = null, zoomSavedFrom = null;
         const zoomCamTo = new THREE.Vector3(MOX, MOY + 0.01, MOZ + 0.86);
         const zoomTgtTo = new THREE.Vector3(MOX, MOY, MOZ);
         // Screen tint endpoints for color slider
@@ -6331,10 +6764,31 @@
             hearts.push(spr);
         }
         let petStart = -10, petUntil = -10;
+
+        // Name tag that hovers over Clark for a bit after a click
+        const clarkTagCv = mkCanvas(220, 72);
+        {
+            const tc = clarkTagCv.getContext('2d');
+            tc.textAlign = 'center';
+            tc.font = 'bold 34px sans-serif';
+            tc.lineWidth = 8;
+            tc.strokeStyle = 'rgba(10,10,14,0.85)';
+            tc.strokeText('Clark', 110, 46);
+            tc.fillStyle = '#ffe8b0';
+            tc.fillText('Clark', 110, 46);
+        }
+        const clarkTagTex = new THREE.CanvasTexture(clarkTagCv);
+        const clarkTag = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: clarkTagTex, transparent: true, opacity: 0, depthWrite: false }));
+        clarkTag.scale.set(0.42, 0.14, 1);
+        clarkTag.visible = false;
+        scene.add(clarkTag);
+        let labelUntil = -10;
         const petDog = () => {
             const tn = clock.getElapsedTime();
             petStart = tn;
             petUntil = tn + 2.6;
+            labelUntil = tn + 15;
         };
 
         // Lamp click toggles it, remembering the last brightness
@@ -6403,7 +6857,7 @@
         };
         renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
         renderer.domElement.addEventListener('pointermove', e => {
-            if (monZoom || e.buttons !== 0) return;
+            if (monZoom || lapZoom || e.buttons !== 0) return;
             const hit = pickInteract(e.clientX, e.clientY);
             const rec = hit ? hit.rec : null;
             if (rec !== hoverRec) {
@@ -6417,18 +6871,36 @@
                 monZoom = false;
                 return;
             }
+            if (lapZoom) {   // any click flies back out
+                lapZoom = false;
+                return;
+            }
             const hit = pickInteract(e.clientX, e.clientY);
             if (hit) hit.rec.onClick(hit.point);
         });
 
         // ── Global: the beagle and the monitor exist in every world ──
         addInteract(dogGroup, { theme: 'global', onClick: petDog });
-        addInteract(monHit, {
+        addInteract(mbScrMesh, {
             theme: 'global',
             onClick: () => {
+                if (monZoom || lapZoom) return;
                 zoomSaved = { cam: camera.position.clone(), tgt: controls.target.clone(), auto: controls.autoRotate };
                 controls.enabled = false;
                 controls.autoRotate = false;
+                zoomSavedFrom = 'lap';
+                lapZoom = true;
+                lapZoomStart = clock.getElapsedTime();
+            },
+        });
+        addInteract(monHit, {
+            theme: 'global',
+            onClick: () => {
+                if (monZoom || lapZoom) return;
+                zoomSaved = { cam: camera.position.clone(), tgt: controls.target.clone(), auto: controls.autoRotate };
+                controls.enabled = false;
+                controls.autoRotate = false;
+                zoomSavedFrom = 'mon';
                 monZoom = true;
                 monZoomStart = clock.getElapsedTime();
             },
@@ -7237,6 +7709,16 @@
                 }
             } else if (hearts[0].visible) {
                 hearts.forEach(h => h.visible = false);
+            }
+
+            // Name tag hovers over Clark for 15s after a click, then fades
+            if (t < labelUntil) {
+                clarkTag.visible = true;
+                clarkTag.position.set(dogGroup.position.x, dogGroup.position.y + 0.52, dogGroup.position.z);
+                const remain = labelUntil - t;
+                clarkTag.material.opacity = Math.min(1, remain / 2.5);
+            } else if (clarkTag.visible) {
+                clarkTag.visible = false;
             }
 
             // Zero-g: dog floats and gently tumbles in spaceship
@@ -8142,10 +8624,13 @@
                 f.position.y = f.userData.baseY - Math.max(0, Math.sin(t * 12.5 + i * 1.93)) * 0.0075;
             }
 
-            // ── Monitor: fly-in zoom, about page when close, code otherwise ──
+            // ── Monitor / MacBook: fly-in zoom, app view when close, idle otherwise ──
             if (monZoom) {
                 camera.position.lerp(zoomCamTo, Math.min(1, dt * 4));
                 controls.target.lerp(zoomTgtTo, Math.min(1, dt * 4));
+            } else if (lapZoom) {
+                camera.position.lerp(zoomCamToMB, Math.min(1, dt * 4));
+                controls.target.lerp(zoomTgtToMB, Math.min(1, dt * 4));
             } else if (zoomSaved) {
                 camera.position.lerp(zoomSaved.cam, Math.min(1, dt * 4));
                 controls.target.lerp(zoomSaved.tgt, Math.min(1, dt * 4));
@@ -8153,13 +8638,22 @@
                     controls.enabled = true;
                     controls.autoRotate = zoomSaved.auto;
                     zoomSaved = null;
+                    if (zoomSavedFrom === 'lap') { drawMBIdle(); mbTex.needsUpdate = true; }
+                    zoomSavedFrom = null;
                 }
             }
             if (t - monLastDraw > (monZoom ? 0.2 : 0.5)) {
                 monLastDraw = t;
-                if (monZoom || zoomSaved) drawAbout(t - monZoomStart);
-                else drawMonitor(t);
+                if (monZoom || (zoomSaved && zoomSavedFrom === 'mon')) drawAbout(t - monZoomStart);
+                else if (!monZoom) drawMonitor(t);
                 monTex.needsUpdate = true;
+            }
+            if (lapZoom || (zoomSaved && zoomSavedFrom === 'lap')) {
+                if (t - lapLastDraw > (lapZoom ? 0.2 : 0.5)) {
+                    lapLastDraw = t;
+                    drawSlack(t - lapZoomStart);
+                    mbTex.needsUpdate = true;
+                }
             }
             monScrMat.color.copy(scrCool).lerp(scrWarm, c);
 
@@ -8184,6 +8678,9 @@
                 theme === 'video' ? 0.35 :
                 theme === 'tillson' ? 0.6 :
                 0.08 + (1 - params.time) * 0.3;
+            // The laptop screen fills nearly the whole frame up close — bloom
+            // smears its fine UI text into blown-out streaks, so ease off while zoomed
+            if (lapZoom || (zoomSaved && zoomSavedFrom === 'lap')) bloomPass.strength = 0;
 
             // ── One-off click reactions ──
             for (let i = activeEffects.length - 1; i >= 0; i--) {
