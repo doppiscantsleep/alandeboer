@@ -2142,6 +2142,51 @@
         let termHistIdx = -1;
         const termEcho = (txt, col = '#9aa4b2') => termHistory.push([txt, col]);
 
+        // ── snake: a hidden mini-game, `snake` to play, arrow keys to steer ──
+        const SNAKE_COLS = 34, SNAKE_ROWS = 13;
+        let snakeActive = false, snakeOver = false, snakeScore = 0, snakeLastStep = 0;
+        let snakeBody = [], snakeDir = { x: 1, y: 0 }, snakeNextDir = { x: 1, y: 0 };
+        let snakeFood = { x: 0, y: 0 };
+        const placeSnakeFood = () => {
+            let fx, fy;
+            do {
+                fx = (Math.random() * SNAKE_COLS) | 0;
+                fy = (Math.random() * SNAKE_ROWS) | 0;
+            } while (snakeBody.some(s => s.x === fx && s.y === fy));
+            snakeFood = { x: fx, y: fy };
+        };
+        const startSnake = () => {
+            snakeActive = true;
+            snakeOver = false;
+            snakeScore = 0;
+            snakeDir = { x: 1, y: 0 };
+            snakeNextDir = { x: 1, y: 0 };
+            snakeBody = [{ x: 8, y: 6 }, { x: 7, y: 6 }, { x: 6, y: 6 }];
+            placeSnakeFood();
+            snakeLastStep = clock.getElapsedTime();
+        };
+        const stepSnake = t => {
+            if (!snakeActive || snakeOver || t - snakeLastStep < 0.15) return;
+            snakeLastStep = t;
+            snakeDir = snakeNextDir;
+            const head = snakeBody[0];
+            const nx = head.x + snakeDir.x, ny = head.y + snakeDir.y;
+            if (nx < 0 || nx >= SNAKE_COLS || ny < 0 || ny >= SNAKE_ROWS ||
+                snakeBody.some(s => s.x === nx && s.y === ny)) {
+                snakeOver = true;
+                termEcho(`game over — score ${snakeScore}`, '#ff7b72');
+                termEcho('type snake to play again', '#5a6373');
+                return;
+            }
+            snakeBody.unshift({ x: nx, y: ny });
+            if (nx === snakeFood.x && ny === snakeFood.y) {
+                snakeScore++;
+                placeSnakeFood();
+            } else {
+                snakeBody.pop();
+            }
+        };
+
         // ── Tiny in-memory filesystem, Ubuntu-flavored ──
         const mkDir = children => ({ type: 'dir', children });
         const mkFile = content => ({ type: 'file', content });
@@ -2222,7 +2267,7 @@
                     termEcho('system: whoami · hostname · uname · date · uptime · ps · df · free', '#e6edf3');
                     termEcho('more: neofetch · history · man <cmd> · clear', '#e6edf3');
                     termEcho('network: curl · ping · nslookup · ifconfig', '#e6edf3');
-                    termEcho('site: about · links · worlds · theme <name> · clark · rewind', '#e6edf3');
+                    termEcho('site: about · links · worlds · theme <name> · clark · rewind · snake', '#e6edf3');
                     break;
                 case 'whoami':
                     termEcho('alan', '#e6edf3');
@@ -2267,6 +2312,10 @@
                     break;
                 case 'clear':
                     termHistory = [];
+                    break;
+                case 'snake':
+                    termEcho('arrow keys to steer · q to quit', '#5a6373');
+                    startSnake();
                     break;
 
                 // ── filesystem ──
@@ -2605,7 +2654,14 @@
             if (document.activeElement === mobileInputEl) return;   // the mobile bar handles its own input
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             if (e.key === 'Escape') {
-                monZoom = false; lapZoom = false;
+                monZoom = false; lapZoom = false; snakeActive = false;
+            } else if (monZoom && snakeActive) {
+                if (e.key === 'ArrowUp' && snakeDir.y !== 1) snakeNextDir = { x: 0, y: -1 };
+                else if (e.key === 'ArrowDown' && snakeDir.y !== -1) snakeNextDir = { x: 0, y: 1 };
+                else if (e.key === 'ArrowLeft' && snakeDir.x !== 1) snakeNextDir = { x: -1, y: 0 };
+                else if (e.key === 'ArrowRight' && snakeDir.x !== -1) snakeNextDir = { x: 1, y: 0 };
+                else if (e.key === 'q' || snakeOver) snakeActive = false;
+                else return;
             } else if (monZoom) {
                 if (e.key === 'Enter') {
                     const v = termInput;
@@ -2652,10 +2708,18 @@
         const mobileBar = document.getElementById('mobile-bar');
         const mobileInputEl = document.getElementById('mobile-input');
         let mobileBarShown = false;
+        let mobileBarSnakeMode = false;
         const submitMobileInput = () => {
             const v = mobileInputEl.value;
             mobileInputEl.value = '';
-            if (monZoom) { termInput = ''; termHistIdx = -1; execTerm(v); }
+            if (monZoom && snakeActive) {
+                const k = v.trim().toLowerCase();
+                if (k === 'w' && snakeDir.y !== 1) snakeNextDir = { x: 0, y: -1 };
+                else if (k === 's' && snakeDir.y !== -1) snakeNextDir = { x: 0, y: 1 };
+                else if (k === 'a' && snakeDir.x !== 1) snakeNextDir = { x: -1, y: 0 };
+                else if (k === 'd' && snakeDir.x !== -1) snakeNextDir = { x: 1, y: 0 };
+                else if (k === 'q' || snakeOver) snakeActive = false;
+            } else if (monZoom) { termInput = ''; termHistIdx = -1; execTerm(v); }
             else if (lapZoom) { lapInput = ''; sendSlackMessage(v); }
             monLastDraw = -10; lapLastDraw = -10;
         };
@@ -2669,7 +2733,7 @@
             e.stopPropagation();
         });
         document.getElementById('mobile-send').addEventListener('click', submitMobileInput);
-        document.getElementById('mobile-close').addEventListener('click', () => { monZoom = false; lapZoom = false; });
+        document.getElementById('mobile-close').addEventListener('click', () => { monZoom = false; lapZoom = false; snakeActive = false; });
 
         function drawAbout(elapsed) {
             const W = 1024, H = 440;
@@ -2678,6 +2742,26 @@
             mc.fillStyle = '#10141b'; mc.fillRect(0, 0, W, 30);
             mc.fillStyle = '#8a93a3'; mc.font = '13px monospace';
             mc.fillText('alan@computer — ~/terminal', 18, 20);
+            if (snakeActive) {
+                mc.font = 'bold 16px monospace';
+                mc.fillStyle = '#7ee787';
+                mc.fillText(`snake — score ${snakeScore}`, 34, 56);
+                if (snakeOver) {
+                    mc.fillStyle = '#ff7b72';
+                    mc.fillText('game over — any key to return', 260, 56);
+                }
+                const GX0 = 34, GY0 = 72, CELL = 26;
+                mc.strokeStyle = 'rgba(150,170,230,0.35)';
+                mc.strokeRect(GX0 - 2, GY0 - 2, SNAKE_COLS * CELL + 4, SNAKE_ROWS * CELL + 4);
+                mc.fillStyle = '#ffa657';
+                mc.fillRect(GX0 + snakeFood.x * CELL + 3, GY0 + snakeFood.y * CELL + 3, CELL - 6, CELL - 6);
+                for (let i = snakeBody.length - 1; i >= 0; i--) {
+                    const seg = snakeBody[i];
+                    mc.fillStyle = i === 0 ? '#e6edf3' : '#7ee787';
+                    mc.fillRect(GX0 + seg.x * CELL + 2, GY0 + seg.y * CELL + 2, CELL - 4, CELL - 4);
+                }
+                return;
+            }
             mc.font = '19px monospace';
             // the intro types itself out; once you've used the shell it's instant
             let lines = termHistory;
@@ -6970,6 +7054,7 @@
             if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
             if (monZoom) {   // any click flies back out
                 monZoom = false;
+                snakeActive = false;
                 return;
             }
             if (lapZoom) {   // any click flies back out
@@ -8743,7 +8828,8 @@
                     zoomSavedFrom = null;
                 }
             }
-            if (t - monLastDraw > (monZoom ? 0.2 : 0.5)) {
+            if (monZoom && snakeActive) stepSnake(t);
+            if (t - monLastDraw > (snakeActive ? 0.05 : monZoom ? 0.2 : 0.5)) {
                 monLastDraw = t;
                 if (monZoom || (zoomSaved && zoomSavedFrom === 'mon')) drawAbout(t - monZoomStart);
                 else if (!monZoom) drawMonitor(t);
@@ -8765,6 +8851,10 @@
                 mobileBar.classList.toggle('hidden', !wantMobileBar);
                 if (wantMobileBar) { mobileInputEl.value = ''; mobileInputEl.focus(); }
                 else { mobileInputEl.blur(); }
+            }
+            if (mobileBarShown && (snakeActive !== mobileBarSnakeMode)) {
+                mobileBarSnakeMode = snakeActive;
+                mobileInputEl.placeholder = snakeActive ? 'w/a/s/d to steer, q to quit' : 'type a command…';
             }
 
             // ── Dust motes — slow rise with lateral drift ──
