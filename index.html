@@ -269,6 +269,55 @@
         #sound-btn.on .dot { opacity: 1; }
         #sound-btn.hidden { display: none; }
 
+        /* ── Mobile keyboard bar: the terminal/laptop app need typed input,
+           but touch devices have no physical keyboard to trigger it ── */
+        #mobile-bar {
+            position: absolute;
+            left: 50%;
+            bottom: 20px;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: all;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            background: rgba(7, 9, 20, 0.92);
+            border: 1px solid rgba(125, 150, 255, 0.28);
+            border-radius: 12px;
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+            z-index: 20;
+            width: min(92vw, 420px);
+        }
+        #mobile-bar.hidden { display: none; }
+        #mobile-input {
+            flex: 1;
+            min-width: 0;
+            background: rgba(150, 170, 230, 0.08);
+            border: 1px solid rgba(125, 150, 255, 0.22);
+            border-radius: 8px;
+            padding: 9px 11px;
+            color: rgba(230, 237, 255, 0.95);
+            font-family: 'Quicksand', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+        #mobile-input::placeholder { color: rgba(150, 170, 230, 0.4); }
+        #mobile-bar button {
+            flex-shrink: 0;
+            padding: 9px 13px;
+            background: rgba(125, 150, 255, 0.14);
+            border: 1px solid rgba(125, 150, 255, 0.3);
+            border-radius: 8px;
+            color: rgba(210, 222, 255, 0.9);
+            font-family: 'Quicksand', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        #mobile-bar button:active { background: rgba(125, 150, 255, 0.28); }
+
         /* narrow desktops: the picker grid would overlap the centered
            site name, so the name joins the hint at the bottom */
         @media (max-width: 1500px) and (min-width: 861px) {
@@ -312,6 +361,17 @@
                 right: 12px;
             }
             #hint { display: none; }
+            #mobile-bar {
+                left: 12px;
+                right: 12px;
+                bottom: 16px;
+                transform: none;
+                width: auto;
+                padding: 8px 8px 8px 10px;
+                gap: 6px;
+            }
+            #mobile-input { font-size: 13px; padding: 8px 9px; }
+            #mobile-bar button { padding: 8px 10px; font-size: 12px; }
         }
         @media (prefers-reduced-motion: reduce) {
             #ui * { transition: none !important; }
@@ -386,6 +446,11 @@
             <button class="world" data-world="tillson"><span class="dot"></span>tillson st</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
+        <div id="mobile-bar" class="hidden">
+            <input id="mobile-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="type a command…">
+            <button id="mobile-send" type="button" aria-label="Send">⏎</button>
+            <button id="mobile-close" type="button" aria-label="Close">✕</button>
+        </div>
     </div>
 
     <script type="importmap">
@@ -1746,8 +1811,17 @@
         mbScrMesh.getWorldPosition(mbScreenCenter);
         const mbScreenNormal = new THREE.Vector3(0, 0, 1)
             .applyQuaternion(mbPivot.getWorldQuaternion(new THREE.Quaternion())).normalize();
-        const zoomCamToMB = mbScreenCenter.clone().addScaledVector(mbScreenNormal, 0.60);
         const zoomTgtToMB = mbScreenCenter.clone();
+        // The laptop screen is small — 0.60 was tuned by eye against a ~16:9
+        // landscape view. On a narrow/portrait viewport the horizontal FOV
+        // shrinks, so back off further in proportion to how much narrower
+        // the aspect is than that reference, or the sides get cropped
+        const mbZoomCamPos = () => {
+            const refAspect = 1.6;
+            const aspectFactor = THREE.MathUtils.clamp(refAspect / camera.aspect, 1, 3);
+            const dist = 0.60 * aspectFactor;
+            return mbScreenCenter.clone().addScaledVector(mbScreenNormal, dist);
+        };
 
         // ── Coffee Mug ──
         const CFX = -0.75, CFZ = 0.22;
@@ -2528,6 +2602,7 @@
         }
         window.addEventListener('keydown', e => {
             if (!monZoom && !lapZoom) return;
+            if (document.activeElement === mobileInputEl) return;   // the mobile bar handles its own input
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             if (e.key === 'Escape') {
                 monZoom = false; lapZoom = false;
@@ -2570,6 +2645,32 @@
             e.preventDefault();
             monLastDraw = -10; lapLastDraw = -10;   // repaint on the next frame
         });
+
+        // ── Mobile keyboard bar: touch devices have no physical keyboard, so the
+        // terminal/laptop apps get a small on-screen input that pops the OS keyboard ──
+        const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        const mobileBar = document.getElementById('mobile-bar');
+        const mobileInputEl = document.getElementById('mobile-input');
+        let mobileBarShown = false;
+        const submitMobileInput = () => {
+            const v = mobileInputEl.value;
+            mobileInputEl.value = '';
+            if (monZoom) { termInput = ''; termHistIdx = -1; execTerm(v); }
+            else if (lapZoom) { lapInput = ''; sendSlackMessage(v); }
+            monLastDraw = -10; lapLastDraw = -10;
+        };
+        mobileInputEl.addEventListener('input', () => {
+            if (monZoom) termInput = mobileInputEl.value;
+            else if (lapZoom) lapInput = mobileInputEl.value;
+            monLastDraw = -10; lapLastDraw = -10;
+        });
+        mobileInputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); submitMobileInput(); }
+            e.stopPropagation();
+        });
+        document.getElementById('mobile-send').addEventListener('click', submitMobileInput);
+        document.getElementById('mobile-close').addEventListener('click', () => { monZoom = false; lapZoom = false; });
+
         function drawAbout(elapsed) {
             const W = 1024, H = 440;
             mc.textAlign = 'left';
@@ -8629,7 +8730,7 @@
                 camera.position.lerp(zoomCamTo, Math.min(1, dt * 4));
                 controls.target.lerp(zoomTgtTo, Math.min(1, dt * 4));
             } else if (lapZoom) {
-                camera.position.lerp(zoomCamToMB, Math.min(1, dt * 4));
+                camera.position.lerp(mbZoomCamPos(), Math.min(1, dt * 4));
                 controls.target.lerp(zoomTgtToMB, Math.min(1, dt * 4));
             } else if (zoomSaved) {
                 camera.position.lerp(zoomSaved.cam, Math.min(1, dt * 4));
@@ -8656,6 +8757,15 @@
                 }
             }
             monScrMat.color.copy(scrCool).lerp(scrWarm, c);
+
+            // Show the on-screen keyboard bar only on touch devices, only while typing matters
+            const wantMobileBar = isTouchDevice && (monZoom || lapZoom);
+            if (wantMobileBar !== mobileBarShown) {
+                mobileBarShown = wantMobileBar;
+                mobileBar.classList.toggle('hidden', !wantMobileBar);
+                if (wantMobileBar) { mobileInputEl.value = ''; mobileInputEl.focus(); }
+                else { mobileInputEl.blur(); }
+            }
 
             // ── Dust motes — slow rise with lateral drift ──
             const dp = dustPoints.geometry.attributes.position.array;
