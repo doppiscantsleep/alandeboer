@@ -6956,6 +6956,31 @@
                     ds.mode = 'walking';
                     ds.modeStart = t;
                 }
+            } else if (ds.mode === 'zoomies') {
+                moveTarget = null;
+                if (t > ds.zoomUntil) {
+                    ds.mode = 'walking';
+                    ds.modeStart = t;
+                } else {
+                    const zr = 0.8, zSpeed = 2.4;
+                    ds.zoomAngle += ds.zoomDir * dt * (zSpeed / zr);
+                    const nx = ds.zoomCenter[0] + Math.sin(ds.zoomAngle) * zr;
+                    const nz = ds.zoomCenter[1] + Math.cos(ds.zoomAngle) * zr;
+                    ds.facing = Math.atan2(nx - ds.pos[0], nz - ds.pos[1]);
+                    ds.pos[0] = nx; ds.pos[1] = nz;
+                }
+            } else if (ds.mode === 'roll') {
+                moveTarget = null;
+                if (t > ds.rollUntil) {
+                    ds.mode = 'walking';
+                    ds.modeStart = t;
+                }
+            } else if (ds.mode === 'shake') {
+                moveTarget = null;
+                if (t > ds.shakeUntil) {
+                    ds.mode = 'walking';
+                    ds.modeStart = t;
+                }
             } else if (ds.mode === 'fetching') {
                 if (ds.fetchPhase === 'toBall') {
                     moveTarget = ds.fetchTarget;
@@ -6982,11 +7007,31 @@
                 const dist = Math.hypot(dx, dz);
                 if (dist < 0.08 && ds.mode === 'walking') {
                     ds.wpIndex = (ds.wpIndex + 1) % ds.waypoints.length;
-                    // Something smells interesting here…
-                    if (Math.random() < 0.45) {
+                    // Something smells interesting here… or maybe he's just feeling it
+                    const roll4 = Math.random();
+                    if (roll4 < 0.42) {
                         ds.mode = 'sniffing';
                         ds.sniffUntil = t + 1.4 + Math.random() * 2.4;
+                    } else if (roll4 < 0.54) {
+                        // The zoomies — a tight, fast lap that starts exactly where he's standing
+                        const side = Math.random() < 0.5 ? 1 : -1;
+                        const zr = 0.8;
+                        const perpAngle = ds.facing + side * Math.PI / 2;
+                        const cx = ds.pos[0] + Math.sin(perpAngle) * zr;
+                        const cz = ds.pos[1] + Math.cos(perpAngle) * zr;
+                        ds.mode = 'zoomies';
+                        ds.zoomCenter = [cx, cz];
+                        ds.zoomAngle = Math.atan2(ds.pos[0] - cx, ds.pos[1] - cz);
+                        ds.zoomDir = side;
+                        ds.zoomUntil = t + 2.6 + Math.random() * 1.6;
+                    } else if (roll4 < 0.64) {
+                        ds.mode = 'roll';
+                        ds.rollUntil = t + 2.6 + Math.random() * 1.0;
+                    } else if (roll4 < 0.72) {
+                        ds.mode = 'shake';
+                        ds.shakeUntil = t + 0.9 + Math.random() * 0.3;
                     }
+                    ds.modeStart = t;
                 } else if (dist > 0.01) {
                     ds.pos[0] += (dx / dist) * speed * dt;
                     ds.pos[1] += (dz / dist) * speed * dt;
@@ -7001,21 +7046,49 @@
             dogGroup.position.z = ds.pos[1];
             dogGroup.rotation.y = ds.facing;
 
-            const isMoving = (ds.mode === 'walking' || ds.mode === 'goingToBed' || ds.mode === 'fetching');
+            const isMoving = (ds.mode === 'walking' || ds.mode === 'goingToBed' || ds.mode === 'fetching' || ds.mode === 'zoomies');
             const lerpK = Math.min(1, dt * 5);
             let headPitch = 0, headYaw = 0;
             if (isMoving) {
-                const sw = Math.sin(t * 9) * 0.55;
+                const trotHz = ds.mode === 'zoomies' ? 17 : ds.mode === 'fetching' ? 11 : 9;
+                const sw = Math.sin(t * trotHz) * 0.55;
                 legFL.rotation.x = sw;
                 legBR.rotation.x = sw;
                 legFR.rotation.x = -sw;
                 legBL.rotation.x = -sw;
-                dogGroup.position.y = Math.abs(Math.sin(t * 9)) * 0.012;
-                tail.rotation.y = Math.sin(t * 12) * 0.4;
+                dogGroup.position.y = Math.abs(Math.sin(t * trotHz)) * 0.012;
+                tail.rotation.y = Math.sin(t * (trotHz + 3)) * 0.4;
                 // Ears flop with the trot, slight head bob
-                earL.rotation.x = Math.sin(t * 9) * 0.16;
-                earR.rotation.x = Math.sin(t * 9 + 0.6) * 0.16;
-                headPitch = Math.sin(t * 9 * 2) * 0.04;
+                earL.rotation.x = Math.sin(t * trotHz) * 0.16;
+                earR.rotation.x = Math.sin(t * trotHz + 0.6) * 0.16;
+                headPitch = Math.sin(t * trotHz * 2) * 0.04;
+            } else if (ds.mode === 'roll') {
+                // Flop onto a side and wiggle around, then settle back up
+                const el = t - ds.modeStart;
+                const total = Math.max(0.6, ds.rollUntil - ds.modeStart);
+                const env = Math.sin(Math.min(1, el / total) * Math.PI);
+                dogGroup.rotation.z = env * 1.25 + Math.sin(t * 7) * 0.16 * env;
+                dogGroup.position.y += (-0.055 - dogGroup.position.y) * Math.min(1, dt * 4);
+                legFL.rotation.x += (0.7 - legFL.rotation.x) * Math.min(1, dt * 3);
+                legFR.rotation.x += (-0.5 - legFR.rotation.x) * Math.min(1, dt * 3);
+                legBL.rotation.x += (0.6 - legBL.rotation.x) * Math.min(1, dt * 3);
+                legBR.rotation.x += (-0.4 - legBR.rotation.x) * Math.min(1, dt * 3);
+                tail.rotation.y = Math.sin(t * 9) * 0.5;
+                headPitch = Math.sin(t * 4.5) * 0.22;
+                earL.rotation.x = Math.sin(t * 6) * 0.22;
+                earR.rotation.x = Math.sin(t * 6 + 0.5) * 0.22;
+            } else if (ds.mode === 'shake') {
+                // A brisk full-body shake, ears flopping, that dies down fast
+                const el = t - ds.modeStart;
+                const total = Math.max(0.4, ds.shakeUntil - ds.modeStart);
+                const remain = Math.max(0, 1 - el / total);
+                dogGroup.rotation.z = Math.sin(t * 26) * 0.32 * remain;
+                [legFL, legFR, legBL, legBR].forEach(l => l.rotation.x += (0 - l.rotation.x) * Math.min(1, dt * 6));
+                dogGroup.position.y += (0 - dogGroup.position.y) * lerpK;
+                earL.rotation.x = Math.sin(t * 26) * 0.5 * remain;
+                earR.rotation.x = Math.sin(t * 26 + 0.5) * 0.5 * remain;
+                tail.rotation.y = Math.sin(t * 10) * 0.3;
+                headPitch = Math.sin(t * 20) * 0.08 * remain;
             } else if (ds.mode === 'sniffing') {
                 // Nose to the ground, sweeping side to side
                 const tuckK = Math.min(1, dt * 4);
@@ -7079,8 +7152,8 @@
                 dogGroup.position.y += 0.14 + Math.sin(t * 0.28) * 0.04;
                 dogGroup.rotation.z = Math.sin(t * 0.16) * 0.13;
                 dogGroup.rotation.x += Math.sin(t * 0.11) * 0.06;
-            } else {
-                dogGroup.rotation.z = 0;
+            } else if (ds.mode !== 'roll' && ds.mode !== 'shake') {
+                dogGroup.rotation.z = 0;   // roll/shake own this axis while active
             }
 
             tintColor.copy(coolMon).lerp(warmMon, c);
