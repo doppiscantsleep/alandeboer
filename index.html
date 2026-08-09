@@ -2187,6 +2187,96 @@
             }
         };
 
+        // ── space invaders: `invaders` in the terminal, arrows to move, space to fire ──
+        const INV_COLS = 8, INV_ROWS = 4, INV_CW = 34, INV_CH = 20, INV_GX = 14, INV_GY = 16;
+        const INV_ORIGIN_X = (1024 - (INV_COLS * (INV_CW + INV_GX) - INV_GX)) / 2, INV_ORIGIN_Y = 52;
+        let invActive = false, invState = 'playing', invScore = 0, invLives = 3;
+        let invGrid = [], invDir = 1, invOffsetX = 0, invOffsetY = 0, invLastStep = 0;
+        let invPlayerX = 512, invBullets = [], invLastEnemyShot = 0;
+        const invCellPos = g => ({
+            x: INV_ORIGIN_X + g.c * (INV_CW + INV_GX) + invOffsetX,
+            y: INV_ORIGIN_Y + g.r * (INV_CH + INV_GY) + invOffsetY,
+        });
+        const startInvaders = () => {
+            invActive = true;
+            invState = 'playing';
+            invScore = 0;
+            invLives = 3;
+            invGrid = [];
+            for (let r = 0; r < INV_ROWS; r++) for (let c = 0; c < INV_COLS; c++) invGrid.push({ c, r, alive: true });
+            invDir = 1;
+            invOffsetX = 0;
+            invOffsetY = 0;
+            invLastStep = clock.getElapsedTime();
+            invPlayerX = 512;
+            invBullets = [];
+            invLastEnemyShot = clock.getElapsedTime();
+        };
+        const invEndGame = (state, msg) => {
+            invState = state;
+            termEcho(msg, state === 'win' ? '#7ee787' : '#ff7b72');
+            termEcho('type invaders to play again', '#5a6373');
+        };
+        const stepInvaders = t => {
+            if (!invActive || invState !== 'playing') return;
+            const aliveList = invGrid.filter(g => g.alive);
+            if (!aliveList.length) { invEndGame('win', `you win — score ${invScore}`); return; }
+            const stepInt = 0.12 + 0.38 * (aliveList.length / (INV_COLS * INV_ROWS));
+            if (t - invLastStep > stepInt) {
+                invLastStep = t;
+                let minX = Infinity, maxX = -Infinity;
+                for (const g of aliveList) {
+                    const p = invCellPos(g);
+                    minX = Math.min(minX, p.x);
+                    maxX = Math.max(maxX, p.x + INV_CW);
+                }
+                const wouldExit = maxX + invDir * 18 > 990 || minX + invDir * 18 < 20;
+                if (wouldExit) { invDir *= -1; invOffsetY += 14; }
+                else invOffsetX += invDir * 18;
+                for (const g of aliveList) {
+                    const p = invCellPos(g);
+                    if (p.y + INV_CH >= 392) { invEndGame('over', `game over — score ${invScore}`); return; }
+                }
+            }
+            if (t - invLastEnemyShot > 0.9) {
+                invLastEnemyShot = t;
+                if (Math.random() < 0.6) {
+                    const bottoms = {};
+                    for (const g of aliveList) if (!bottoms[g.c] || g.r > bottoms[g.c].r) bottoms[g.c] = g;
+                    const shooters = Object.values(bottoms);
+                    if (shooters.length) {
+                        const s = shooters[(Math.random() * shooters.length) | 0];
+                        const p = invCellPos(s);
+                        invBullets.push({ x: p.x + INV_CW / 2, y: p.y + INV_CH, vy: 170, isPlayer: false });
+                    }
+                }
+            }
+        };
+        const stepInvBullets = (t, dt) => {
+            if (!invActive) return;
+            for (let i = invBullets.length - 1; i >= 0; i--) {
+                const b = invBullets[i];
+                b.y += (b.isPlayer ? -1 : 1) * b.vy * dt;
+                if (b.y < 40 || b.y > 410) { invBullets.splice(i, 1); continue; }
+                if (b.isPlayer) {
+                    for (const g of invGrid) {
+                        if (!g.alive) continue;
+                        const p = invCellPos(g);
+                        if (b.x > p.x && b.x < p.x + INV_CW && b.y > p.y && b.y < p.y + INV_CH) {
+                            g.alive = false;
+                            invScore += 10;
+                            invBullets.splice(i, 1);
+                            break;
+                        }
+                    }
+                } else if (invState === 'playing' && b.x > invPlayerX - 20 && b.x < invPlayerX + 20 && b.y > 388 && b.y < 402) {
+                    invBullets.splice(i, 1);
+                    invLives--;
+                    if (invLives <= 0) invEndGame('over', `game over — score ${invScore}`);
+                }
+            }
+        };
+
         // ── Tiny in-memory filesystem, Ubuntu-flavored ──
         const mkDir = children => ({ type: 'dir', children });
         const mkFile = content => ({ type: 'file', content });
@@ -2267,7 +2357,8 @@
                     termEcho('system: whoami · hostname · uname · date · uptime · ps · df · free', '#e6edf3');
                     termEcho('more: neofetch · history · man <cmd> · clear', '#e6edf3');
                     termEcho('network: curl · ping · nslookup · ifconfig', '#e6edf3');
-                    termEcho('site: about · links · worlds · theme <name> · clark · rewind · snake', '#e6edf3');
+                    termEcho('site: about · links · worlds · theme <name> · clark · rewind', '#e6edf3');
+                    termEcho('games: snake · invaders', '#e6edf3');
                     break;
                 case 'whoami':
                     termEcho('alan', '#e6edf3');
@@ -2316,6 +2407,11 @@
                 case 'snake':
                     termEcho('arrow keys to steer · q to quit', '#5a6373');
                     startSnake();
+                    break;
+                case 'invaders':
+                case 'space':
+                    termEcho('arrows to move · space to fire · q to quit', '#5a6373');
+                    startInvaders();
                     break;
 
                 // ── filesystem ──
@@ -2654,7 +2750,7 @@
             if (document.activeElement === mobileInputEl) return;   // the mobile bar handles its own input
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             if (e.key === 'Escape') {
-                monZoom = false; lapZoom = false; snakeActive = false;
+                monZoom = false; lapZoom = false; snakeActive = false; invActive = false;
             } else if (monZoom && snakeActive) {
                 if (e.key === 'ArrowUp' && snakeDir.y !== 1) snakeNextDir = { x: 0, y: -1 };
                 else if (e.key === 'ArrowDown' && snakeDir.y !== -1) snakeNextDir = { x: 0, y: 1 };
@@ -2662,6 +2758,20 @@
                 else if (e.key === 'ArrowRight' && snakeDir.x !== -1) snakeNextDir = { x: 1, y: 0 };
                 else if (e.key === 'q' || snakeOver) snakeActive = false;
                 else return;
+            } else if (monZoom && invActive) {
+                if (invState !== 'playing') {
+                    invActive = false;
+                } else if (e.key === 'ArrowLeft') {
+                    invPlayerX = Math.max(40, invPlayerX - 28);
+                } else if (e.key === 'ArrowRight') {
+                    invPlayerX = Math.min(984, invPlayerX + 28);
+                } else if (e.key === ' ' || e.key === 'ArrowUp') {
+                    if (!invBullets.some(b => b.isPlayer)) invBullets.push({ x: invPlayerX, y: 388, vy: 320, isPlayer: true });
+                } else if (e.key === 'q') {
+                    invActive = false;
+                } else {
+                    return;
+                }
             } else if (monZoom) {
                 if (e.key === 'Enter') {
                     const v = termInput;
@@ -2708,7 +2818,7 @@
         const mobileBar = document.getElementById('mobile-bar');
         const mobileInputEl = document.getElementById('mobile-input');
         let mobileBarShown = false;
-        let mobileBarSnakeMode = false;
+        let mobileBarSnakeMode = 'none';
         const submitMobileInput = () => {
             const v = mobileInputEl.value;
             mobileInputEl.value = '';
@@ -2719,6 +2829,13 @@
                 else if (k === 'a' && snakeDir.x !== 1) snakeNextDir = { x: -1, y: 0 };
                 else if (k === 'd' && snakeDir.x !== -1) snakeNextDir = { x: 1, y: 0 };
                 else if (k === 'q' || snakeOver) snakeActive = false;
+            } else if (monZoom && invActive) {
+                const k = v.trim().toLowerCase();
+                if (invState !== 'playing') invActive = false;
+                else if (k === 'a') invPlayerX = Math.max(40, invPlayerX - 28);
+                else if (k === 'd') invPlayerX = Math.min(984, invPlayerX + 28);
+                else if (k === 'f' || k === ' ') { if (!invBullets.some(b => b.isPlayer)) invBullets.push({ x: invPlayerX, y: 388, vy: 320, isPlayer: true }); }
+                else if (k === 'q') invActive = false;
             } else if (monZoom) { termInput = ''; termHistIdx = -1; execTerm(v); }
             else if (lapZoom) { lapInput = ''; sendSlackMessage(v); }
             monLastDraw = -10; lapLastDraw = -10;
@@ -2733,7 +2850,7 @@
             e.stopPropagation();
         });
         document.getElementById('mobile-send').addEventListener('click', submitMobileInput);
-        document.getElementById('mobile-close').addEventListener('click', () => { monZoom = false; lapZoom = false; snakeActive = false; });
+        document.getElementById('mobile-close').addEventListener('click', () => { monZoom = false; lapZoom = false; snakeActive = false; invActive = false; });
 
         function drawAbout(elapsed) {
             const W = 1024, H = 440;
@@ -2759,6 +2876,34 @@
                     const seg = snakeBody[i];
                     mc.fillStyle = i === 0 ? '#e6edf3' : '#7ee787';
                     mc.fillRect(GX0 + seg.x * CELL + 2, GY0 + seg.y * CELL + 2, CELL - 4, CELL - 4);
+                }
+                return;
+            }
+            if (invActive) {
+                mc.font = 'bold 16px monospace';
+                mc.fillStyle = '#7ee787';
+                mc.fillText(`space invaders — score ${invScore}`, 34, 56);
+                mc.fillStyle = '#ffa657';
+                mc.fillText('lives: ' + '●'.repeat(Math.max(0, invLives)), 640, 56);
+                if (invState === 'over') {
+                    mc.fillStyle = '#ff7b72';
+                    mc.fillText('GAME OVER — any key to return', 34, 420);
+                } else if (invState === 'win') {
+                    mc.fillStyle = '#7ee787';
+                    mc.fillText('YOU WIN — any key to return', 34, 420);
+                }
+                for (const g of invGrid) {
+                    if (!g.alive) continue;
+                    const p = invCellPos(g);
+                    mc.fillStyle = g.r % 2 === 0 ? '#79c0ff' : '#d2a8ff';
+                    mc.fillRect(p.x, p.y, INV_CW, INV_CH);
+                }
+                mc.fillStyle = '#e6edf3';
+                mc.fillRect(invPlayerX - 20, 392, 40, 8);
+                mc.fillRect(invPlayerX - 5, 386, 10, 8);
+                for (const b of invBullets) {
+                    mc.fillStyle = b.isPlayer ? '#7ee787' : '#ff7b72';
+                    mc.fillRect(b.x - 2, b.y - 6, 4, 12);
                 }
                 return;
             }
@@ -7055,6 +7200,7 @@
             if (monZoom) {   // any click flies back out
                 monZoom = false;
                 snakeActive = false;
+                invActive = false;
                 return;
             }
             if (lapZoom) {   // any click flies back out
@@ -8829,7 +8975,8 @@
                 }
             }
             if (monZoom && snakeActive) stepSnake(t);
-            if (t - monLastDraw > (snakeActive ? 0.05 : monZoom ? 0.2 : 0.5)) {
+            if (monZoom && invActive) { stepInvaders(t); stepInvBullets(t, dt); }
+            if (t - monLastDraw > ((snakeActive || invActive) ? 0.05 : monZoom ? 0.2 : 0.5)) {
                 monLastDraw = t;
                 if (monZoom || (zoomSaved && zoomSavedFrom === 'mon')) drawAbout(t - monZoomStart);
                 else if (!monZoom) drawMonitor(t);
@@ -8852,9 +8999,12 @@
                 if (wantMobileBar) { mobileInputEl.value = ''; mobileInputEl.focus(); }
                 else { mobileInputEl.blur(); }
             }
-            if (mobileBarShown && (snakeActive !== mobileBarSnakeMode)) {
-                mobileBarSnakeMode = snakeActive;
-                mobileInputEl.placeholder = snakeActive ? 'w/a/s/d to steer, q to quit' : 'type a command…';
+            const mobileBarGameMode = snakeActive ? 'snake' : invActive ? 'invaders' : 'none';
+            if (mobileBarShown && mobileBarGameMode !== mobileBarSnakeMode) {
+                mobileBarSnakeMode = mobileBarGameMode;
+                mobileInputEl.placeholder = mobileBarGameMode === 'snake' ? 'w/a/s/d to steer, q to quit'
+                    : mobileBarGameMode === 'invaders' ? 'a/d to move, f to fire, q to quit'
+                    : 'type a command…';
             }
 
             // ── Dust motes — slow rise with lateral drift ──
