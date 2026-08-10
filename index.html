@@ -8057,9 +8057,10 @@
             if (theme === 'spaceship') {
                 dogGroup.position.y += 0.14 + Math.sin(t * 0.28) * 0.04;
                 dogGroup.rotation.z = Math.sin(t * 0.16) * 0.13;
-                dogGroup.rotation.x += Math.sin(t * 0.11) * 0.06;
-            } else if (ds.mode !== 'roll' && ds.mode !== 'shake') {
-                dogGroup.rotation.z = 0;   // roll/shake own this axis while active
+                dogGroup.rotation.x = Math.sin(t * 0.11) * 0.06;
+            } else {
+                if (ds.mode !== 'roll' && ds.mode !== 'shake') dogGroup.rotation.z = 0;   // roll/shake own this axis while active
+                dogGroup.rotation.x = 0;   // otherwise only zero-g ever touches this axis, and it must not linger
             }
 
             tintColor.copy(coolMon).lerp(warmMon, c);
