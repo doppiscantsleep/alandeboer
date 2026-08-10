@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, from a neon room to a storm lighthouse to a Halloween street in Romeo, Michigan. One beagle named Clark.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — eleven worlds to wander, from a neon room to a storm lighthouse to a Mars colony pod. One beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
-    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — ten worlds to wander, one beagle named Clark.">
+    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — eleven worlds to wander, one beagle named Clark.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alandeboer.computer/">
     <meta property="og:image" content="https://alandeboer.computer/og.png">
@@ -217,6 +217,7 @@
         .world[data-world="tavern"]    { --wc: #d85c28; }
         .world[data-world="video"]     { --wc: #ffec3d; }
         .world[data-world="tillson"]   { --wc: #ff7418; }
+        .world[data-world="recall"]    { --wc: #ff5a3c; }
 
         .ctrl-sep {
             height: 1px;
@@ -444,6 +445,7 @@
             <button class="world" data-world="tavern"><span class="dot"></span>the tavern</button>
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
             <button class="world" data-world="tillson"><span class="dot"></span>tillson st</button>
+            <button class="world" data-world="recall"><span class="dot"></span>total recall</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
         <div id="mobile-bar" class="hidden">
@@ -518,6 +520,9 @@
         const tillsonGroup = new THREE.Group();
         tillsonGroup.visible = false;
         scene.add(tillsonGroup);
+        const recallGroup = new THREE.Group();
+        recallGroup.visible = false;
+        scene.add(recallGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -2297,10 +2302,11 @@
                         'tavern.world': mkFile('The Tavern — firelit, a cauldron, a cat who owns the place.'),
                         'video.world': mkFile('Video Store — fluorescent-lit, Friday-night VHS energy.'),
                         'tillson.world': mkFile('Tillson St — Halloween night in Romeo, Michigan.'),
+                        'recall.world': mkFile('Total Recall — a Mars colony pod, a Rekall chair, a reactor on the horizon.'),
                     }),
                     projects: mkDir({
                         'alandeboer.computer': mkDir({
-                            'README.md': mkFile('A single-file three.js site with 10 worlds and a beagle named Clark.\nBuilt in the browser, no build step, no backend.'),
+                            'README.md': mkFile('A single-file three.js site with 11 worlds and a beagle named Clark.\nBuilt in the browser, no build step, no backend.'),
                         }),
                     }),
                 }),
@@ -2332,6 +2338,7 @@
             pole: 'northPole', spaceship: 'spaceship', ship: 'spaceship', river: 'river',
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
             video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson',
+            recall: 'recall', totalrecall: 'recall', mars: 'recall', rekall: 'recall',
         };
         const manPages = {
             ls: 'list directory contents', cd: 'change the working directory',
@@ -2373,7 +2380,7 @@
                     break;
                 case 'worlds':
                     termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
-                    termEcho('lighthouse · apiary · tavern · video · tillson', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video · tillson · recall', '#79c0ff');
                     termEcho('switch with: theme <name>', '#5a6373');
                     break;
                 case 'theme': {
@@ -6543,6 +6550,150 @@
         const tlSkyCol  = new THREE.Color();
         let tlNextOwl = 6;
 
+        addTarget = recallGroup;
+
+        // ── TOTAL RECALL: a Mars colony pod, a Rekall memory chair, and a
+        //    reactor on the horizon that — maybe — is giving the planet air ──
+
+        // Rust-red dust ground, cracked and speckled
+        const rcGroundCv = mkCanvas(256, 256);
+        {
+            const g = rcGroundCv.getContext('2d');
+            g.fillStyle = '#8a3c22'; g.fillRect(0, 0, 256, 256);
+            speckle(g, 256, 256, 900, 0.35, '#c8703c', '#5a2412');
+            g.strokeStyle = 'rgba(40,14,8,0.25)'; g.lineWidth = 1;
+            for (let i = 0; i < 14; i++) {
+                const x0 = Math.random() * 256, y0 = Math.random() * 256;
+                g.beginPath();
+                g.moveTo(x0, y0);
+                g.lineTo(x0 + (Math.random() - 0.5) * 90, y0 + (Math.random() - 0.5) * 90);
+                g.stroke();
+            }
+        }
+        const rcGround = new THREE.Mesh(new THREE.CircleGeometry(22, 40),
+            new THREE.MeshStandardMaterial({ map: asTex(rcGroundCv, 7, 7), roughness: 0.95, metalness: 0.02 }));
+        rcGround.rotation.x = -Math.PI / 2;
+        rcGround.receiveShadow = true;
+        addTarget.add(rcGround);
+
+        // Distant broken rock formations, scattered around the horizon
+        const rcRockMat = lm(0x5a2c1c, 0, 0, 0.95, 0.05);
+        for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2 + Math.random() * 0.3;
+            const r = 9 + Math.random() * 6;
+            const s = 0.8 + Math.random() * 1.6;
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rcRockMat);
+            rock.position.set(Math.cos(a) * r, s * 0.5, Math.sin(a) * r - 2);
+            rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            rock.castShadow = rock.receiveShadow = true;
+            addTarget.add(rock);
+        }
+
+        // Glass pod dome — covers the desk, the chair, and Clark
+        const RC_DOME_R = 2.7, RC_DOME_CZ = 0.4;
+        const rcDomeGeo = new THREE.SphereGeometry(RC_DOME_R, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const rcDomeMat = new THREE.MeshLambertMaterial({
+            color: 0xd08858, transparent: true, opacity: 0.14, side: THREE.FrontSide,
+            depthWrite: false, emissive: 0x441c0c, emissiveIntensity: 0.08,
+        });
+        const rcDome = new THREE.Mesh(rcDomeGeo, rcDomeMat);
+        rcDome.position.set(0, 0, RC_DOME_CZ);
+        rcDome.renderOrder = 2;
+        addTarget.add(rcDome);
+        const rcDomeInnerMat = new THREE.MeshLambertMaterial({
+            color: 0xe8a878, transparent: true, opacity: 0.06, side: THREE.BackSide,
+            depthWrite: false, emissive: 0x331408, emissiveIntensity: 0.05,
+        });
+        const rcDomeInner = new THREE.Mesh(rcDomeGeo, rcDomeInnerMat);
+        rcDomeInner.position.set(0, 0, RC_DOME_CZ);
+        rcDomeInner.renderOrder = 1;
+        addTarget.add(rcDomeInner);
+        const rcDomeColdCol = new THREE.Color(0xd08858), rcDomeWarmCol = new THREE.Color(0x9ec8f0);
+        const rcDomeInnerColdCol = new THREE.Color(0xe8a878), rcDomeInnerWarmCol = new THREE.Color(0xc8e0ff);
+
+        // The alien reactor, out on the horizon — dormant and dull until the
+        // atmosphere/reactor sliders bring it up, echoing the film's climax
+        const RC_PYR_X = -9, RC_PYR_Z = -12;
+        const rcPyramidMat = new THREE.MeshStandardMaterial({
+            color: 0x2a1810, roughness: 0.85, metalness: 0.15, emissive: 0xff5a2a, emissiveIntensity: 0.15,
+        });
+        const rcPyramid = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5.2, 4), rcPyramidMat);
+        rcPyramid.position.set(RC_PYR_X, 2.6, RC_PYR_Z);
+        rcPyramid.rotation.y = Math.PI / 4;
+        rcPyramid.castShadow = true;
+        addTarget.add(rcPyramid);
+        const rcBeamMat = new THREE.MeshBasicMaterial({
+            color: 0xff6a30, transparent: true, opacity: 0.1, fog: false, depthWrite: false, side: THREE.DoubleSide,
+        });
+        const rcBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.55, 9, 10, 1, true), rcBeamMat);
+        rcBeam.position.set(RC_PYR_X, 8.6, RC_PYR_Z);
+        addTarget.add(rcBeam);
+        const rcReactorLight = new THREE.PointLight(0xff5a2a, 1.0, 22);
+        rcReactorLight.position.set(RC_PYR_X, 5.5, RC_PYR_Z);
+        addTarget.add(rcReactorLight);
+
+        // Dust storm — a wide field of drifting particles, thickest before the air clears
+        const RC_DUST_N = 140;
+        const rcDustPos = new Float32Array(RC_DUST_N * 3);
+        for (let i = 0; i < RC_DUST_N; i++) {
+            const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 16;
+            rcDustPos[i * 3] = Math.cos(a) * r;
+            rcDustPos[i * 3 + 1] = Math.random() * 3.5;
+            rcDustPos[i * 3 + 2] = Math.sin(a) * r - 2;
+        }
+        const rcDustGeo = new THREE.BufferGeometry();
+        rcDustGeo.setAttribute('position', new THREE.BufferAttribute(rcDustPos, 3));
+        const rcDustMat = new THREE.PointsMaterial({
+            color: 0xc86a3a, size: 0.16, transparent: true, opacity: 0.4, sizeAttenuation: true, depthWrite: false,
+        });
+        const rcDustPoints = new THREE.Points(rcDustGeo, rcDustMat);
+        addTarget.add(rcDustPoints);
+
+        // REKALL sign, mounted just inside the pod
+        const rcSignMat = new THREE.MeshBasicMaterial({
+            map: signCv('REKALL', 512, 128, '#ff3a4a', '#120608', 78),
+            transparent: true, opacity: 0.95, fog: false,
+        });
+        const rcSign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), rcSignMat);
+        rcSign.position.set(-1.55, 2.05, 1.15);
+        rcSign.rotation.y = 0.5;
+        addTarget.add(rcSign);
+        box(0.05, 2.0, 0.05, lm(0x1a1a1e, 0, 0, 0.6, 0.5), -1.55, 1.05, 1.15);
+        const rcSignLight = new THREE.PointLight(0xff3a4a, 1.1, 3);
+        rcSignLight.position.set(-1.55, 2.05, 1.3);
+        addTarget.add(rcSignLight);
+
+        // The Rekall chair — recline, and let the machine implant a memory
+        const RC_CHAIR_X = 2.25, RC_CHAIR_Z = 0.95;
+        const rcChairMat = lm(0x2a3038, 0, 0, 0.6, 0.3);
+        const rcChairPadMat = lm(0x7a1a20, 0, 0, 0.7, 0.1);
+        box(0.42, 0.08, 0.5, rcChairMat, RC_CHAIR_X, 0.32, RC_CHAIR_Z);
+        box(0.4, 0.06, 0.46, rcChairPadMat, RC_CHAIR_X, 0.365, RC_CHAIR_Z);
+        box(0.42, 0.55, 0.08, rcChairMat, RC_CHAIR_X, 0.62, RC_CHAIR_Z - 0.30, 0.55, 0, 0);
+        box(0.38, 0.5, 0.05, rcChairPadMat, RC_CHAIR_X, 0.63, RC_CHAIR_Z - 0.285, 0.55, 0, 0);
+        box(0.1, 0.32, 0.1, rcChairMat, RC_CHAIR_X, 0.16, RC_CHAIR_Z);
+        box(0.5, 0.03, 0.5, rcChairMat, RC_CHAIR_X, 0.02, RC_CHAIR_Z);
+        const rcArmMat = lm(0x8a8e96, 0, 0, 0.4, 0.7);
+        box(0.05, 0.6, 0.05, rcArmMat, RC_CHAIR_X, 0.95, RC_CHAIR_Z - 0.45, -0.3, 0, 0);
+        const rcHelmet = new THREE.Mesh(
+            new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6),
+            new THREE.MeshStandardMaterial({
+                color: 0xc8d0dc, roughness: 0.25, metalness: 0.6, emissive: 0x3050ff, emissiveIntensity: 0.15,
+            }));
+        rcHelmet.position.set(RC_CHAIR_X, 1.18, RC_CHAIR_Z - 0.10);
+        rcHelmet.rotation.x = Math.PI;
+        rcHelmet.castShadow = true;
+        addTarget.add(rcHelmet);
+
+        // Clark's rest spot — a foil thermal blanket, same BEDX/BEDZ as every world
+        box(0.58, 0.02, 0.42, lm(0xb0632a, 0, 0, 0.8, 0.15), BEDX, 0.011, BEDZ);
+        box(0.5, 0.012, 0.34, lm(0xd8d8dc, 0, 0, 0.5, 0.6), BEDX, 0.023, BEDZ);
+
+        const rcSkyDusty = new THREE.Color(0x8a3c1e);
+        const rcSkyClear = new THREE.Color(0x5a86c8);
+        const rcSkyCol = new THREE.Color();
+        const rcGroundColdCol = new THREE.Color(0x3a1c10), rcGroundWarmCol = new THREE.Color(0x2a4a3a);
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -6639,6 +6790,7 @@
             const isTavern    = th === 'tavern';
             const isVideo     = th === 'video';
             const isTillson   = th === 'tillson';
+            const isRecall    = th === 'recall';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -6649,6 +6801,7 @@
             tavernGroup.visible    = isTavern;
             videoGroup.visible     = isVideo;
             tillsonGroup.visible   = isTillson;
+            recallGroup.visible    = isRecall;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -6687,6 +6840,11 @@
                 document.getElementById('time-slider').value = 0.25;
             } else if (isVideo) {
                 document.getElementById('lamp-label').textContent = 'neon';
+            } else if (isRecall) {
+                document.getElementById('lamp-label').textContent = 'reactor';
+                document.getElementById('time-label').textContent = 'atmosphere';
+                params.time = 0.15;
+                document.getElementById('time-slider').value = 0.15;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
@@ -7741,12 +7899,34 @@
             },
         }));
 
+        // ── TOTAL RECALL ──
+        addInteract(rcSign, {
+            theme: 'recall',
+            onClick: () => { rcSign.material.opacity = Math.random() < 0.5 ? 0.15 : 0.95; },
+        });
+        addInteract(rcHelmet, {
+            theme: 'recall',
+            onClick: () => {
+                dogState.mode = 'howling';
+                dogState.howlUntil = clock.getElapsedTime() + 2.4;
+                if (soundOn && audioCtx) aroo();
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.5) return false;
+                    const k = Math.max(0, 1 - el / 0.5);
+                    rcReactorLight.intensity += k * 6;
+                    return true;
+                });
+            },
+        });
+
         // ?clean hides the UI chrome — for screenshots and embeds
         if (new URLSearchParams(location.search).has('clean'))
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson', recall: 'recall', totalrecall: 'recall', mars: 'recall', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -8829,6 +9009,42 @@
                     tlNextOwl = t + 14 + Math.random() * 16;
                     owl();
                 }
+            } else if (theme === 'recall') {
+                // ── Total Recall: dusty red Mars, or — if the reactor's running — the
+                //    first blue break in the sky (atmosphere slider: 0 dust storm → 1 terraformed) ──
+                const atmo = params.time;
+                rcSkyCol.copy(rcSkyDusty).lerp(rcSkyClear, atmo);
+                scene.background.copy(rcSkyCol);
+                scene.fog.color.copy(rcSkyCol).multiplyScalar(0.95);
+                scene.fog.density = 0.030 - atmo * 0.018;
+
+                hemiLight.intensity = (1.3 + atmo * 1.6) * b;
+                hemiLight.color.copy(rcSkyCol);
+                hemiLight.groundColor.copy(rcGroundColdCol).lerp(rcGroundWarmCol, atmo);
+                fillLight.intensity = 0.6 * b;
+                fillLight.color.copy(rcSkyCol);
+
+                rcDomeMat.color.copy(rcDomeColdCol).lerp(rcDomeWarmCol, atmo);
+                rcDomeInnerMat.color.copy(rcDomeInnerColdCol).lerp(rcDomeInnerWarmCol, atmo);
+
+                // Reactor: dull and dormant at low atmosphere, a bright climbing
+                // beam once the reactor slider and atmosphere both come up
+                const reactor = params.lampBrightness;
+                const pulse = 0.85 + Math.sin(t * 1.3) * 0.1 + Math.sin(t * 3.1) * 0.05;
+                rcPyramidMat.emissiveIntensity = (0.15 + reactor * 0.5) * pulse;
+                rcReactorLight.intensity = (1.0 + reactor * 4.0) * pulse * b;
+                rcBeamMat.opacity = Math.min(0.55, 0.06 + reactor * (0.2 + atmo * 0.5)) * pulse;
+                const beamHue = 0.06 - atmo * 0.5;
+                rcBeamMat.color.setHSL((beamHue + 1) % 1, 1.0, 0.55);
+                rcReactorLight.color.setHSL((beamHue + 1) % 1, 1.0, 0.55);
+
+                // The storm thins out as the atmosphere clears
+                rcDustMat.opacity = Math.max(0.05, 0.5 - atmo * 0.4);
+                rcDustPoints.rotation.y += dt * (0.15 - atmo * 0.1);
+
+                // REKALL sign flickers like any good neon
+                rcSign.material.opacity = Math.max(0, 0.75 + Math.sin(t * 23) * 0.06 + (Math.random() < 0.02 ? -0.4 : 0));
+                rcSignLight.intensity = 1.1 + Math.sin(t * 23) * 0.2;
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -8845,7 +9061,8 @@
                     ? (theme === 'lighthouse' ? (0.06 + params.time * 0.30) * gust
                         : theme === 'tillson' ? 0.055 * gust
                         : theme === 'forest' ? 0.03 * gust
-                        : theme === 'northPole' ? 0.075 * gust : 0)
+                        : theme === 'northPole' ? 0.075 * gust
+                        : theme === 'recall' ? (0.11 - params.time * 0.08) * gust : 0)
                     : 0;
                 windGain.gain.value += (wt - windGain.gain.value) * Math.min(1, dt * 2);
             }
@@ -9028,6 +9245,7 @@
                 theme === 'tavern' ? 0.5 :
                 theme === 'video' ? 0.35 :
                 theme === 'tillson' ? 0.6 :
+                theme === 'recall' ? 0.5 :
                 0.08 + (1 - params.time) * 0.3;
             // The laptop screen fills nearly the whole frame up close — bloom
             // smears its fine UI text into blown-out streaks, so ease off while zoomed
