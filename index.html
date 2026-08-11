@@ -5548,80 +5548,14 @@
         addTarget = videoGroup;
 
         // ═══════════════════════════════
-        //  VIDEO STORE — Friday night, 1996
+        //  VIDEO STORE — Friday night, 1996. Blue carpet, gold signage,
+        //  a wall of new releases and a tape rewinding behind the counter.
         // ═══════════════════════════════
 
-        // ── 90s confetti carpet ──
-        const vcCv = mkCanvas(512, 512);
-        {
-            const vc2 = vcCv.getContext('2d');
-            vc2.fillStyle = '#141c52'; vc2.fillRect(0, 0, 512, 512);
-            for (let i = 0; i < 340; i++) {
-                vc2.fillStyle = ['#2a3a9a', '#e8c020', '#c03a6a', '#2a9a8a', '#7a3ac0'][(Math.random() * 5) | 0];
-                vc2.globalAlpha = 0.5 + Math.random() * 0.4;
-                const cx4 = Math.random() * 512, cy4 = Math.random() * 512;
-                vc2.save();
-                vc2.translate(cx4, cy4);
-                vc2.rotate(Math.random() * 3);
-                if (Math.random() < 0.5) vc2.fillRect(-6, -1.5, 12, 3);         // confetti bars
-                else {                                                            // squiggles
-                    vc2.strokeStyle = vc2.fillStyle; vc2.lineWidth = 2.4;
-                    vc2.beginPath(); vc2.moveTo(-8, 0);
-                    vc2.quadraticCurveTo(-3, -6, 0, 0); vc2.quadraticCurveTo(3, 6, 8, 0);
-                    vc2.stroke();
-                }
-                vc2.restore();
-            }
-            vc2.globalAlpha = 1;
-            speckle(vc2, 512, 512, 1800, 0.08, '#3a4ac0', '#0a1030');
-        }
-        const vcTex = new THREE.CanvasTexture(vcCv);
-        vcTex.wrapS = vcTex.wrapT = THREE.RepeatWrapping;
-        vcTex.repeat.set(3, 3);
-        vcTex.colorSpace = THREE.SRGBColorSpace;
-        const vFloor = new THREE.Mesh(new THREE.PlaneGeometry(12, 10),
-            new THREE.MeshStandardMaterial({ map: vcTex, roughness: 0.95 }));
-        vFloor.rotation.x = -Math.PI / 2;
-        vFloor.position.z = 0.2;
-        vFloor.receiveShadow = true;
-        addTarget.add(vFloor);
+        const VS = { hx: 6.2, zBack: -6.4, zFront: 4.2, ceil: 3.3 };
+        const VS_CZ = (VS.zBack + VS.zFront) / 2, VS_DEPTH = VS.zFront - VS.zBack;
 
-        // ── Walls: warm white above a royal-blue wainscot band ──
-        const vWallMat = lm(0xd8d4c8, 0, 0, 0.92);
-        const vBlueMat = lm(0x18287a, 0, 0, 0.85);
-        const vWall = (w, x, z, ry4) => {
-            const up = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.1), vWallMat);
-            up.position.set(x, 2.05, z);
-            up.rotation.y = ry4;
-            up.receiveShadow = true;
-            addTarget.add(up);
-            const lo = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.0), vBlueMat);
-            lo.position.set(x, 0.5, z);
-            lo.rotation.y = ry4;
-            lo.receiveShadow = true;
-            addTarget.add(lo);
-        };
-        vWall(12, 0, -3.0, 0);                 // back
-        vWall(10, -3.6, 0.2, Math.PI / 2);     // left
-        vWall(10, 3.6, 0.2, -Math.PI / 2);     // right
-        // drop ceiling with humming fluorescent panels
-        const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(12, 10),
-            new THREE.MeshStandardMaterial({ color: 0xb8b4a8, roughness: 0.95 }));
-        vCeil.rotation.x = Math.PI / 2;
-        vCeil.position.set(0, 3.1, 0.2);
-        addTarget.add(vCeil);
-        const fluoros = [];
-        for (let fx3 = -2.4; fx3 <= 2.4; fx3 += 2.4) {
-            for (let fz3 = -1.8; fz3 <= 2.2; fz3 += 2.0) {
-                const panel = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.05, 0.6),
-                    new THREE.MeshStandardMaterial({ color: 0xf4f4ec, emissive: 0xf0f2e8, emissiveIntensity: 1.0, roughness: 0.6 }));
-                panel.position.set(fx3, 3.07, fz3);
-                addTarget.add(panel);
-                fluoros.push(panel);
-            }
-        }
-
-        // ── Signage: yellow-on-blue marquee + category plaques ──
+        // Shared sign painter — also used by the Mars world further down
         const signCv = (txt, w2, h2, fg, bg, fs) => {
             const cv = mkCanvas(w2, h2);
             const g = cv.getContext('2d');
@@ -5633,226 +5567,832 @@
             g.fillText(txt, w2 / 2, h2 / 2 + 2);
             const t2 = new THREE.CanvasTexture(cv);
             t2.colorSpace = THREE.SRGBColorSpace;
+            t2.anisotropy = MAX_ANISO;
             return t2;
         };
-        const marquee = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.62, 0.1),
-            new THREE.MeshStandardMaterial({
-                map: signCv('VIDEO', 512, 96, '#ffe14a', '#101c66', 74),
-                emissive: 0x2a3aaa, emissiveIntensity: 0.35, roughness: 0.6,
-            }));
-        marquee.position.set(0, 2.55, -2.93);
-        addTarget.add(marquee);
-        const catSign = (txt, x, z, ry4, fs2 = 34) => {
-            const s = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.2),
-                new THREE.MeshStandardMaterial({ map: signCv(txt, 256, 60, '#101c66', '#ffe14a', fs2), roughness: 0.7 }));
-            s.position.set(x, 2.35, z);
-            s.rotation.y = ry4;
-            addTarget.add(s);
+        // The house style: gold on royal blue, on a torn-ticket badge
+        const vTicketCv = (txt, w2, h2) => {
+            const cv = mkCanvas(w2, h2), g = cv.getContext('2d');
+            g.fillStyle = '#0d1a63'; g.fillRect(0, 0, w2, h2);
+            g.fillStyle = '#ffc81e';
+            const m = h2 * 0.16, notch = h2 * 0.13;
+            g.beginPath();
+            g.moveTo(m, m);
+            g.lineTo(w2 - m, m);
+            for (let y = m; y < h2 - m; y += notch * 2) {      // torn stub edge
+                g.lineTo(w2 - m - notch * 0.5, y + notch);
+                g.lineTo(w2 - m, Math.min(h2 - m, y + notch * 2));
+            }
+            g.lineTo(m, h2 - m);
+            for (let y = h2 - m; y > m; y -= notch * 2) {
+                g.lineTo(m + notch * 0.5, y - notch);
+                g.lineTo(m, Math.max(m, y - notch * 2));
+            }
+            g.closePath(); g.fill();
+            g.fillStyle = '#0d1a63';
+            g.font = `italic 900 ${h2 * 0.42}px Arial, sans-serif`;
+            g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.fillText(txt, w2 / 2, h2 / 2 + h2 * 0.02);
+            const t2 = new THREE.CanvasTexture(cv);
+            t2.colorSpace = THREE.SRGBColorSpace;
+            t2.anisotropy = MAX_ANISO;
+            return t2;
         };
-        catSign('ACTION', -3.55, -1.4, Math.PI / 2);
-        catSign('COMEDY', -3.55, 0.6, Math.PI / 2);
-        catSign('HORROR', -3.55, 2.2, Math.PI / 2);
-        catSign('NEW RELEASES', -2.1, -2.94, 0, 26);
-        catSign('BE KIND · REWIND', 2.4, -2.94, 0, 22);
 
-        // ── VHS shelving: wall runs + a center gondola, spines jittered ──
-        const shelfDk = lm(0x2a2c30, 0, 0, 0.7);
-        const tapeCols = [0x1a1a1e, 0x24242a, 0x8a2020, 0x20408a, 0x207a40, 0x6a3a9a, 0xc8a020, 0x18181c, 0x30303a];
-        const vhsRuns = [];
-        const vhsRun = (x, z, ry4, len, shelves) => {
-            const g = new THREE.Group();
-            g.position.set(x, 0, z);
-            g.rotation.y = ry4;
-            addTarget.add(g);
-            const back = new THREE.Mesh(new THREE.BoxGeometry(len, 2.0, 0.04), shelfDk);
-            back.position.y = 1.0;
-            back.castShadow = back.receiveShadow = true;
-            g.add(back);
-            const tapes = [];
-            for (let s = 0; s < shelves; s++) {
-                const sy2 = 0.35 + s * 0.45;
-                const shelf = new THREE.Mesh(new THREE.BoxGeometry(len, 0.03, 0.26), shelfDk);
-                shelf.position.set(0, sy2, 0.13);
-                shelf.castShadow = shelf.receiveShadow = true;
-                g.add(shelf);
-                let tx3 = -len / 2 + 0.05;
-                while (tx3 < len / 2 - 0.06) {
-                    if (Math.random() < 0.08) { tx3 += 0.05; continue; }   // gaps where tapes went home
-                    const tape = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.19, 0.11),
-                        lm(tapeCols[(Math.random() * tapeCols.length) | 0], 0, 0, 0.8));
-                    tape.position.set(tx3, sy2 + 0.11, 0.1);
-                    tape.rotation.z = Math.random() < 0.06 ? 0.12 : 0;
-                    g.add(tape);
-                    tape.userData.homeX = tx3;
-                    tapes.push(tape);
-                    tx3 += 0.034;
+        // ── Cover art. Every box on every shelf is painted from this ──
+        const V_PAL = [
+            ['#c8341c', '#2a0a08', '#ffdc50', '#f4f0e4'],   // action
+            ['#e07818', '#1a0c04', '#fff4e0', '#ffcc33'],
+            ['#2044b8', '#050a24', '#8ce8ff', '#ffffff'],   // sci-fi
+            ['#5a28a8', '#0c0620', '#e0b0ff', '#ffe14a'],
+            ['#0d2a14', '#020604', '#8fe07a', '#c81828'],   // horror
+            ['#3a0810', '#050203', '#ff6a6a', '#e8e0d0'],
+            ['#f0c020', '#c84a10', '#20304a', '#ffffff'],   // comedy
+            ['#18b0a0', '#0a3a40', '#fff0a0', '#ff7ab0'],
+            ['#7a6a54', '#1a1610', '#f0e8d8', '#c8a860'],   // drama
+            ['#4a5a70', '#0e1420', '#dfe8f4', '#f0c060'],
+            ['#38a8e0', '#0a3a60', '#fff2b0', '#ff9a30'],   // family
+            ['#8ac828', '#1a4008', '#ffffff', '#ffd83a'],
+        ];
+        const vRnd = (seed, n) => {
+            const s = Math.sin(seed * 91.7 + n * 37.3) * 43758.5453;
+            return s - Math.floor(s);
+        };
+        const vCover = (g, x, y, w, h, seed) => {
+            const R = n => vRnd(seed, n);
+            const pal = V_PAL[(R(1) * V_PAL.length) | 0];
+            const gr = g.createLinearGradient(x, y, x + w * 0.35, y + h);
+            gr.addColorStop(0, pal[0]); gr.addColorStop(1, pal[1]);
+            g.fillStyle = gr; g.fillRect(x, y, w, h);
+            const cx = x + w / 2, cy = y + h * 0.52;
+            const motif = [0, 0, 2, 2, 3, 3, 4, 4, 1, 0, 2, 4][(R(2) * 12) | 0];
+            g.globalAlpha = 0.85;
+            g.fillStyle = pal[1];
+            if (motif === 0) {                                  // hero, feet planted
+                g.beginPath(); g.arc(cx, cy - h * 0.15, w * 0.13, 0, Math.PI * 2); g.fill();
+                g.fillRect(cx - w * 0.14, cy - h * 0.04, w * 0.28, h * 0.3);
+                g.fillRect(cx - w * 0.27, cy - h * 0.02, w * 0.11, h * 0.2);
+                g.fillRect(cx + w * 0.16, cy - h * 0.02, w * 0.11, h * 0.2);
+            } else if (motif === 1) {                           // explosion
+                g.fillStyle = R(9) < 0.5 ? pal[3] : pal[2];
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * Math.PI * 2;
+                    g.beginPath();
+                    g.moveTo(cx, cy);
+                    g.lineTo(cx + Math.cos(a) * w * 0.44, cy + Math.sin(a) * h * 0.3);
+                    g.lineTo(cx + Math.cos(a + 0.27) * w * 0.44, cy + Math.sin(a + 0.27) * h * 0.3);
+                    g.fill();
                 }
+            } else if (motif === 2) {                           // a face, very moody
+                g.beginPath(); g.ellipse(cx, cy, w * 0.27, h * 0.21, 0, 0, Math.PI * 2); g.fill();
+                g.fillStyle = pal[2];
+                g.beginPath(); g.ellipse(cx - w * 0.1, cy - h * 0.05, w * 0.055, h * 0.022, 0, 0, Math.PI * 2); g.fill();
+                g.beginPath(); g.ellipse(cx + w * 0.1, cy - h * 0.05, w * 0.055, h * 0.022, 0, 0, Math.PI * 2); g.fill();
+            } else if (motif === 3) {                           // skyline
+                g.fillRect(x + w * 0.08, cy + h * 0.14, w * 0.84, h * 0.02);
+                for (let i = 0; i < 6; i++) {
+                    const bw = w * (0.07 + R(10 + i) * 0.07);
+                    g.fillRect(x + w * 0.12 + i * w * 0.13, cy + h * 0.14 - h * (0.08 + R(20 + i) * 0.24), bw, h * 0.3);
+                }
+            } else {                                            // lone figure, long road
+                g.fillStyle = pal[3]; g.globalAlpha = 0.3;
+                g.beginPath();
+                g.moveTo(cx - w * 0.34, y + h * 0.88); g.lineTo(cx + w * 0.34, y + h * 0.88);
+                g.lineTo(cx + w * 0.05, cy - h * 0.05); g.lineTo(cx - w * 0.05, cy - h * 0.05);
+                g.fill();
+                g.globalAlpha = 0.9; g.fillStyle = pal[1];
+                g.fillRect(cx - w * 0.035, cy - h * 0.1, w * 0.07, h * 0.24);
+                g.beginPath(); g.arc(cx, cy - h * 0.14, w * 0.055, 0, Math.PI * 2); g.fill();
             }
-            vhsRuns.push({ back, tapes });
+            g.globalAlpha = 1;
+            const ty = R(3) < 0.5 ? y + h * 0.09 : y + h * 0.72;   // title treatment
+            g.fillStyle = pal[2];
+            g.fillRect(x + w * 0.09, ty, w * 0.82, h * 0.06);
+            g.fillRect(x + w * 0.22, ty + h * 0.08, w * 0.56, h * 0.035);
+            g.fillStyle = pal[3]; g.globalAlpha = 0.45;          // credit block
+            g.fillRect(x + w * 0.16, y + h * 0.935, w * 0.68, h * 0.014);
+            g.globalAlpha = 1;
+            if (R(4) < 0.16) {                                   // gold "NEW" starburst
+                g.fillStyle = '#ffc81e';
+                g.beginPath(); g.arc(x + w * 0.8, y + h * 0.24, w * 0.13, 0, Math.PI * 2); g.fill();
+            }
+            g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x, y, w * 0.05, h);   // clamshell spine
+            g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x + w * 0.05, y, w * 0.02, h);
         };
-        vhsRun(-3.45, -1.4, Math.PI / 2, 2.4, 4);   // ACTION
-        vhsRun(-3.45, 0.6, Math.PI / 2, 1.4, 4);    // COMEDY
-        vhsRun(-3.45, 2.2, Math.PI / 2, 1.2, 4);    // HORROR
-        vhsRun(0, -2.05, 0, 3.6, 3);                // center gondola, behind the desk
-
-        // ── New releases: face-out covers on the back wall ──
-        const coverAtlas = mkCanvas(512, 256);
-        {
-            const ca = coverAtlas.getContext('2d');
-            for (let i = 0; i < 8; i++) {
-                const ox = (i % 4) * 128, oy = ((i / 4) | 0) * 128;
-                const g1 = ca.createLinearGradient(ox, oy, ox + 128, oy + 128);
-                const hues = [['#c02030', '#301040'], ['#2040a0', '#081020'], ['#e08020', '#401008'],
-                              ['#108060', '#04201a'], ['#7020a0', '#180830'], ['#c0c0c8', '#303040'],
-                              ['#d04080', '#200818'], ['#204830', '#0a1a10']][i];
-                g1.addColorStop(0, hues[0]); g1.addColorStop(1, hues[1]);
-                ca.fillStyle = g1; ca.fillRect(ox, oy, 128, 128);
-                ca.fillStyle = 'rgba(255,255,255,0.85)';
-                ca.fillRect(ox + 10, oy + 8, 108, 16);              // title bar
-                ca.fillStyle = 'rgba(0,0,0,0.5)';
-                ca.beginPath(); ca.arc(ox + 64, oy + 76, 30, 0, Math.PI * 2); ca.fill();   // key art blob
-                ca.fillStyle = 'rgba(255,255,255,0.25)';
-                ca.beginPath(); ca.moveTo(ox + 46, oy + 60); ca.lineTo(ox + 88, oy + 76); ca.lineTo(ox + 46, oy + 94); ca.fill();
+        // A packed shelf row baked into one texture — 1 draw call instead of 20
+        const V_CW = 48, V_CH = 84;
+        const vStripTex = (n, seed, gapChance = 0.07) => {
+            const cv = mkCanvas(n * V_CW, V_CH), g = cv.getContext('2d');
+            g.fillStyle = '#111318'; g.fillRect(0, 0, n * V_CW, V_CH);
+            for (let i = 0; i < n; i++) {
+                if (vRnd(seed, i * 3.7) < gapChance) continue;    // gone home for the weekend
+                vCover(g, i * V_CW + 1, 2, V_CW - 2, V_CH - 4, seed * 13.7 + i * 5.1);
             }
-        }
+            const t2 = new THREE.CanvasTexture(cv);
+            t2.colorSpace = THREE.SRGBColorSpace;
+            t2.anisotropy = MAX_ANISO;
+            return t2;
+        };
+        let vStripSeed = 1;
+        // A small pool of finished box faces, reused wherever tapes are piled up
+        // and nobody is reading the titles — 30-odd canvases down to eight
+        const vTapeMats = [];
         for (let i = 0; i < 8; i++) {
-            const ct2 = new THREE.CanvasTexture(coverAtlas);
-            ct2.colorSpace = THREE.SRGBColorSpace;
-            ct2.repeat.set(0.25, 0.5);
-            ct2.offset.set((i % 4) * 0.25, ((i / 4) | 0) * 0.5);
-            const cov = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.42),
-                new THREE.MeshStandardMaterial({ map: ct2, roughness: 0.7 }));
-            cov.position.set(-2.7 + (i % 4) * 0.42, 1.85 - ((i / 4) | 0) * 0.62, -2.95);
-            addTarget.add(cov);
-            const lip = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.025, 0.09), shelfDk);
-            if (i % 4 === 0) {
-                lip.position.set(-2.07, 1.6 - ((i / 4) | 0) * 0.62, -2.92);
-                addTarget.add(lip);
+            const cv = mkCanvas(V_CW, V_CH), g = cv.getContext('2d');
+            vCover(g, 0, 0, V_CW, V_CH, 900 + i * 23);
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            vTapeMats.push(new THREE.MeshStandardMaterial({ map: tx, roughness: 0.6 }));
+        }
+        const vTapeMat = i => vTapeMats[((i % 8) + 8) % 8];
+
+        // ── Materials ──
+        const vBlue     = lm(0x142a86, 0, 0, 0.82);
+        const vBlueDk   = lm(0x0b1550, 0, 0, 0.8);
+        const vGold     = lm(0xffc81e, 0, 0, 0.62);
+        const vWallMat  = lm(0xdcd7c9, 0, 0, 0.93);
+        const shelfDk   = lm(0x2a2c32, 0, 0, 0.72);
+        const vTrim     = lm(0x9aa0aa, 0, 0, 0.45, 0.55);
+        const vLaminate = lm(0xe6e2d4, 0, 0, 0.5, 0.05);
+        const vPlastic  = lm(0x1b1c22, 0, 0, 0.6);
+
+        // ── Carpet: the confetti pattern, worn pale along the aisles ──
+        const vcCv = mkCanvas(512, 512);
+        {
+            const c = vcCv.getContext('2d');
+            c.fillStyle = '#111c58'; c.fillRect(0, 0, 512, 512);
+            for (let i = 0; i < 420; i++) {
+                c.fillStyle = ['#24379c', '#ffc81e', '#c8356e', '#1f9a8c', '#6f3ac4', '#e8452c'][(Math.random() * 6) | 0];
+                c.globalAlpha = 0.45 + Math.random() * 0.45;
+                c.save();
+                c.translate(Math.random() * 512, Math.random() * 512);
+                c.rotate(Math.random() * 3);
+                const k = Math.random();
+                if (k < 0.4) c.fillRect(-7, -1.6, 14, 3.2);
+                else if (k < 0.7) {
+                    c.strokeStyle = c.fillStyle; c.lineWidth = 2.6;
+                    c.beginPath(); c.moveTo(-9, 0);
+                    c.quadraticCurveTo(-3, -7, 0, 0); c.quadraticCurveTo(3, 7, 9, 0);
+                    c.stroke();
+                } else { c.beginPath(); c.arc(0, 0, 2.4, 0, Math.PI * 2); c.fill(); }
+                c.restore();
+            }
+            c.globalAlpha = 1;
+            speckle(c, 512, 512, 2600, 0.09, '#3a4ac0', '#080e2c');
+        }
+        const vFloorGeo = new THREE.PlaneGeometry(VS.hx * 2, VS_DEPTH, 40, 36);
+        {   // per-vertex wear: bright traffic lanes down the aisles, dark under the racks
+            const p = vFloorGeo.attributes.position;
+            const cols = new Float32Array(p.count * 3);
+            const tmp = new THREE.Color();
+            const dim = new THREE.Color(0.62, 0.62, 0.7), worn = new THREE.Color(1.32, 1.3, 1.26);
+            for (let i = 0; i < p.count; i++) {
+                const x = p.getX(i);
+                const lane = Math.max(
+                    Math.exp(-Math.pow((Math.abs(x) - 4.8) / 1.05, 2)),   // wall aisles
+                    Math.exp(-Math.pow((Math.abs(x) - 1.9) / 1.15, 2)) * 0.9);
+                tmp.copy(dim).lerp(worn, THREE.MathUtils.clamp(lane, 0, 1));
+                cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+            }
+            vFloorGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        }
+        const vFloor = new THREE.Mesh(vFloorGeo,
+            new THREE.MeshStandardMaterial({ map: asTex(vcCv, 5, 4), roughness: 0.96, vertexColors: true }));
+        vFloor.rotation.x = -Math.PI / 2;
+        vFloor.position.z = VS_CZ;
+        vFloor.receiveShadow = true;
+        addTarget.add(vFloor);
+
+        // ── Walls: warm white over a royal-blue wainscot, with a gold pinstripe ──
+        const vWall = (w, x, z, ry) => {
+            const up = new THREE.Mesh(new THREE.PlaneGeometry(w, VS.ceil - 1.0), vWallMat);
+            up.position.set(x, 1.0 + (VS.ceil - 1.0) / 2, z);
+            up.rotation.y = ry; up.receiveShadow = true;
+            addTarget.add(up);
+            const lo = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.0), vBlue);
+            lo.position.set(x, 0.5, z);
+            lo.rotation.y = ry; lo.receiveShadow = true;
+            addTarget.add(lo);
+            const pin = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.07), vGold);
+            pin.position.set(x + Math.sin(ry) * 0.012, 1.03, z + Math.cos(ry) * 0.012);
+            pin.rotation.y = ry;
+            addTarget.add(pin);
+        };
+        vWall(VS.hx * 2, 0, VS.zBack, 0);
+        vWall(VS_DEPTH, -VS.hx, VS_CZ, Math.PI / 2);
+        vWall(VS_DEPTH, VS.hx, VS_CZ, -Math.PI / 2);
+
+        // ── Drop ceiling: tile grid, recessed troughs, a dying tube ──
+        const vCeilCv = mkCanvas(256, 256);
+        {
+            const c = vCeilCv.getContext('2d');
+            c.fillStyle = '#c9c6ba'; c.fillRect(0, 0, 256, 256);
+            speckle(c, 256, 256, 2400, 0.1, '#dedbcf', '#a8a598');
+            c.strokeStyle = '#8e8b80'; c.lineWidth = 5;
+            c.strokeRect(0, 0, 256, 256);
+            c.beginPath(); c.moveTo(128, 0); c.lineTo(128, 256);
+            c.moveTo(0, 128); c.lineTo(256, 128); c.stroke();
+        }
+        const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(VS.hx * 2, VS_DEPTH),
+            new THREE.MeshStandardMaterial({ map: asTex(vCeilCv, 10, 9), roughness: 0.96 }));
+        vCeil.rotation.x = Math.PI / 2;
+        vCeil.position.set(0, VS.ceil, VS_CZ);
+        addTarget.add(vCeil);
+        const vDiffCv = mkCanvas(64, 64);
+        {
+            const c = vDiffCv.getContext('2d');
+            c.fillStyle = '#f6f7ef'; c.fillRect(0, 0, 64, 64);
+            c.strokeStyle = '#d8dad0'; c.lineWidth = 2;
+            for (let i = 0; i <= 64; i += 8) {
+                c.beginPath(); c.moveTo(i, 0); c.lineTo(i, 64); c.stroke();
+                c.beginPath(); c.moveTo(0, i); c.lineTo(64, i); c.stroke();
             }
         }
+        const fluoros = [];
+        [-3.9, 0, 3.9].forEach(fx => [-5.0, -2.6, -0.2, 2.2].forEach(fz => {
+            box(1.35, 0.1, 0.66, vTrim, fx, VS.ceil - 0.05, fz);
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.04, 0.55),
+                new THREE.MeshStandardMaterial({
+                    map: asTex(vDiffCv, 3, 1), color: 0xf6f8f0,
+                    emissive: 0xf2f5e8, emissiveIntensity: 1.0, roughness: 0.55,
+                }));
+            panel.position.set(fx, VS.ceil - 0.09, fz);
+            addTarget.add(panel);
+            fluoros.push(panel);
+        }));
+        // a couple of real lights so the room has direction, not just ambient
+        [[-3.6, -3.0], [3.6, -3.0], [0, 1.2]].forEach(([lx, lz]) => {
+            const pl = new THREE.PointLight(0xf2f5e8, 1.5, 9);
+            pl.position.set(lx, VS.ceil - 0.4, lz);
+            addTarget.add(pl);
+        });
 
-        // ── Checkout counter, CRT, returns slot, candy rack ──
-        box(1.9, 0.95, 0.55, vBlueMat, 2.6, 0.47, 1.4, 0, Math.PI / 2, 0);
-        box(2.0, 0.06, 0.7, lm(0xe8e4d8, 0, 0, 0.6), 2.6, 0.97, 1.4, 0, Math.PI / 2, 0);
-        // CRT television on the counter, playing static
-        const crtCv = mkCanvas(128, 96);
+        // ── Shelving. Each row is one textured board, with a few real boxes
+        //    pulled proud of the rest so the wall of covers has relief ──
+        const vHeroTapes = [];
+        const vShelfRow = (parent, len, y, z, ry, seed) => {
+            const n = Math.max(4, Math.round(len / 0.145));
+            const face = new THREE.Mesh(new THREE.BoxGeometry(len, 0.235, 0.035),
+                new THREE.MeshStandardMaterial({ map: vStripTex(n, seed), roughness: 0.62 }));
+            face.position.set(0, y + 0.13, z);
+            face.rotation.y = ry;
+            face.castShadow = face.receiveShadow = true;
+            parent.add(face);
+            const board = new THREE.Mesh(new THREE.BoxGeometry(len + 0.04, 0.028, 0.3), shelfDk);
+            board.position.set(0, y, z + (ry === 0 ? 0.12 : -0.12) * Math.cos(ry));
+            board.rotation.y = ry;
+            board.receiveShadow = true;
+            parent.add(board);
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 0.04, 0.035, 0.018), vTrim);
+            rail.position.set(0, y + 0.03, z + (ry === 0 ? 0.145 : -0.145) * Math.cos(ry));
+            rail.rotation.y = ry;
+            parent.add(rail);
+            if (vRnd(seed, 99) < 0.55) {          // one box turned face-out and proud
+                const hx = (vRnd(seed, 7) - 0.5) * len * 0.7;
+                const cv = mkCanvas(V_CW * 2, V_CH * 2), g = cv.getContext('2d');
+                vCover(g, 0, 0, V_CW * 2, V_CH * 2, seed * 3.1 + 17);
+                const tx = new THREE.CanvasTexture(cv);
+                tx.colorSpace = THREE.SRGBColorSpace;
+                const hero = new THREE.Mesh(new THREE.BoxGeometry(0.135, 0.235, 0.032),
+                    new THREE.MeshStandardMaterial({ map: tx, roughness: 0.6 }));
+                hero.position.set(hx, y + 0.135, z + (ry === 0 ? 0.055 : -0.055) * Math.cos(ry));
+                hero.rotation.y = ry + (vRnd(seed, 8) - 0.5) * 0.25;
+                hero.castShadow = true;
+                parent.add(hero);
+                vHeroTapes.push({ m: hero, dir: ry === 0 ? 1 : -1 });
+            }
+        };
+        // Double-sided gondola down the middle of an aisle
+        const vGondolas = [];
+        const vGondola = (x, z0, z1, seed) => {
+            const g = new THREE.Group();
+            const len = z1 - z0;
+            g.position.set(x, 0, (z0 + z1) / 2);
+            addTarget.add(g);
+            const carcass = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.82, len), vBlueDk);
+            carcass.position.y = 0.91;
+            carcass.castShadow = carcass.receiveShadow = true;
+            g.add(carcass);
+            box(0.62, 0.06, len + 0.06, shelfDk, x, 0.03, (z0 + z1) / 2);        // kick plinth
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, len + 0.06), vGold);
+            cap.position.y = 1.85;
+            g.add(cap);
+            for (let s = 0; s < 5; s++) {
+                const sy = 0.36 + s * 0.3;
+                [-1, 1].forEach(side => {
+                    const inner = new THREE.Group();
+                    inner.position.set(side * 0.21, 0, 0);
+                    inner.rotation.y = side > 0 ? 0 : Math.PI;
+                    g.add(inner);
+                    // rows run along the gondola's local Z, so build them rotated
+                    const rowLen = len - 0.12;
+                    const face = new THREE.Mesh(new THREE.BoxGeometry(rowLen, 0.235, 0.035),
+                        new THREE.MeshStandardMaterial({ map: vStripTex(Math.round(rowLen / 0.145), vStripSeed++), roughness: 0.62 }));
+                    face.rotation.y = Math.PI / 2;
+                    face.position.set(0.035, sy + 0.13, 0);
+                    face.castShadow = face.receiveShadow = true;
+                    inner.add(face);
+                    const board = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.028, rowLen + 0.04), shelfDk);
+                    board.position.set(0.1, sy, 0);
+                    board.receiveShadow = true;
+                    inner.add(board);
+                    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.035, rowLen + 0.04), vTrim);
+                    rail.position.set(0.24, sy + 0.03, 0);
+                    inner.add(rail);
+                    if (vRnd(seed + s + side, 5) < 0.6) {
+                        const cv = mkCanvas(V_CW * 2, V_CH * 2), gg = cv.getContext('2d');
+                        vCover(gg, 0, 0, V_CW * 2, V_CH * 2, seed * 7.3 + s * 11 + side * 3);
+                        const tx = new THREE.CanvasTexture(cv);
+                        tx.colorSpace = THREE.SRGBColorSpace;
+                        const hero = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.235, 0.135),
+                            new THREE.MeshStandardMaterial({ map: tx, roughness: 0.6 }));
+                        hero.position.set(0.075, sy + 0.135, (vRnd(seed + s, 6) - 0.5) * rowLen * 0.7);
+                        hero.castShadow = true;
+                        inner.add(hero);
+                        vHeroTapes.push({ m: hero, dir: 1, axis: 'x' });
+                    }
+                });
+            }
+            // endcap display facing the front of the store
+            const ecCv = mkCanvas(192, 288), ecG = ecCv.getContext('2d');
+            vCover(ecG, 0, 0, 192, 288, seed * 5.7 + 3);
+            const ecTex = new THREE.CanvasTexture(ecCv);
+            ecTex.colorSpace = THREE.SRGBColorSpace;
+            ecTex.anisotropy = MAX_ANISO;
+            const ec = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.51),
+                new THREE.MeshStandardMaterial({ map: ecTex, roughness: 0.65 }));
+            ec.position.set(0, 1.18, len / 2 + 0.006);
+            g.add(ec);
+            const ecHdr = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.13),
+                new THREE.MeshStandardMaterial({
+                    map: signCv('STAFF PICK', 192, 64, '#0d1a63', '#ffc81e', 24), roughness: 0.7 }));
+            ecHdr.position.set(0, 1.55, len / 2 + 0.006);
+            g.add(ecHdr);
+            vGondolas.push(g);
+            return g;
+        };
+        vGondola(-3.35, -5.9, 0.7, 3);
+        vGondola(3.7, -5.9, -1.0, 8);
+
+        // Wall runs down the left-hand aisle
+        const vWallRun = (x, z0, z1, ry, seed) => {
+            const g = new THREE.Group();
+            g.position.set(x, 0, (z0 + z1) / 2);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            const len = z1 - z0;
+            const back = new THREE.Mesh(new THREE.BoxGeometry(len, 2.05, 0.06), vBlueDk);
+            back.position.y = 1.02;
+            back.receiveShadow = true;
+            g.add(back);
+            for (let s = 0; s < 6; s++) vShelfRow(g, len - 0.1, 0.34 + s * 0.3, 0.055, 0, vStripSeed++);
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(len, 0.09, 0.34), vGold);
+            cap.position.set(0, 2.08, 0.12);
+            g.add(cap);
+            return g;
+        };
+        vWallRun(-VS.hx + 0.06, -5.9, -0.6, Math.PI / 2, 1);
+        vWallRun(-VS.hx + 0.06, -0.2, 3.2, Math.PI / 2, 2);
+        vWallRun(VS.hx - 0.06, -5.9, -1.6, -Math.PI / 2, 4);
+
+        // ── New releases: the back wall, alphabetised, floor to eye level ──
+        {
+            const g = new THREE.Group();
+            g.position.set(-1.0, 0, VS.zBack + 0.07);
+            addTarget.add(g);
+            const back = new THREE.Mesh(new THREE.BoxGeometry(7.6, 2.15, 0.06), vBlueDk);
+            back.position.y = 1.07;
+            back.receiveShadow = true;
+            g.add(back);
+            for (let s = 0; s < 6; s++) vShelfRow(g, 7.5, 0.34 + s * 0.3, 0.055, 0, vStripSeed++);
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.1, 0.34), vGold);
+            cap.position.set(0, 2.2, 0.12);
+            g.add(cap);
+            const hdr = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.44),
+                new THREE.MeshStandardMaterial({
+                    map: signCv('NEW RELEASES', 640, 80, '#ffc81e', '#0d1a63', 50),
+                    emissive: 0x18287a, emissiveIntensity: 0.4, roughness: 0.7,
+                }));
+            hdr.position.set(0, 2.56, 0.14);
+            g.add(hdr);
+        }
+        // The house badge, high on the back wall
+        const marquee = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.8, 0.12),
+            new THREE.MeshStandardMaterial({
+                map: vTicketCv('VIDEO', 640, 170), emissive: 0x3346c8, emissiveIntensity: 0.35, roughness: 0.55,
+            }));
+        marquee.scale.set(1, 0.82, 1);
+        marquee.position.set(4.6, 2.86, VS.zBack + 0.09);
+        addTarget.add(marquee);
+
+        // ── Hanging aisle signs ──
+        const vAisleSign = (txt, x, z, ry, w = 1.5) => {
+            const s = new THREE.Mesh(new THREE.BoxGeometry(w, 0.34, 0.05),
+                new THREE.MeshStandardMaterial({
+                    map: signCv(txt, 384, 84, '#ffc81e', '#0d1a63', 46),
+                    emissive: 0x18287a, emissiveIntensity: 0.45, roughness: 0.65,
+                }));
+            s.position.set(x, 2.62, z);
+            s.rotation.y = ry;
+            addTarget.add(s);
+            [-w / 2 + 0.1, w / 2 - 0.1].forEach(o =>
+                box(0.02, 0.62, 0.02, vTrim, x + Math.cos(ry) * o, 2.95, z - Math.sin(ry) * o));
+        };
+        vAisleSign('ACTION', -3.35, -4.6, 0);
+        vAisleSign('COMEDY', -3.35, -1.6, 0);
+        vAisleSign('DRAMA', -3.35, 0.4, 0, 1.3);
+        vAisleSign('HORROR', 3.7, -4.6, 0);
+        vAisleSign('SCI-FI', 3.7, -2.4, 0, 1.3);
+        vAisleSign('FAMILY', -VS.hx + 0.5, -3.2, Math.PI / 2, 1.7);
+        vAisleSign('STAFF PICKS', -VS.hx + 0.5, 1.6, Math.PI / 2, 1.9);
+        vAisleSign('VIDEO GAMES', VS.hx - 0.5, -3.6, -Math.PI / 2, 1.9);
+
+        // ── Checkout counter, front right by the door ──
+        const vCounter = new THREE.Group();
+        vCounter.position.set(4.55, 0, 1.5);
+        vCounter.rotation.y = -Math.PI / 2;
+        addTarget.add(vCounter);
+        const cAdd = m => { m.castShadow = true; m.receiveShadow = true; vCounter.add(m); return m; };
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.0, 0.72), vBlue)).position.set(0, 0.5, 0);
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(3.72, 0.07, 0.84), vLaminate)).position.set(0, 1.03, 0);
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(3.62, 0.1, 0.06), vGold)).position.set(0, 0.92, 0.39);
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.74), shelfDk)).position.set(0, 0.05, 0);
+        // register: keypad slab, raised display, receipt spool
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.4), lm(0xd8d2c0, 0, 0, 0.6))).position.set(-1.05, 1.13, 0);
+        const vRegHead = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.1), lm(0x3a3a40, 0, 0, 0.6)));
+        vRegHead.position.set(-1.05, 1.3, -0.13);
+        vRegHead.rotation.x = -0.3;
+        const vRegDrawer = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.13, 0.36), lm(0xcfc9b6, 0, 0, 0.6)));
+        vRegDrawer.position.set(-1.05, 0.86, 0.36);
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.02), vTrim)).position.set(-1.05, 0.86, 0.55);
+        cAdd(new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.12), new THREE.MeshStandardMaterial({
+            color: 0x9ae8b0, emissive: 0x2a8a50, emissiveIntensity: 0.9, roughness: 0.3,
+        }))).position.set(-1.05, 1.3, -0.075);
+        cAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 12), lm(0xf0ece0, 0, 0, 0.8)))
+            .position.set(-0.72, 1.14, 0.1);
+        // barcode scanner on a coiled lead
+        cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.19), vPlastic)).position.set(-0.5, 1.09, -0.1);
+        // the rewinder, hubs always turning
+        const vRewBody = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.3), lm(0x24242a, 0, 0, 0.6)));
+        vRewBody.position.set(0.35, 1.13, 0);
+        const vRewHubs = [-0.1, 0.1].map(o => {
+            const h = cAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), lm(0x0c0c10, 0, 0, 0.5)));
+            h.position.set(0.35 + o, 1.21, 0);
+            return h;
+        });
+        // tapes waiting to be shelved
+        [0, 1, 2, 3].forEach(i => {
+            const tp = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.12), vTapeMat(i)));
+            tp.position.set(1.15, 1.085 + i * 0.037, -0.05);
+            tp.rotation.y = (Math.random() - 0.5) * 0.16;
+        });
+        // pen cup, membership leaflets, a bowl of mints
+        cAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.11, 10), vBlueDk)).position.set(1.6, 1.09, 0.16);
+        [0, 1, 2].forEach(i => cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.14, 0.008), vGold))
+            .position.set(1.59 + i * 0.014, 1.14, 0.16 + i * 0.01));
+        const vLeaflet = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.02, 0.16),
+            new THREE.MeshStandardMaterial({ map: vTicketCv('MEMBER', 256, 120), roughness: 0.7 })));
+        vLeaflet.position.set(-1.62, 1.075, 0.06);
+        vLeaflet.rotation.y = 0.2;
+        // counter-front impulse rack
+        [0, 1].forEach(r => [0, 1, 2, 3, 4].forEach(c2 => {
+            const cb = cAdd(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.04),
+                lm([0xd82030, 0xf0a818, 0x20a050, 0x3060d8, 0xb03aa0][c2], 0, 0, 0.7)));
+            cb.position.set(-1.5 + c2 * 0.14, 0.75 - r * 0.22, 0.38);
+        }));
+        // CRT on the counter, playing whatever the store is playing
+        const crtCv = mkCanvas(160, 120);
         const crtCtx = crtCv.getContext('2d');
         const crtTex = new THREE.CanvasTexture(crtCv);
-        const crt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.44), lm(0x2a2a2e, 0, 0, 0.7));
-        crt.position.set(2.55, 1.22, 0.7);
-        crt.rotation.y = -0.9;
+        const crt = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.48, 0.5), lm(0x2c2c31, 0, 0, 0.68));
+        crt.position.set(4.3, 1.31, 2.75);
+        crt.rotation.y = -1.15;
         crt.castShadow = true;
         addTarget.add(crt);
-        const crtScr = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3),
+        box(0.44, 0.06, 0.4, lm(0x1e1e22, 0, 0, 0.7), 4.3, 1.05, 2.75, 0, -1.15, 0);
+        const crtScr = new THREE.Mesh(new THREE.PlaneGeometry(0.43, 0.34),
             new THREE.MeshBasicMaterial({ map: crtTex }));
         crtScr.position.copy(crt.position);
-        crtScr.rotation.y = -0.9;
-        crtScr.translateZ(0.225);
+        crtScr.rotation.y = -1.15;
+        crtScr.translateZ(0.253);
         addTarget.add(crtScr);
-        // returns drop box by the door
-        box(0.5, 0.85, 0.4, vBlueMat, 3.2, 0.42, 2.9);
-        box(0.4, 0.06, 0.05, lm(0x0a0a10, 0, 0, 0.9), 3.2, 0.75, 3.11);
-        const retSign = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.13),
-            new THREE.MeshStandardMaterial({ map: signCv('RETURNS', 128, 40, '#ffe14a', '#101c66', 24), roughness: 0.7 }));
-        retSign.position.set(3.2, 0.92, 3.105);
-        addTarget.add(retSign);
-        // candy rack: shelves of bright boxes
-        const candy = new THREE.Group();
-        candy.position.set(3.35, 0, -0.6);
-        candy.rotation.y = -Math.PI / 2;
-        addTarget.add(candy);
+        const vCrtLight = new THREE.PointLight(0x88aaff, 0.7, 3);
+        vCrtLight.position.set(4.0, 1.35, 3.0);
+        addTarget.add(vCrtLight);
+
+        // ── Popcorn machine ──
+        const vPop = new THREE.Group();
+        vPop.position.set(-5.0, 0, 3.5);
+        vPop.rotation.y = 0.45;
+        addTarget.add(vPop);
+        const pAdd = m => { m.castShadow = true; m.receiveShadow = true; vPop.add(m); return m; };
+        pAdd(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.72, 0.5), lm(0xc01f24, 0, 0, 0.55))).position.y = 0.36;
+        [[-0.26, -0.19], [0.26, -0.19], [-0.26, 0.19], [0.26, 0.19]].forEach(([ox, oz]) =>
+            pAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 10), vPlastic)).position.set(ox, 0.03, oz));
+        pAdd(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.06, 0.54), vGold)).position.y = 0.75;
+        const vPopGlass = pAdd(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.48),
+            new THREE.MeshStandardMaterial({
+                color: 0xcfe4ee, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.1,
+            })));
+        vPopGlass.position.y = 1.03;
+        pAdd(new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.05, 0.52), lm(0xc01f24, 0, 0, 0.55))).position.y = 1.3;
+        pAdd(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.18), lm(0x8a8f98, 0, 0, 0.4, 0.6))).position.set(0, 1.19, 0);
+        const vPopKernels = [];
+        for (let i = 0; i < 34; i++) {
+            const k = new THREE.Mesh(new THREE.DodecahedronGeometry(0.028 + Math.random() * 0.016, 0),
+                lm(0xfdf3d2, 0, 0, 0.85));
+            k.position.set((Math.random() - 0.5) * 0.48, 0.84 + Math.random() * 0.16, (Math.random() - 0.5) * 0.36);
+            vPop.add(k);
+            vPopKernels.push({ m: k, base: k.position.y, ph: Math.random() * 7 });
+        }
+        const vPopLight = new THREE.PointLight(0xffd88a, 0.6, 2.6);
+        vPopLight.position.set(-4.8, 1.2, 3.3);
+        addTarget.add(vPopLight);
+
+        // ── Spinner rack of candy, front left ──
+        const vSpinner = new THREE.Group();
+        vSpinner.position.set(2.5, 0, 3.45);
+        addTarget.add(vSpinner);
+        box(0.36, 0.05, 0.36, shelfDk, 2.5, 0.025, 3.45);
+        const vSpinPost = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.28, 10), vTrim);
+        vSpinPost.position.y = 0.64;
+        vSpinner.add(vSpinPost);
+        const vSpinHead = new THREE.Group();
+        vSpinHead.position.y = 0;
+        vSpinner.add(vSpinHead);
         for (let s = 0; s < 3; s++) {
-            const sh2 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.2), shelfDk);
-            sh2.position.set(0, 0.45 + s * 0.35, 0);
-            candy.add(sh2);
-            for (let c3 = 0; c3 < 7; c3++) {
-                const cb = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.16, 0.05),
-                    lm([0xd82030, 0xf0a818, 0x20a050, 0x3060d8, 0xb03aa0, 0xf06818, 0x18b8c8][c3], 0, 0, 0.7));
-                cb.position.set(-0.42 + c3 * 0.14, 0.55 + s * 0.35, 0.02);
-                cb.rotation.y = (Math.random() - 0.5) * 0.15;
-                candy.add(cb);
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.011, 6, 20), vTrim);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.52 + s * 0.29;
+            vSpinHead.add(ring);
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                const cb = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.145, 0.04),
+                    lm([0xd82030, 0xf0a818, 0x20a050, 0x3060d8, 0xb03aa0, 0xf06818, 0x18b8c8, 0xe8d020][i], 0, 0, 0.7));
+                cb.position.set(Math.cos(a) * 0.245, 0.585 + s * 0.29, Math.sin(a) * 0.245);
+                cb.rotation.y = -a;
+                cb.castShadow = true;
+                vSpinHead.add(cb);
             }
         }
 
-        // ── Storefront: night windows, neon OPEN, cardboard standee ──
-        const frontCv = mkCanvas(256, 160);
+        // ── Returns drop box, security pedestals, baskets, stock cart ──
+        box(0.56, 0.92, 0.46, vBlue, -1.9, 0.46, 3.7);
+        box(0.6, 0.07, 0.5, vGold, -1.9, 0.93, 3.7);
+        box(0.42, 0.05, 0.06, lm(0x08080c, 0, 0, 0.9), -1.9, 0.8, 3.47);
+        const retSign = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.15),
+            new THREE.MeshStandardMaterial({ map: signCv('RETURNS', 192, 56, '#ffc81e', '#0d1a63', 30), roughness: 0.7 }));
+        retSign.position.set(-1.9, 0.62, 3.472);
+        addTarget.add(retSign);
+        [-0.35, 2.15].forEach(px => {                    // anti-theft gates flanking the door
+            box(0.15, 1.4, 0.3, lm(0x51555e, 0, 0, 0.5), px, 0.7, 3.72);
+            box(0.17, 0.04, 0.32, vGold, px, 1.42, 3.72);
+            box(0.17, 0.05, 0.32, lm(0x2a2d34, 0, 0, 0.6), px, 1.05, 3.72);
+        });
+        [0, 1, 2, 3].forEach(i => {                      // stacked carry baskets
+            const bk = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.26), lm(0x1d3fae, 0, 0, 0.7));
+            bk.position.set(0.3, 0.05 + i * 0.075, 3.6);
+            bk.rotation.y = (Math.random() - 0.5) * 0.18;
+            bk.castShadow = true;
+            addTarget.add(bk);
+        });
+        {                                                 // restocking cart
+            const cart = new THREE.Group();
+            cart.position.set(-2.0, 0, -1.4);
+            cart.rotation.y = 0.5;
+            addTarget.add(cart);
+            box(0.62, 0.04, 0.42, vTrim, -2.0, 0.34, -1.4, 0, 0.5, 0);
+            box(0.62, 0.04, 0.42, vTrim, -2.0, 0.66, -1.4, 0, 0.5, 0);
+            [[-0.26, -0.16], [0.26, -0.16], [-0.26, 0.16], [0.26, 0.16]].forEach(([ox, oz]) => {
+                const p = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.68, 6), vTrim);
+                p.position.set(ox, 0.34, oz);
+                cart.add(p);
+                const w = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), vPlastic);
+                w.rotation.x = Math.PI / 2;
+                w.position.set(ox, 0.045, oz);
+                cart.add(w);
+            });
+            for (let i = 0; i < 9; i++) {
+                const tp = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.22, 0.03), vTapeMat(i + 2));
+                tp.position.set(-0.24 + (i % 5) * 0.06, 0.79, ((i / 5) | 0) * 0.13 - 0.06);
+                tp.rotation.z = (Math.random() - 0.5) * 0.2;
+                tp.castShadow = true;
+                cart.add(tp);
+            }
+        }
+
+        // ── Promo dump bin and a bin, so the floor is not an empty plain ──
         {
-            const fr = frontCv.getContext('2d');
-            const fg2 = fr.createLinearGradient(0, 0, 0, 160);
-            fg2.addColorStop(0, '#060a1e'); fg2.addColorStop(1, '#101a30');
-            fr.fillStyle = fg2; fr.fillRect(0, 0, 256, 160);
-            fr.fillStyle = '#c8d8f0';                      // parking-lot lamp
-            fr.beginPath(); fr.arc(200, 30, 5, 0, Math.PI * 2); fr.fill();
-            const lg2 = fr.createRadialGradient(200, 30, 2, 200, 30, 60);
-            lg2.addColorStop(0, 'rgba(200,216,240,0.5)'); lg2.addColorStop(1, 'rgba(200,216,240,0)');
-            fr.fillStyle = lg2; fr.fillRect(140, 0, 120, 120);
-            fr.fillStyle = '#04060c';                      // parked cars
-            [[30, 118, 70, 26], [130, 122, 62, 22]].forEach(([cx5, cy5, cw5, ch5]) => {
-                fr.beginPath(); fr.roundRect(cx5, cy5, cw5, ch5, 8); fr.fill();
+            const dump = new THREE.Group();
+            dump.position.set(-2.95, 0, 3.05);
+            dump.rotation.y = 0.3;
+            addTarget.add(dump);
+            const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.32, 0.52, 14), vBlue);
+            shell.position.y = 0.26;
+            shell.castShadow = shell.receiveShadow = true;
+            dump.add(shell);
+            const lip = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.032, 6, 18), vGold);
+            lip.rotation.x = Math.PI / 2;
+            lip.position.y = 0.52;
+            dump.add(lip);
+            const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.17),
+                new THREE.MeshStandardMaterial({ map: signCv('$1 SPECIALS', 256, 96, '#0d1a63', '#ffc81e', 34), roughness: 0.7 }));
+            tag.position.set(0, 0.34, 0.378);
+            dump.add(tag);
+            for (let i = 0; i < 18; i++) {                 // tapes stood on end, well picked over
+                const tp = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.21, 0.028), vTapeMat(i + 5));
+                const a = Math.random() * Math.PI * 2, r = Math.random() * 0.24;
+                tp.position.set(Math.cos(a) * r, 0.46, Math.sin(a) * r);
+                tp.rotation.set((Math.random() - 0.5) * 0.5, Math.random() * Math.PI, (Math.random() - 0.5) * 0.4);
+                dump.add(tp);
+            }
+        }
+        {                                                   // waste bin by the counter
+            const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.5, 12), lm(0x2c2f36, 0, 0, 0.75));
+            bin.position.set(3.9, 0.25, 3.55);
+            bin.castShadow = bin.receiveShadow = true;
+            addTarget.add(bin);
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 6, 14), vTrim);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.set(3.9, 0.5, 3.55);
+            addTarget.add(rim);
+        }
+        // wall clock, permanently five minutes fast
+        {
+            const cv = mkCanvas(128, 128), c = cv.getContext('2d');
+            c.fillStyle = '#f4f2e8'; c.beginPath(); c.arc(64, 64, 60, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = '#1a1a20'; c.lineWidth = 4;
+            c.beginPath(); c.arc(64, 64, 60, 0, Math.PI * 2); c.stroke();
+            c.lineWidth = 3;
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                c.beginPath();
+                c.moveTo(64 + Math.sin(a) * 50, 64 - Math.cos(a) * 50);
+                c.lineTo(64 + Math.sin(a) * 44, 64 - Math.cos(a) * 44);
+                c.stroke();
+            }
+            c.lineWidth = 5; c.beginPath(); c.moveTo(64, 64); c.lineTo(64 + 26, 64 - 14); c.stroke();
+            c.lineWidth = 3.5; c.beginPath(); c.moveTo(64, 64); c.lineTo(64 - 8, 64 - 40); c.stroke();
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            const cl = new THREE.Mesh(new THREE.CircleGeometry(0.21, 22),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.6 }));
+            cl.position.set(VS.hx - 0.04, 2.45, 2.4);
+            cl.rotation.y = -Math.PI / 2;
+            addTarget.add(cl);
+        }
+
+        // ── Poster lightboxes ──
+        const vPosterArt = seed => {
+            const cv = mkCanvas(192, 288), g = cv.getContext('2d');
+            vCover(g, 0, 0, 192, 288, seed);
+            const t2 = new THREE.CanvasTexture(cv);
+            t2.colorSpace = THREE.SRGBColorSpace;
+            t2.anisotropy = MAX_ANISO;
+            return t2;
+        };
+        const vPoster = (x, y, z, ry, seed) => {
+            box(0.78, 1.1, 0.07, vTrim, x, y, z, 0, ry, 0);
+            const p = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 1.0),
+                new THREE.MeshStandardMaterial({
+                    map: vPosterArt(seed), emissive: 0xffffff, emissiveIntensity: 0.32, roughness: 0.5,
+                }));
+            p.position.set(x + Math.sin(ry) * 0.04, y, z + Math.cos(ry) * 0.04);
+            p.rotation.y = ry;
+            addTarget.add(p);
+        };
+        vPoster(-VS.hx + 0.05, 1.9, 4.0 - 0.1, Math.PI / 2, 61);
+        vPoster(VS.hx - 0.05, 1.9, -0.4, -Math.PI / 2, 77);
+        vPoster(VS.hx - 0.05, 1.9, 0.6, -Math.PI / 2, 91);
+
+        // ── Cardboard standees ──
+        const vStandee = (x, z, ry, seed, label) => {
+            const g = new THREE.Group();
+            g.position.set(x, 0, z);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            const cv = mkCanvas(160, 300);
+            {
+                const c = cv.getContext('2d');
+                vCover(c, 0, 0, 160, 300, seed);
+                c.fillStyle = '#ffc81e';
+                c.fillRect(0, 258, 160, 42);
+                c.fillStyle = '#0d1a63';
+                c.font = '900 22px Arial, sans-serif';
+                c.textAlign = 'center'; c.textBaseline = 'middle';
+                c.fillText(label, 80, 280);
+            }
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 1.55),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.88, side: THREE.DoubleSide }));
+            m.position.y = 0.78;
+            m.castShadow = true;
+            g.add(m);
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.35, 0.04), lm(0x9a8a68, 0, 0, 0.9));
+            leg.position.set(0, 0.66, -0.2);
+            leg.rotation.x = 0.26;
+            g.add(leg);
+            return g;
+        };
+        const vStandeeA = vStandee(-3.5, 2.9, 0.75, 41, 'NOW ON VHS');
+        const vStandeeB = vStandee(-2.45, 1.75, 0.4, 55, 'RENT TONIGHT');
+
+        // ── Storefront: glass, mullions, neon, and a wet parking lot ──
+        const frontCv = mkCanvas(384, 256);
+        {
+            const f = frontCv.getContext('2d');
+            const sky = f.createLinearGradient(0, 0, 0, 150);
+            sky.addColorStop(0, '#05081c'); sky.addColorStop(1, '#141d3c');
+            f.fillStyle = sky; f.fillRect(0, 0, 384, 150);
+            for (let i = 0; i < 60; i++) {                       // stars
+                f.fillStyle = `rgba(210,220,255,${0.15 + Math.random() * 0.4})`;
+                f.fillRect(Math.random() * 384, Math.random() * 110, 1, 1);
+            }
+            f.fillStyle = '#0d1424'; f.fillRect(0, 118, 384, 32);  // treeline
+            for (let i = 0; i < 26; i++) {
+                f.beginPath();
+                f.arc(i * 16 + Math.random() * 10, 122 + Math.random() * 8, 8 + Math.random() * 9, 0, Math.PI * 2);
+                f.fill();
+            }
+            f.fillStyle = '#16181f'; f.fillRect(0, 150, 384, 106);  // asphalt
+            speckle(f, 384, 256, 1400, 0.06, '#3a3d48', '#0a0b0f');
+            f.strokeStyle = '#c8c49a'; f.lineWidth = 2;             // stall lines
+            for (let i = 0; i < 8; i++) {
+                f.beginPath(); f.moveTo(i * 52 - 10, 256); f.lineTo(i * 52 + 24, 178); f.stroke();
+            }
+            [[70, 42, '#7a1e22'], [190, 46, '#1e3a6a'], [300, 40, '#2a2a30']].forEach(([cx, cw, col]) => {
+                f.fillStyle = col;
+                f.beginPath(); f.roundRect(cx, 186, cw, 20, 6); f.fill();
+                f.beginPath(); f.roundRect(cx + 9, 176, cw - 18, 13, 5); f.fill();
+                f.fillStyle = 'rgba(255,220,160,0.75)';
+                f.fillRect(cx + 2, 197, 7, 4); f.fillRect(cx + cw - 9, 197, 7, 4);
+            });
+            [56, 300].forEach(lx => {                               // lot lamps
+                f.fillStyle = '#2a2d34'; f.fillRect(lx - 2, 96, 4, 58);
+                f.fillStyle = '#e8e4c8';
+                f.beginPath(); f.ellipse(lx, 94, 11, 5, 0, 0, Math.PI * 2); f.fill();
+                const lg = f.createRadialGradient(lx, 96, 3, lx, 96, 74);
+                lg.addColorStop(0, 'rgba(232,228,200,0.42)'); lg.addColorStop(1, 'rgba(232,228,200,0)');
+                f.fillStyle = lg; f.fillRect(lx - 74, 22, 148, 148);
             });
         }
         const frontTex = new THREE.CanvasTexture(frontCv);
         frontTex.colorSpace = THREE.SRGBColorSpace;
-        [[-2.1, 1.65], [0, 1.65], [2.1, 1.65]].forEach(([wx2]) => {
-            const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.5),
-                new THREE.MeshBasicMaterial({ map: frontTex, fog: false }));
-            pane.position.set(wx2, 1.55, 3.35);
-            pane.rotation.y = Math.PI;
-            addTarget.add(pane);
-            box(0.1, 3.1, 0.1, lm(0x9a9a9c, 0, 0, 0.5, 0.6), wx2 - 1.0, 1.55, 3.32);
-        });
-        box(0.1, 3.1, 0.1, lm(0x9a9a9c, 0, 0, 0.5, 0.6), 3.1, 1.55, 3.32);
-        const openSign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3),
+        frontTex.anisotropy = MAX_ANISO;
+        const vGlass = new THREE.Mesh(new THREE.PlaneGeometry(VS.hx * 2, VS.ceil),
+            new THREE.MeshBasicMaterial({ map: frontTex, fog: false }));
+        vGlass.position.set(0, VS.ceil / 2, VS.zFront);
+        vGlass.rotation.y = Math.PI;
+        addTarget.add(vGlass);
+        // mullions skip the middle span — that is the doorway, and it is also
+        // exactly where you are standing when the world opens
+        [-6.2, -4.2, -2.2, 3.7, 5.2, 6.2].forEach(mx =>
+            box(0.1, VS.ceil, 0.1, vTrim, mx, VS.ceil / 2, VS.zFront - 0.02));
+        box(VS.hx * 2, 0.12, 0.12, vTrim, 0, VS.ceil - 0.06, VS.zFront - 0.02);
+        box(VS.hx * 2, 0.2, 0.16, vBlue, 0, 0.1, VS.zFront - 0.02);
+        // door: a gap in the mullions with a push bar and a hours decal
+        box(0.06, 2.2, 0.06, vTrim, 1.75, 1.1, VS.zFront - 0.04);
+        box(0.06, 2.2, 0.06, vTrim, 0.05, 1.1, VS.zFront - 0.04);
+        box(1.7, 0.06, 0.06, vTrim, 0.9, 2.2, VS.zFront - 0.04);
+        box(0.7, 0.05, 0.05, lm(0xb8bcc4, 0, 0, 0.4, 0.6), 0.9, 1.05, VS.zFront - 0.09);
+        const vHours = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3),
             new THREE.MeshBasicMaterial({
-                map: signCv('OPEN', 128, 64, '#ff4a8a', '#0a0614', 40),
-                transparent: true, opacity: 0.95,
+                map: signCv('OPEN TIL 11', 256, 128, '#ffc81e', 'rgba(0,0,0,0)', 26),
+                transparent: true, fog: false,
             }));
-        openSign.position.set(-2.1, 2.2, 3.3);
+        vHours.position.set(0.9, 1.62, VS.zFront - 0.05);
+        vHours.rotation.y = Math.PI;
+        addTarget.add(vHours);
+        const openSign = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.36),
+            new THREE.MeshBasicMaterial({
+                map: signCv('OPEN', 192, 88, '#ff4a8a', '#0a0614', 52),
+                transparent: true, opacity: 0.95, fog: false,
+            }));
+        openSign.position.set(-2.6, 2.35, VS.zFront - 0.06);
         openSign.rotation.y = Math.PI;
         addTarget.add(openSign);
-        // cardboard standee: hero silhouette on an easel
-        const standee = new THREE.Group();
-        standee.position.set(-2.3, 0, 2.3);
-        standee.rotation.y = 0.7;
-        addTarget.add(standee);
-        const stCv = mkCanvas(128, 256);
-        {
-            const sg2 = stCv.getContext('2d');
-            const sgr = sg2.createLinearGradient(0, 0, 0, 256);
-            sgr.addColorStop(0, '#e8a020'); sgr.addColorStop(1, '#802010');
-            sg2.fillStyle = sgr; sg2.fillRect(0, 0, 128, 256);
-            sg2.fillStyle = '#181420';    // action-hero silhouette
-            sg2.beginPath(); sg2.arc(64, 60, 20, 0, Math.PI * 2); sg2.fill();
-            sg2.fillRect(40, 80, 48, 90);
-            sg2.fillRect(28, 84, 16, 60); sg2.fillRect(84, 84, 16, 60);
-            sg2.fillRect(44, 170, 16, 70); sg2.fillRect(68, 170, 16, 70);
-            sg2.fillStyle = '#ffe14a'; sg2.font = '900 20px Arial';
-            sg2.textAlign = 'center'; sg2.fillText('NOW ON VHS', 64, 26);
-        }
-        const stTex = new THREE.CanvasTexture(stCv);
-        stTex.colorSpace = THREE.SRGBColorSpace;
-        const stMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.4),
-            new THREE.MeshStandardMaterial({ map: stTex, roughness: 0.85, side: THREE.DoubleSide }));
-        stMesh.position.y = 0.72;
-        standee.add(stMesh);
-        box(0.05, 1.3, 0.05, lm(0x9a8a68, 0, 0, 0.9), 0, 0.65, -0.18, 0.25, 0, 0);
 
-        // ── Clark's staff-picks beanbag by the counter ──
-        const bean = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), lm(0x18287a, 0, 0, 0.95));
-        bean.scale.set(1, 0.28, 1);
-        bean.position.set(BEDX, 0.08, BEDZ);
-        bean.receiveShadow = bean.castShadow = true;
+        // ── Clark's staff-picks beanbag ──
+        const bean = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 9), lm(0x1d3fae, 0, 0, 0.95));
+        bean.scale.set(1, 0.3, 1);
+        bean.position.set(BEDX, 0.09, BEDZ);
+        bean.castShadow = bean.receiveShadow = true;
         addTarget.add(bean);
-        box(0.5, 0.02, 0.4, lm(0xffe14a, 0, 0, 0.9), BEDX, 0.145, BEDZ);
+        const vBeanTag = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.16),
+            new THREE.MeshStandardMaterial({ map: signCv("CLARK'S PICKS", 256, 88, '#0d1a63', '#ffc81e', 30), roughness: 0.8 }));
+        vBeanTag.rotation.x = -Math.PI / 2;
+        vBeanTag.position.set(BEDX, 0.155, BEDZ + 0.02);
+        addTarget.add(vBeanTag);
 
         // neon + marquee glow, driven by the neon slider
-        const vNeonLight = new THREE.PointLight(0xff4a8a, 0, 5);
-        vNeonLight.position.set(-2.1, 2.2, 2.9);
+        const vNeonLight = new THREE.PointLight(0xff4a8a, 0, 5.5);
+        vNeonLight.position.set(-2.6, 2.3, 3.85);
         addTarget.add(vNeonLight);
-        const vMarqLight = new THREE.PointLight(0xffe14a, 0, 6);
-        vMarqLight.position.set(0, 2.5, -2.4);
+        const vMarqLight = new THREE.PointLight(0xffc81e, 0, 7);
+        vMarqLight.position.set(3.2, 2.4, VS.zBack + 0.9);
         addTarget.add(vMarqLight);
-        let vFlickerPanel = 0, vNextFlicker = 5;
+        let vFlickerPanel = 0, vNextFlicker = 5, vRegOpenUntil = -10, vPopBurstUntil = -10, vCrtLast = 0;
 
         addTarget = tillsonGroup;
 
@@ -8693,24 +9233,28 @@
         });
 
         // ── VIDEO STORE ──
-        vhsRuns.forEach(run => addInteract(run.back, {
+        // Browse a rack and a box slides out like someone's considering it
+        const vPullTape = () => {
+            const h = vHeroTapes[(Math.random() * vHeroTapes.length) | 0];
+            if (!h || h.busy) return;
+            h.busy = true;
+            const axis = h.axis === 'x' ? 'x' : 'z';
+            const home = h.m.position[axis];
+            const start = clock.getElapsedTime();
+            addEffect(t2 => {
+                const el = t2 - start;
+                if (el > 1.9) { h.m.position[axis] = home; h.busy = false; return false; }
+                const k = el < 0.35 ? el / 0.35 : el < 1.45 ? 1 : 1 - (el - 1.45) / 0.45;
+                h.m.position[axis] = home + Math.max(0, k) * 0.14 * h.dir;
+                return true;
+            });
+        };
+        vGondolas.forEach(g => addInteract(g, { theme: 'video', onClick: vPullTape }));
+        let crtForceBlue = 0, vCrtChannel = 0;
+        addInteract(crt, {
             theme: 'video',
-            onClick: () => {
-                const tape = run.tapes[(Math.random() * run.tapes.length) | 0];
-                if (!tape) return;
-                const homeZ = tape.position.z;
-                const start = clock.getElapsedTime();
-                addEffect(t2 => {
-                    const el = t2 - start;
-                    if (el > 1.6) { tape.position.z = homeZ; return false; }
-                    const k = el < 0.35 ? el / 0.35 : el < 1.2 ? 1 : 1 - (el - 1.2) / 0.4;
-                    tape.position.z = homeZ + Math.max(0, k) * 0.16;
-                    return true;
-                });
-            },
-        }));
-        let crtForceBlue = 0;
-        addInteract(crt, { theme: 'video', onClick: () => { crtForceBlue = clock.getElapsedTime() + 2.5; } });
+            onClick: () => { vCrtChannel = (vCrtChannel + 1) % 4; crtForceBlue = clock.getElapsedTime() + 0.45; },
+        });
         addInteract(openSign, {
             theme: 'video',
             onClick: () => {
@@ -8723,6 +9267,37 @@
                 });
             },
         });
+        // Thump the popcorn machine and the kettle goes off
+        addInteract(vPop, { theme: 'video', onClick: () => { vPopBurstUntil = clock.getElapsedTime() + 2.2; } });
+        // Ring up a rental: the drawer kicks open
+        addInteract(vRegHead, { theme: 'video', onClick: () => { vRegOpenUntil = clock.getElapsedTime() + 1.8; } });
+        // Give the spinner a shove
+        addInteract(vSpinHead, {
+            theme: 'video',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 2.4) return false;
+                    vSpinHead.rotation.y += (1 - el / 2.4) * 0.11;
+                    return true;
+                });
+            },
+        });
+        // Nudge a standee and it rocks on its easel
+        [vStandeeA, vStandeeB].forEach(st => addInteract(st, {
+            theme: 'video',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                const baseZ = st.rotation.z;
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 1.5) { st.rotation.z = baseZ; return false; }
+                    st.rotation.z = baseZ + Math.sin(el * 13) * 0.07 * (1 - el / 1.5);
+                    return true;
+                });
+            },
+        }));
 
         // ── TILLSON ST ──
         tlFlames.filter(f => f.mesh).forEach(f => addInteract(f.mesh, {
@@ -9779,26 +10354,76 @@
                 openSign.material.opacity = 0.4 + Math.min(1, neon2) * 0.55 + Math.sin(t * 30) * 0.02;
                 marquee.material.emissiveIntensity = 0.15 + neon2 * 0.3;
 
-                // CRT: rolling static with the occasional blue screen
-                if (t - monLastDraw > -1) {   // cheap: redraw each frame at 128x96
-                    const blue = t < crtForceBlue || Math.sin(t * 0.21) > 0.93;
-                    if (blue) {
-                        crtCtx.fillStyle = '#1030c8';
-                        crtCtx.fillRect(0, 0, 128, 96);
-                        crtCtx.fillStyle = '#e8f0ff';
-                        crtCtx.font = 'bold 9px monospace';
-                        crtCtx.fillText('FEATURE', 38, 44);
-                        crtCtx.fillText('PRESENTATION', 22, 58);
-                    } else {
-                        crtCtx.fillStyle = '#0a0a0a';
-                        crtCtx.fillRect(0, 0, 128, 96);
-                        for (let i = 0; i < 260; i++) {
-                            const v2 = 40 + Math.random() * 200 | 0;
-                            crtCtx.fillStyle = `rgb(${v2},${v2},${v2})`;
-                            crtCtx.fillRect(Math.random() * 128, Math.random() * 96, 2, 1.4);
+                // the rewinder never stops, and the register drawer bangs shut
+                vRewHubs.forEach((h, i) => { h.rotation.y += dt * (i ? -13 : 9); });
+                const drawerOut = t < vRegOpenUntil ? 0.62 : 0.36;
+                vRegDrawer.position.z += (drawerOut - vRegDrawer.position.z) * Math.min(1, dt * 9);
+                // kernels tumble, and jump when the kettle fires
+                const popping = t < vPopBurstUntil;
+                for (const k of vPopKernels) {
+                    const hop = popping ? Math.abs(Math.sin(t * 9 + k.ph)) * 0.16 : Math.abs(Math.sin(t * 2.2 + k.ph)) * 0.012;
+                    k.m.position.y = k.base + hop;
+                    k.m.rotation.x += dt * (popping ? 6 : 0.5);
+                    k.m.rotation.z += dt * (popping ? 4 : 0.3);
+                }
+                vPopLight.intensity = (0.5 + (popping ? 0.6 + Math.sin(t * 22) * 0.3 : 0)) * b;
+                vSpinHead.rotation.y += dt * 0.09;
+                vCrtLight.intensity = 0.55 + Math.sin(t * 7.3) * 0.12;
+
+                // CRT: whatever tape is in the deck behind the counter
+                if (t - vCrtLast > 0.05) {
+                    vCrtLast = t;
+                    const g = crtCtx, W = 160, H = 120;
+                    if (t < crtForceBlue) {                       // channel change snow
+                        g.fillStyle = '#0a0a0a'; g.fillRect(0, 0, W, H);
+                        for (let i = 0; i < 420; i++) {
+                            const v2 = 30 + Math.random() * 210 | 0;
+                            g.fillStyle = `rgb(${v2},${v2},${v2})`;
+                            g.fillRect(Math.random() * W, Math.random() * H, 3, 1.6);
                         }
-                        crtCtx.fillStyle = 'rgba(255,255,255,0.12)';
-                        crtCtx.fillRect(0, ((t * 60) % 96), 128, 3);   // rolling bar
+                    } else if (vCrtChannel === 0) {               // feature presentation bumper
+                        g.fillStyle = '#0d1a63'; g.fillRect(0, 0, W, H);
+                        g.fillStyle = '#ffc81e';
+                        g.font = 'italic 900 15px Arial'; g.textAlign = 'center';
+                        g.fillText('FEATURE', W / 2, 48);
+                        g.fillText('PRESENTATION', W / 2, 68);
+                        g.fillStyle = '#e8f0ff'; g.font = '9px Arial';
+                        g.fillText('· be kind, rewind ·', W / 2, 96);
+                    } else if (vCrtChannel === 1) {               // a car chase, sort of
+                        const sky = g.createLinearGradient(0, 0, 0, H);
+                        sky.addColorStop(0, '#20304e'); sky.addColorStop(1, '#0a0c12');
+                        g.fillStyle = sky; g.fillRect(0, 0, W, H);
+                        g.fillStyle = '#2a2c34'; g.fillRect(0, 74, W, 46);
+                        g.strokeStyle = '#e8e0b0'; g.lineWidth = 3;
+                        for (let i = 0; i < 5; i++) {
+                            const u = ((t * 1.4 + i * 0.2) % 1);
+                            g.beginPath(); g.moveTo(W / 2 - u * 90, 78 + u * 42);
+                            g.lineTo(W / 2 - u * 96, 84 + u * 42); g.stroke();
+                        }
+                        g.fillStyle = '#c02020';
+                        const bx = W / 2 + Math.sin(t * 2.1) * 26;
+                        g.beginPath(); g.roundRect(bx - 20, 82, 40, 14, 5); g.fill();
+                        g.beginPath(); g.roundRect(bx - 12, 74, 24, 10, 4); g.fill();
+                        g.fillStyle = '#ffd070'; g.fillRect(bx - 19, 92, 6, 4); g.fillRect(bx + 13, 92, 6, 4);
+                    } else if (vCrtChannel === 2) {               // rental info card
+                        g.fillStyle = '#08120a'; g.fillRect(0, 0, W, H);
+                        g.fillStyle = '#7ee7a0'; g.font = 'bold 10px monospace'; g.textAlign = 'left';
+                        g.fillText('NEW THIS WEEK', 8, 16);
+                        g.font = '9px monospace';
+                        ['THE LONG DRIVE', 'CRIMSON HARBOUR', 'DOG DAYS  (staff)', 'ORBIT NINE'].forEach((r, i) =>
+                            g.fillText(`${i + 1}. ${r}`, 8, 36 + i * 15));
+                        g.fillStyle = 'rgba(126,231,160,0.5)';
+                        g.fillRect(8, 104, 60 + Math.sin(t * 2) * 40, 3);
+                    } else {                                       // colour bars
+                        ['#c8c8c8', '#c8c820', '#20c8c8', '#20c820', '#c820c8', '#c82020', '#2020c8'].forEach((c2, i) => {
+                            g.fillStyle = c2; g.fillRect(i * (W / 7), 0, W / 7 + 1, 88);
+                        });
+                        g.fillStyle = '#101014'; g.fillRect(0, 88, W, 32);
+                    }
+                    g.fillStyle = 'rgba(255,255,255,0.10)';
+                    g.fillRect(0, ((t * 70) % H), W, 3);          // rolling bar
+                    for (let y = 0; y < H; y += 3) {              // scanlines
+                        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, y, W, 1);
                     }
                     crtTex.needsUpdate = true;
                 }
