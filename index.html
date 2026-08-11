@@ -6552,147 +6552,1007 @@
 
         addTarget = recallGroup;
 
-        // ── TOTAL RECALL: a Mars colony pod, a Rekall memory chair, and a
-        //    reactor on the horizon that — maybe — is giving the planet air ──
+        // ═══════════════════════════════
+        //  TOTAL RECALL — a colony pod on the Martian plain, a Rekall memory
+        //  chair inside it, and the alien reactor out past the mesas. Two
+        //  sliders drive the whole world: "atmosphere" walks the planet from a
+        //  red dust storm to the first blue sky, and "reactor" spins up the
+        //  machine that is doing it.
+        // ═══════════════════════════════
 
-        // Rust-red dust ground, cracked and speckled
-        const rcGroundCv = mkCanvas(256, 256);
-        {
-            const g = rcGroundCv.getContext('2d');
-            g.fillStyle = '#8a3c22'; g.fillRect(0, 0, 256, 256);
-            speckle(g, 256, 256, 900, 0.35, '#c8703c', '#5a2412');
-            g.strokeStyle = 'rgba(40,14,8,0.25)'; g.lineWidth = 1;
-            for (let i = 0; i < 14; i++) {
-                const x0 = Math.random() * 256, y0 = Math.random() * 256;
-                g.beginPath();
-                g.moveTo(x0, y0);
-                g.lineTo(x0 + (Math.random() - 0.5) * 90, y0 + (Math.random() - 0.5) * 90);
-                g.stroke();
+        const RC_R = 3.15, RC_CZ = 0.35;      // pod dome radius / center offset
+        const RC_PAD = 5.6;                   // graded-flat colony pad radius
+        const RC_SKY_R = 33;                  // sky dome — rides with the camera
+        const RC_PYR = { x: -15.5, z: -8.5, h: 8.8 };
+
+        // ── Terrain: cratered, wind-rippled regolith, graded flat under the colony ──
+        const rcCraters = [
+            [13, -8, 3.6, 0.8], [-11, 9.5, 2.8, 0.55], [19, 7, 4.4, 0.9],
+            [-18, -6, 3.2, 0.65], [7, 17, 3.0, 0.6], [-5, -19, 3.8, 0.75],
+            [24, -14, 5.0, 1.0], [-24, 12, 4.0, 0.8],
+        ];
+        const rcH = (x, z) => {
+            let h = Math.sin(x * 0.062 + 1.3) * 0.75 + Math.cos(z * 0.055 - 0.7) * 0.62
+                  + Math.sin(x * 0.19) * Math.cos(z * 0.16) * 0.2;
+            h += Math.sin(x * 0.78 + Math.cos(z * 0.26) * 2.2) * 0.05;      // wind ripples
+            for (const [cx, cz, cr, cd] of rcCraters) {
+                const u = Math.hypot(x - cx, z - cz) / cr;
+                if (u < 2.2) {
+                    if (u < 1) h -= cd * (1 - u * u) * 0.9;                  // bowl
+                    h += cd * 0.5 * Math.exp(-Math.pow((u - 1) * 2.6, 2));   // raised rim
+                }
             }
+            return h * THREE.MathUtils.smoothstep(Math.hypot(x, z), RC_PAD, RC_PAD + 4.5);
+        };
+        const rcGeo = new THREE.PlaneGeometry(96, 96, 168, 168);
+        {
+            const p = rcGeo.attributes.position;
+            for (let i = 0; i < p.count; i++) p.setZ(i, rcH(p.getX(i), -p.getY(i)));
+            rcGeo.computeVertexNormals();
+            // Broad tonal drift painted per-vertex: one texture tiled 16× would
+            // read as wallpaper on its own, and this also sinks the crater bowls
+            const cols = new Float32Array(p.count * 3);
+            const cShade = new THREE.Color(0.70, 0.62, 0.57);
+            const cBleach = new THREE.Color(1.18, 1.08, 0.98);
+            const tmp = new THREE.Color();
+            for (let i = 0; i < p.count; i++) {
+                const x = p.getX(i), z = -p.getY(i), h = p.getZ(i);
+                const drift = Math.sin(x * 0.13 + 2.1) * Math.cos(z * 0.11 - 1.2) * 0.5
+                            + Math.sin(x * 0.041 - 0.7) * Math.cos(z * 0.037 + 2.4) * 0.5;
+                const u = THREE.MathUtils.clamp(drift * 0.5 + 0.5 + h * 0.2, 0, 1);
+                tmp.copy(cShade).lerp(cBleach, u);
+                cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+            }
+            rcGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
         }
-        const rcGround = new THREE.Mesh(new THREE.CircleGeometry(22, 40),
-            new THREE.MeshStandardMaterial({ map: asTex(rcGroundCv, 7, 7), roughness: 0.95, metalness: 0.02 }));
+        // Regolith: broad tonal drifts, basalt blown clear of dust, grit and pebbles
+        const rcgCv = mkCanvas(1024, 1024);
+        {
+            const g = rcgCv.getContext('2d');
+            g.fillStyle = '#9a4e2c'; g.fillRect(0, 0, 1024, 1024);
+            const tones = ['#b06a40', '#8a4326', '#a75c34', '#7c3a21', '#c1804f', '#93472a'];
+            for (let i = 0; i < 240; i++) {
+                g.fillStyle = tones[(Math.random() * tones.length) | 0];
+                g.globalAlpha = 0.07 + Math.random() * 0.13;
+                g.beginPath();
+                g.ellipse(Math.random() * 1024, Math.random() * 1024,
+                    16 + Math.random() * 60, 10 + Math.random() * 44, Math.random() * 3, 0, Math.PI * 2);
+                g.fill();
+            }
+            for (let i = 0; i < 60; i++) {          // dark basalt, scoured bare
+                g.fillStyle = Math.random() < 0.5 ? '#5a3320' : '#472616';
+                g.globalAlpha = 0.09 + Math.random() * 0.13;
+                g.beginPath();
+                g.ellipse(Math.random() * 1024, Math.random() * 1024,
+                    10 + Math.random() * 34, 6 + Math.random() * 22, Math.random() * 3, 0, Math.PI * 2);
+                g.fill();
+            }
+            for (let i = 0; i < 40; i++) {          // pale wind streaks
+                g.fillStyle = '#cf9366';
+                g.globalAlpha = 0.06 + Math.random() * 0.10;
+                g.beginPath();
+                g.ellipse(Math.random() * 1024, Math.random() * 1024,
+                    90 + Math.random() * 220, 4 + Math.random() * 12, Math.random() * 0.5 - 0.25, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalAlpha = 1;
+            speckle(g, 1024, 1024, 5500, 0.30, '#d08a5c', '#54301c');
+            for (let i = 0; i < 1400; i++) {        // pebbles, each with a lit edge
+                const px = Math.random() * 1024, py = Math.random() * 1024, pr = 1 + Math.random() * 3.4;
+                g.globalAlpha = 0.5 + Math.random() * 0.4;
+                g.fillStyle = '#4a2717';
+                g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.fill();
+                g.globalAlpha = 0.35;
+                g.fillStyle = '#d99a6a';
+                g.beginPath(); g.arc(px - pr * 0.3, py - pr * 0.35, pr * 0.55, 0, Math.PI * 2); g.fill();
+            }
+            g.globalAlpha = 1;
+        }
+        // Matching bump so the low sun rakes across the grain
+        const rcgBumpCv = mkCanvas(512, 512);
+        {
+            const g = rcgBumpCv.getContext('2d');
+            g.fillStyle = '#808080'; g.fillRect(0, 0, 512, 512);
+            speckle(g, 512, 512, 3600, 0.5, '#c8c8c8', '#3a3a3a');
+            for (let i = 0; i < 700; i++) {
+                const px = Math.random() * 512, py = Math.random() * 512, pr = 1 + Math.random() * 2.6;
+                g.globalAlpha = 0.7;
+                g.fillStyle = '#e8e8e8';
+                g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.fill();
+                g.fillStyle = '#2a2a2a';
+                g.beginPath(); g.arc(px + pr * 0.7, py + pr * 0.7, pr * 0.8, 0, Math.PI * 2); g.fill();
+            }
+            g.globalAlpha = 1;
+        }
+        const rcGroundMat = new THREE.MeshStandardMaterial({
+            map: asTex(rcgCv, 16, 16), bumpMap: asTex(rcgBumpCv, 64, 64, false), bumpScale: 0.4,
+            roughness: 0.97, metalness: 0.02, vertexColors: true,
+        });
+        const rcGround = new THREE.Mesh(rcGeo, rcGroundMat);
         rcGround.rotation.x = -Math.PI / 2;
         rcGround.receiveShadow = true;
         addTarget.add(rcGround);
 
-        // Distant broken rock formations, scattered around the horizon
-        const rcRockMat = lm(0x5a2c1c, 0, 0, 0.95, 0.05);
-        for (let i = 0; i < 9; i++) {
-            const a = (i / 9) * Math.PI * 2 + Math.random() * 0.3;
-            const r = 9 + Math.random() * 6;
-            const s = 0.8 + Math.random() * 1.6;
-            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rcRockMat);
-            rock.position.set(Math.cos(a) * r, s * 0.5, Math.sin(a) * r - 2);
-            rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-            rock.castShadow = rock.receiveShadow = true;
-            addTarget.add(rock);
+        // ── Sky: two gradient shells cross-faded by the atmosphere slider.
+        //    They ride with the camera, so they always read as the true horizon ──
+        const rcSkyGrad = stops => {
+            const cv = mkCanvas(8, 512), g = cv.getContext('2d');
+            const grad = g.createLinearGradient(0, 0, 0, 512);   // stop 0 = zenith
+            stops.forEach(([o, c]) => grad.addColorStop(o, c));
+            g.fillStyle = grad; g.fillRect(0, 0, 8, 512);
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            return tx;
+        };
+        const rcSkyGeo = new THREE.SphereGeometry(RC_SKY_R, 32, 24);
+        const rcSkyDust = new THREE.Mesh(rcSkyGeo, new THREE.MeshBasicMaterial({
+            map: rcSkyGrad([[0, '#3d1408'], [0.22, '#6e2c12'], [0.40, '#a55427'],
+                [0.48, '#cf7d3f'], [0.53, '#dd9757'], [0.62, '#7e3f20'], [1, '#2e1408']]),
+            side: THREE.BackSide, depthWrite: false, fog: false,
+        }));
+        rcSkyDust.renderOrder = -3;
+        addTarget.add(rcSkyDust);
+        const rcSkyClear = new THREE.Mesh(rcSkyGeo, new THREE.MeshBasicMaterial({
+            map: rcSkyGrad([[0, '#123a7e'], [0.22, '#2f63ad'], [0.40, '#6a9bd0'],
+                [0.48, '#a7c8e6'], [0.53, '#cfe0ee'], [0.62, '#7d8fa0'], [1, '#3a4048']]),
+            side: THREE.BackSide, depthWrite: false, fog: false, transparent: true, opacity: 0,
+        }));
+        rcSkyClear.renderOrder = -2;
+        addTarget.add(rcSkyClear);
+
+        // Celestial bodies live on a rig that rides with the camera too, so they
+        // stay a fixed, unreachable distance away however far you orbit out
+        const rcSkyRig = new THREE.Group();
+        addTarget.add(rcSkyRig);
+        const RC_SUN_DIR = new THREE.Vector3(9.5, 6.2, -11).normalize();
+        const rcSunDisc = new THREE.Mesh(new THREE.CircleGeometry(0.52, 26),
+            new THREE.MeshBasicMaterial({ color: 0xfff0d8, fog: false, transparent: true, opacity: 0.95 }));
+        rcSunDisc.position.copy(RC_SUN_DIR).multiplyScalar(RC_SKY_R - 3);
+        rcSkyRig.add(rcSunDisc);
+        rcSunDisc.lookAt(0, 0, 0);
+        const rcSunHaloCv = mkCanvas(128, 128);
+        {
+            const g = rcSunHaloCv.getContext('2d');
+            const rg = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+            rg.addColorStop(0, 'rgba(255,228,190,0.85)');
+            rg.addColorStop(0.35, 'rgba(255,196,140,0.28)');
+            rg.addColorStop(1, 'rgba(255,180,120,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+        }
+        const rcSunHalo = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6),
+            new THREE.MeshBasicMaterial({
+                map: new THREE.CanvasTexture(rcSunHaloCv), transparent: true,
+                opacity: 0.8, depthWrite: false, fog: false,
+            }));
+        rcSunHalo.position.copy(RC_SUN_DIR).multiplyScalar(RC_SKY_R - 3.2);
+        rcSkyRig.add(rcSunHalo);
+        rcSunHalo.lookAt(0, 0, 0);
+        // Phobos and Deimos — lumpy, tide-locked, and much too close
+        const rcMoonMat = new THREE.MeshStandardMaterial({ color: 0x9c8878, roughness: 1.0 });
+        rcMoonMat.fog = false;
+        const rcPhobos = new THREE.Mesh(new THREE.DodecahedronGeometry(1.05, 0), rcMoonMat);
+        rcPhobos.position.set(-7, 8.5, 11).setLength(RC_SKY_R - 4);
+        rcPhobos.scale.set(1, 0.78, 0.88);
+        rcPhobos.rotation.set(0.6, 0.9, 0.3);
+        rcSkyRig.add(rcPhobos);
+        const rcDeimos = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42, 0), rcMoonMat);
+        rcDeimos.position.set(12, 12, 5).setLength(RC_SKY_R - 4);
+        rcDeimos.rotation.set(1.2, 0.4, 0.8);
+        rcSkyRig.add(rcDeimos);
+        // Cloud deck — only shows up once there is enough air to hold it
+        const rcCloudCv = mkCanvas(256, 128);
+        {
+            const g = rcCloudCv.getContext('2d');
+            g.clearRect(0, 0, 256, 128);
+            for (let i = 0; i < 26; i++) {
+                const cx = 30 + Math.random() * 196, cy = 30 + Math.random() * 68;
+                const rr = 14 + Math.random() * 34;
+                const rg = g.createRadialGradient(cx, cy, 1, cx, cy, rr);
+                rg.addColorStop(0, 'rgba(255,255,255,0.55)');
+                rg.addColorStop(1, 'rgba(255,255,255,0)');
+                g.fillStyle = rg;
+                g.beginPath(); g.ellipse(cx, cy, rr, rr * 0.6, 0, 0, Math.PI * 2); g.fill();
+            }
+        }
+        const rcCloudTex = new THREE.CanvasTexture(rcCloudCv);
+        const rcClouds = [];
+        for (let i = 0; i < 5; i++) {
+            const cl = new THREE.Mesh(new THREE.PlaneGeometry(32, 16),
+                new THREE.MeshBasicMaterial({
+                    map: rcCloudTex, transparent: true, opacity: 0, depthWrite: false, fog: false,
+                }));
+            cl.rotation.x = -Math.PI / 2;
+            cl.rotation.z = i * 1.3;
+            cl.position.set(Math.cos(i * 2.1) * 21, 6.5 + i * 1.4, Math.sin(i * 2.1) * 21);
+            rcSkyRig.add(cl);
+            rcClouds.push(cl);
         }
 
-        // Glass pod dome — covers the desk, the chair, and Clark
-        const RC_DOME_R = 2.7, RC_DOME_CZ = 0.4;
-        const rcDomeGeo = new THREE.SphereGeometry(RC_DOME_R, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.5);
-        const rcDomeMat = new THREE.MeshLambertMaterial({
-            color: 0xd08858, transparent: true, opacity: 0.14, side: THREE.FrontSide,
-            depthWrite: false, emissive: 0x441c0c, emissiveIntensity: 0.08,
+        // ── Mesas and boulder fields ──
+        const rcRockMat  = lm(0x6b3a24, 0, 0, 0.96, 0.03);
+        const rcRockMat2 = lm(0x532b1a, 0, 0, 0.96, 0.03);
+        const rcRockDark = lm(0x3e2114, 0, 0, 0.96, 0.03);
+        const rcMesa = (x, z, r, h, seed) => {
+            const g = new THREE.Group();
+            const layers = 3 + (seed % 3);
+            let cr = r, cy = 0;
+            for (let i = 0; i < layers; i++) {
+                const lh = (h / layers) * (0.75 + ((seed * (i + 3)) % 7) / 14);
+                const m = new THREE.Mesh(
+                    new THREE.CylinderGeometry(cr * 0.86, cr, lh, 7 + (seed + i) % 3, 1),
+                    i % 2 ? rcRockMat2 : rcRockMat);
+                m.position.y = cy + lh / 2;
+                m.rotation.y = seed + i * 0.7;
+                m.castShadow = m.receiveShadow = true;
+                g.add(m);
+                cy += lh; cr *= 0.82;
+            }
+            for (let i = 0; i < 5; i++) {          // talus at the foot
+                const a = (i / 5) * Math.PI * 2 + seed;
+                const br = 0.3 + ((seed * (i + 2)) % 9) / 12;
+                const bo = new THREE.Mesh(new THREE.DodecahedronGeometry(br, 0), rcRockDark);
+                bo.position.set(Math.cos(a) * r * 1.06, br * 0.5, Math.sin(a) * r * 1.06);
+                bo.rotation.set(seed + i, seed * i, i);
+                bo.castShadow = bo.receiveShadow = true;
+                g.add(bo);
+            }
+            g.position.set(x, rcH(x, z) - 0.2, z);
+            addTarget.add(g);
+        };
+        [[17, 7, 3.0, 4.6, 3], [-18, 9, 3.8, 6.4, 7], [11, -19, 4.4, 7.2, 5],
+         [-10, -20, 3.2, 5.2, 11], [23, -4, 2.8, 4.0, 2], [-24, -3, 4.2, 6.0, 9],
+         [3, 22, 3.4, 4.8, 13], [-4, -26, 3.0, 4.2, 6], [28, 12, 4.6, 7.8, 4],
+         [-29, 18, 3.6, 5.6, 8], [20, 24, 4.0, 6.2, 12]].forEach(a => rcMesa(...a));
+        for (let i = 0; i < 60; i++) {             // scattered boulders
+            const a = Math.random() * Math.PI * 2, rr = RC_PAD + 1 + Math.random() * 24;
+            const s = 0.12 + Math.random() * 0.55;
+            const bx = Math.cos(a) * rr, bz = Math.sin(a) * rr;
+            const bo = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0),
+                Math.random() < 0.5 ? rcRockDark : rcRockMat2);
+            bo.position.set(bx, rcH(bx, bz) + s * 0.45, bz);
+            bo.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            bo.scale.y = 0.6 + Math.random() * 0.5;
+            bo.castShadow = bo.receiveShadow = true;
+            addTarget.add(bo);
+        }
+        for (let i = 0; i < 30; i++) {             // small rubble ringing the pad
+            const a = Math.random() * Math.PI * 2, rr = RC_R + 0.6 + Math.random() * 2.1;
+            const s = 0.05 + Math.random() * 0.13;
+            const bo = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rcRockDark);
+            bo.position.set(Math.cos(a) * rr, s * 0.4, Math.sin(a) * rr);
+            bo.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            bo.castShadow = true;
+            addTarget.add(bo);
+        }
+
+        // ── Shared colony materials ──
+        const rcSteel   = lm(0x8e9298, 0, 0, 0.42, 0.72);
+        const rcSteelDk = lm(0x4a4e56, 0, 0, 0.55, 0.60);
+        const rcPaint   = lm(0xc4beb0, 0, 0, 0.70, 0.15);
+        const rcHazCv = mkCanvas(128, 32);
+        {
+            const g = rcHazCv.getContext('2d');
+            g.fillStyle = '#d8a01c'; g.fillRect(0, 0, 128, 32);
+            g.fillStyle = '#1a1a1c';
+            for (let i = -1; i < 9; i++) {
+                g.beginPath();
+                g.moveTo(i * 16, 32); g.lineTo(i * 16 + 8, 32);
+                g.lineTo(i * 16 + 24, 0); g.lineTo(i * 16 + 16, 0);
+                g.closePath(); g.fill();
+            }
+            speckle(g, 128, 32, 260, 0.4, '#c08a4a', '#6a4a20');   // grit
+        }
+        const rcHazMat = new THREE.MeshStandardMaterial({
+            map: asTex(rcHazCv, 12, 1), roughness: 0.78, metalness: 0.2, side: THREE.DoubleSide,
         });
-        const rcDome = new THREE.Mesh(rcDomeGeo, rcDomeMat);
-        rcDome.position.set(0, 0, RC_DOME_CZ);
-        rcDome.renderOrder = 2;
+        // Soft round grain — square point sprites read as pixels, not dust
+        const rcDotCv = mkCanvas(64, 64);
+        {
+            const g = rcDotCv.getContext('2d');
+            const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+            rg.addColorStop(0, 'rgba(255,255,255,1)');
+            rg.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+            rg.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+        }
+        const rcDotTex = new THREE.CanvasTexture(rcDotCv);
+
+        // ── The pod: grated deck, hazard curb, geodesic frame, dusty glass ──
+        const rcGrateCv = mkCanvas(128, 128);
+        {
+            const g = rcGrateCv.getContext('2d');
+            g.fillStyle = '#4c4740'; g.fillRect(0, 0, 128, 128);
+            g.strokeStyle = '#8d8674'; g.lineWidth = 3;
+            for (let i = 0; i <= 128; i += 16) {
+                g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 128); g.stroke();
+                g.beginPath(); g.moveTo(0, i); g.lineTo(128, i); g.stroke();
+            }
+            g.fillStyle = '#2b2721';
+            for (let y = 0; y < 128; y += 16) for (let x = 0; x < 128; x += 16) g.fillRect(x + 4, y + 4, 9, 9);
+            speckle(g, 128, 128, 500, 0.45, '#a09884', '#1e1b16');
+        }
+        const rcFloor = new THREE.Mesh(new THREE.CircleGeometry(RC_R - 0.02, 56),
+            new THREE.MeshStandardMaterial({ map: asTex(rcGrateCv, 7, 7), roughness: 0.55, metalness: 0.65 }));
+        rcFloor.rotation.x = -Math.PI / 2;
+        rcFloor.position.set(0, 0.012, RC_CZ);
+        rcFloor.receiveShadow = true;
+        addTarget.add(rcFloor);
+        const rcCurb = new THREE.Mesh(new THREE.CylinderGeometry(RC_R + 0.03, RC_R + 0.11, 0.30, 48, 1, true), rcHazMat);
+        rcCurb.position.set(0, 0.15, RC_CZ);
+        rcCurb.receiveShadow = true;
+        addTarget.add(rcCurb);
+        const rcCurbCap = new THREE.Mesh(new THREE.TorusGeometry(RC_R + 0.035, 0.05, 8, 52), rcSteelDk);
+        rcCurbCap.rotation.x = Math.PI / 2;
+        rcCurbCap.position.set(0, 0.30, RC_CZ);
+        rcCurbCap.castShadow = true;
+        addTarget.add(rcCurbCap);
+        // Glass: clean at the crown, caked with blown dust toward the base
+        const rcGlassCv = mkCanvas(512, 256);
+        {
+            const g = rcGlassCv.getContext('2d');
+            g.fillStyle = '#eef2f6'; g.fillRect(0, 0, 512, 256);
+            for (let i = 0; i < 220; i++) {
+                const y = 256 - Math.pow(Math.random(), 1.7) * 256;   // v≈0 is the dome base
+                g.fillStyle = ['#d8a074', '#c08a5c', '#e0b48c'][(Math.random() * 3) | 0];
+                g.globalAlpha = 0.05 + Math.random() * 0.18;
+                g.beginPath();
+                g.ellipse(Math.random() * 512, y, 8 + Math.random() * 46, 3 + Math.random() * 16, Math.random(), 0, Math.PI * 2);
+                g.fill();
+            }
+            for (let i = 0; i < 60; i++) {
+                g.strokeStyle = '#c08a5c';
+                g.globalAlpha = 0.05 + Math.random() * 0.10;
+                g.lineWidth = 1 + Math.random() * 3;
+                const x0 = Math.random() * 512;
+                g.beginPath(); g.moveTo(x0, 256);
+                g.lineTo(x0 + (Math.random() - 0.5) * 30, 256 - Math.random() * 150);
+                g.stroke();
+            }
+            g.globalAlpha = 1;
+        }
+        const rcDomeGeo = new THREE.SphereGeometry(RC_R, 44, 26, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const rcGlassMat = new THREE.MeshLambertMaterial({
+            map: asTex(rcGlassCv, 3, 1), color: 0xd9a97e, transparent: true, opacity: 0.20,
+            side: THREE.FrontSide, depthWrite: false, emissive: 0x2a1408, emissiveIntensity: 0.10,
+        });
+        const rcDome = new THREE.Mesh(rcDomeGeo, rcGlassMat);
+        rcDome.position.set(0, 0, RC_CZ);
+        rcDome.renderOrder = 3;
         addTarget.add(rcDome);
-        const rcDomeInnerMat = new THREE.MeshLambertMaterial({
-            color: 0xe8a878, transparent: true, opacity: 0.06, side: THREE.BackSide,
-            depthWrite: false, emissive: 0x331408, emissiveIntensity: 0.05,
+        const rcGlassInnerMat = new THREE.MeshLambertMaterial({
+            color: 0xe8c0a0, transparent: true, opacity: 0.07, side: THREE.BackSide,
+            depthWrite: false, emissive: 0x201008, emissiveIntensity: 0.06,
         });
-        const rcDomeInner = new THREE.Mesh(rcDomeGeo, rcDomeInnerMat);
-        rcDomeInner.position.set(0, 0, RC_DOME_CZ);
-        rcDomeInner.renderOrder = 1;
+        const rcDomeInner = new THREE.Mesh(rcDomeGeo, rcGlassInnerMat);
+        rcDomeInner.position.set(0, 0, RC_CZ);
+        rcDomeInner.renderOrder = 2;
         addTarget.add(rcDomeInner);
-        const rcDomeColdCol = new THREE.Color(0xd08858), rcDomeWarmCol = new THREE.Color(0x9ec8f0);
-        const rcDomeInnerColdCol = new THREE.Color(0xe8a878), rcDomeInnerWarmCol = new THREE.Color(0xc8e0ff);
-
-        // The alien reactor, out on the horizon — dormant and dull until the
-        // atmosphere/reactor sliders bring it up, echoing the film's climax
-        const RC_PYR_X = -9, RC_PYR_Z = -12;
-        const rcPyramidMat = new THREE.MeshStandardMaterial({
-            color: 0x2a1810, roughness: 0.85, metalness: 0.15, emissive: 0xff5a2a, emissiveIntensity: 0.15,
+        const rcStrutMat = lm(0xccd2dc, 0, 0, 0.5, 0.3);
+        [0.16, 0.42, 0.66, 0.85].forEach(s => {          // latitude rings
+            const y = RC_R * s;
+            const rr = Math.sqrt(Math.max(0.001, RC_R * RC_R - y * y));
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.016, 6, 44), rcStrutMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.set(0, y, RC_CZ);
+            ring.castShadow = true;
+            addTarget.add(ring);
         });
-        const rcPyramid = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5.2, 4), rcPyramidMat);
-        rcPyramid.position.set(RC_PYR_X, 2.6, RC_PYR_Z);
-        rcPyramid.rotation.y = Math.PI / 4;
-        rcPyramid.castShadow = true;
-        addTarget.add(rcPyramid);
+        for (let i = 0; i < 10; i++) {                    // meridian arcs
+            const arc = new THREE.Mesh(new THREE.TorusGeometry(RC_R, 0.016, 6, 26, Math.PI / 2), rcStrutMat);
+            arc.rotation.y = (i / 10) * Math.PI * 2;
+            arc.position.set(0, 0, RC_CZ);
+            arc.castShadow = true;
+            addTarget.add(arc);
+        }
+        const rcApex = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.21, 0.12, 12), rcSteelDk);
+        rcApex.position.set(0, RC_R - 0.03, RC_CZ);
+        rcApex.castShadow = true;
+        addTarget.add(rcApex);
+        const rcPodLedMat = lm(0x1a2028, 0x9ec4e8, 0.75);
+        const rcPodLed = new THREE.Mesh(new THREE.TorusGeometry(RC_R - 0.11, 0.022, 6, 48), rcPodLedMat);
+        rcPodLed.rotation.x = Math.PI / 2;
+        rcPodLed.position.set(0, 0.31, RC_CZ);
+        addTarget.add(rcPodLed);
+        const rcPodLight = new THREE.PointLight(0xffeccc, 2.6, 9);
+        rcPodLight.position.set(0, 2.15, RC_CZ);
+        addTarget.add(rcPodLight);
+        const rcPodLight2 = new THREE.PointLight(0xd8dce0, 0.5, 5);
+        rcPodLight2.position.set(0, 0.5, RC_CZ);
+        addTarget.add(rcPodLight2);
+
+        // ── Airlock, front-left so it never sits between you and the desk ──
+        const RC_AL_A = 2.4;
+        const rcAlG = new THREE.Group();
+        rcAlG.position.set(Math.cos(RC_AL_A) * (RC_R - 0.2), 0, RC_CZ + Math.sin(RC_AL_A) * (RC_R - 0.2));
+        rcAlG.rotation.y = Math.atan2(Math.cos(RC_AL_A), Math.sin(RC_AL_A));   // local +Z faces out
+        addTarget.add(rcAlG);
+        const alAdd = m => { m.castShadow = true; m.receiveShadow = true; rcAlG.add(m); return m; };
+        const rcPaintDS = lm(0xc4beb0, 0, 0, 0.70, 0.15); rcPaintDS.side = THREE.DoubleSide;
+        const rcAlBody = alAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 1.3, 18, 1, true), rcPaintDS));
+        rcAlBody.rotation.x = Math.PI / 2;
+        rcAlBody.position.set(0, 0.95, 0.64);
+        const rcAlBand = alAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.635, 0.635, 0.18, 18, 1, true), rcHazMat));
+        rcAlBand.rotation.x = Math.PI / 2;
+        rcAlBand.position.set(0, 0.95, 1.06);
+        alAdd(new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 8, 26), rcSteel)).position.set(0, 0.95, 1.29);
+        const rcHatch = alAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.09, 22), rcSteelDk));
+        rcHatch.rotation.x = Math.PI / 2;
+        rcHatch.position.set(0, 0.95, 1.27);
+        alAdd(new THREE.Mesh(new THREE.CircleGeometry(0.15, 18), new THREE.MeshStandardMaterial({
+            color: 0x8ab4d8, emissive: 0x2a4a6a, emissiveIntensity: 0.7, roughness: 0.2, metalness: 0.3,
+        }))).position.set(0, 1.03, 1.33);
+        for (let i = 0; i < 6; i++) {                     // locking dogs
+            const a = (i / 6) * Math.PI * 2;
+            alAdd(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.07), rcSteel))
+                .position.set(Math.cos(a) * 0.36, 0.95 + Math.sin(a) * 0.36, 1.33);
+        }
+        const rcAlWheel = alAdd(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 6, 18), rcSteel));
+        rcAlWheel.position.set(0, 0.86, 1.35);
+        for (let i = 0; i < 3; i++) {                     // steps down to the regolith
+            alAdd(new THREE.Mesh(new THREE.BoxGeometry(0.72 - i * 0.05, 0.06, 0.26), rcSteelDk))
+                .position.set(0, 0.30 - i * 0.10, 1.46 + i * 0.24);
+        }
+        const rcAlBeaconMat = lm(0x2a0a08, 0xff3018, 1.6);
+        alAdd(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), rcAlBeaconMat)).position.set(0, 1.74, 0.9);
+        const rcAlBeaconLight = new THREE.PointLight(0xff3018, 0.7, 3.2);
+        rcAlBeaconLight.position.set(0, 1.74, 0.9);
+        rcAlG.add(rcAlBeaconLight);
+
+        // ── Exterior plant. Everything below sits on the graded pad, so y = 0 ──
+        // Atmosphere processor: fins, intake, twin stacks venting into the thin air
+        const rcProc = new THREE.Group();
+        rcProc.position.set(-5.0, 0, -2.6);
+        rcProc.rotation.y = 0.8;
+        addTarget.add(rcProc);
+        const procAdd = m => { m.castShadow = true; m.receiveShadow = true; rcProc.add(m); return m; };
+        procAdd(new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.14, 1.2), rcSteelDk)).position.set(0, 0.07, 0);
+        procAdd(new THREE.Mesh(new THREE.BoxGeometry(1.42, 1.16, 0.92), rcPaint)).position.set(0, 0.72, 0);
+        for (let i = 0; i < 7; i++)
+            procAdd(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.92, 1.04), rcSteel)).position.set(-0.6 + i * 0.2, 0.74, 0);
+        procAdd(new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.5, 0.05), rcSteelDk)).position.set(0, 0.74, 0.48);
+        procAdd(new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.14, 0.94), rcHazMat)).position.set(0, 1.36, 0);
+        const rcStacks = [-0.42, 0.42].map(dx => {
+            const s = procAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.95, 12), rcSteel));
+            s.position.set(dx, 1.86, -0.18);
+            return s;
+        });
+        const rcProcLedMat = lm(0x0a1a0a, 0x30ff60, 1.4);
+        procAdd(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.03), rcProcLedMat)).position.set(0.5, 1.12, 0.49);
+        // vapour venting from the stacks — thickens as the reactor works
+        const RC_VENT_N = 40;
+        const rcVentPos = new Float32Array(RC_VENT_N * 3);
+        const rcVentSeed = [];
+        for (let i = 0; i < RC_VENT_N; i++) rcVentSeed.push(Math.random());
+        const rcVentGeo = new THREE.BufferGeometry();
+        rcVentGeo.setAttribute('position', new THREE.BufferAttribute(rcVentPos, 3));
+        const rcVentMat = new THREE.PointsMaterial({
+            color: 0xd8d0c4, size: 0.34, map: rcDotTex, transparent: true, opacity: 0.3,
+            sizeAttenuation: true, depthWrite: false,
+        });
+        addTarget.add(new THREE.Points(rcVentGeo, rcVentMat));
+        const rcVentWorld = new THREE.Vector3();
+
+        // Oxygen tanks on saddles
+        const rcTanks = new THREE.Group();
+        rcTanks.position.set(3.6, 0, -4.4);
+        rcTanks.rotation.y = -0.45;
+        addTarget.add(rcTanks);
+        [0, 0.66].forEach(dz => {
+            const tk = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 1.05, 6, 16), rcPaint);
+            tk.rotation.z = Math.PI / 2;
+            tk.position.set(0, 0.44, dz);
+            tk.castShadow = tk.receiveShadow = true;
+            rcTanks.add(tk);
+            const band = new THREE.Mesh(new THREE.CylinderGeometry(0.268, 0.268, 0.1, 14), rcHazMat);
+            band.rotation.z = Math.PI / 2;
+            band.position.set(0.22, 0.44, dz);
+            rcTanks.add(band);
+            [-0.42, 0.42].forEach(dx => {
+                const sd = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.44, 0.32), rcSteelDk);
+                sd.position.set(dx, 0.22, dz);
+                sd.castShadow = sd.receiveShadow = true;
+                rcTanks.add(sd);
+            });
+        });
+
+        // Solar array, canted at the low sun and filmed over with dust
+        const rcSolarCv = mkCanvas(128, 128);
+        {
+            const g = rcSolarCv.getContext('2d');
+            g.fillStyle = '#16203c'; g.fillRect(0, 0, 128, 128);
+            g.fillStyle = '#22315c';
+            for (let y = 0; y < 128; y += 16) for (let x = 0; x < 128; x += 16) g.fillRect(x + 1, y + 1, 14, 14);
+            g.strokeStyle = '#9aa8c8'; g.lineWidth = 1;
+            for (let i = 0; i <= 128; i += 16) {
+                g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 128); g.stroke();
+                g.beginPath(); g.moveTo(0, i); g.lineTo(128, i); g.stroke();
+            }
+            speckle(g, 128, 128, 420, 0.5, '#c08a5c', '#0a0e1a');
+        }
+        const rcPanelMat = new THREE.MeshStandardMaterial({
+            map: asTex(rcSolarCv, 3, 2), roughness: 0.3, metalness: 0.5, side: THREE.DoubleSide,
+        });
+        const rcSolar = new THREE.Group();
+        rcSolar.position.set(6.0, 0, 1.1);
+        rcSolar.rotation.y = 2.43;      // panel normal swung round to the sun
+        addTarget.add(rcSolar);
+        const solAdd = m => { m.castShadow = true; m.receiveShadow = true; rcSolar.add(m); return m; };
+        [-1.15, 1.15].forEach(dx => {          // A-frame trestle
+            solAdd(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 1.5), rcSteelDk)).position.set(dx, 0.05, 0);
+            const rear = solAdd(new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.15, 0.09), rcSteel));
+            rear.position.set(dx, 0.6, -0.5); rear.rotation.x = -0.22;
+            const fore = solAdd(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.5, 0.09), rcSteel));
+            fore.position.set(dx, 0.27, 0.55); fore.rotation.x = 0.22;
+        });
+        const rcSolarBank = new THREE.Group();
+        rcSolarBank.position.set(0, 0.82, 0);
+        rcSolarBank.rotation.x = -0.62;        // canted at the low sun
+        rcSolar.add(rcSolarBank);
+        const bankAdd = m => { m.castShadow = true; m.receiveShadow = true; rcSolarBank.add(m); return m; };
+        bankAdd(new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.07, 1.55), rcSteel));
+        [-0.94, 0, 0.94].forEach(px =>
+            bankAdd(new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.04, 1.42), rcPanelMat)).position.set(px, 0.06, 0));
+
+        // Comms dish, slowly sweeping the sky for Earth
+        const rcDishG = new THREE.Group();
+        rcDishG.position.set(-1.0, 0, -6.0);
+        addTarget.add(rcDishG);
+        for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.2, 6), rcSteel);
+            leg.position.set(Math.cos(a) * 0.24, 0.58, Math.sin(a) * 0.24);
+            leg.rotation.set(Math.sin(a) * 0.24, 0, -Math.cos(a) * 0.24);
+            leg.castShadow = true;
+            rcDishG.add(leg);
+        }
+        const rcDishHead = new THREE.Group();
+        rcDishHead.position.set(0, 1.24, 0);
+        rcDishG.add(rcDishHead);
+        const rcDish = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.4),
+            new THREE.MeshStandardMaterial({ color: 0xd4d0c6, roughness: 0.5, metalness: 0.35, side: THREE.DoubleSide }));
+        rcDish.rotation.x = -1.05;
+        rcDish.castShadow = true;
+        rcDishHead.add(rcDish);
+        const rcFeed = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.06, 0.42, 8), rcSteelDk);
+        rcFeed.position.set(0, 0.3, 0.16);
+        rcFeed.rotation.x = -1.05;
+        rcDishHead.add(rcFeed);
+
+        // Colony flag — limp in the thin air, livelier once there is wind to catch
+        const rcFlagCv = mkCanvas(128, 80);
+        {
+            const g = rcFlagCv.getContext('2d');
+            g.fillStyle = '#8c2318'; g.fillRect(0, 0, 128, 80);
+            g.fillStyle = '#d8d2c4'; g.fillRect(0, 0, 128, 11);
+            g.fillStyle = '#1c2b4a'; g.fillRect(0, 69, 128, 11);
+            g.fillStyle = '#e8b44a';
+            g.beginPath(); g.arc(30, 40, 12, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#f0ece0';
+            g.font = 'bold 15px Arial, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+            g.fillText('MARS', 50, 41);
+            speckle(g, 128, 80, 260, 0.35, '#c08a5c', '#4a1810');
+        }
+        const rcFlagGeo = new THREE.PlaneGeometry(0.92, 0.56, 14, 6);
+        const rcFlagBase = Float32Array.from(rcFlagGeo.attributes.position.array);
+        const rcFlag = new THREE.Mesh(rcFlagGeo, new THREE.MeshStandardMaterial({
+            map: new THREE.CanvasTexture(rcFlagCv), roughness: 0.9, side: THREE.DoubleSide,
+        }));
+        rcFlag.position.set(5.66, 1.5, 3.42);
+        rcFlag.castShadow = true;
+        addTarget.add(rcFlag);
+        box(0.05, 1.95, 0.05, rcSteel, 5.18, 0.97, 3.42);
+        box(0.26, 0.06, 0.26, rcSteelDk, 5.18, 0.03, 3.42);
+
+        // Six-wheeled rover, parked by the airlock
+        const rcRover = new THREE.Group();
+        rcRover.position.set(-4.7, 0, 4.3);
+        rcRover.rotation.y = 0.9;
+        addTarget.add(rcRover);
+        const rovAdd = m => { m.castShadow = true; m.receiveShadow = true; rcRover.add(m); return m; };
+        rovAdd(new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.3, 0.78), rcPaint)).position.y = 0.46;
+        rovAdd(new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.05, 0.66), rcPanelMat)).position.y = 0.63;
+        rovAdd(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.6), rcSteelDk)).position.set(-0.4, 0.76, 0);
+        rovAdd(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.03), new THREE.MeshStandardMaterial({
+            color: 0x7ab0d8, emissive: 0x2a5a80, emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.3,
+        }))).position.set(-0.4, 0.78, 0.31);
+        const rcRovWheels = [];
+        [-0.5, 0, 0.5].forEach(dz2 => [-0.46, 0.46].forEach(dx => {
+            const w = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.15, 14), rcSteelDk);
+            w.rotation.z = Math.PI / 2;
+            w.position.set(dz2, 0.21, dx);
+            w.castShadow = true;
+            rcRover.add(w);
+            rcRovWheels.push(w);
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.17, 8), rcSteel);
+            hub.rotation.z = Math.PI / 2;
+            hub.position.copy(w.position);
+            rcRover.add(hub);
+            const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), rcSteel);
+            arm.position.set(dz2, 0.34, dx * 0.78);
+            rcRover.add(arm);
+        }));
+        rovAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.66, 8), rcSteel)).position.set(0.5, 0.94, 0);
+        const rcRovHead = rovAdd(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.24), rcSteelDk));
+        rcRovHead.position.set(0.5, 1.32, 0);
+        [-0.06, 0.06].forEach(dz2 =>
+            rovAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.04, 10), new THREE.MeshStandardMaterial({
+                color: 0x101418, emissive: 0x203040, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.6,
+            }))).position.set(0.62, 1.34, dz2));
+        rovAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 6), rcSteel)).position.set(0.32, 1.1, -0.3);
+
+        // Boot prints and wheel ruts pressed into the dust
+        const rcTrackMat = new THREE.MeshBasicMaterial({
+            color: 0x5c2f1a, transparent: true, opacity: 0.42, depthWrite: false,
+        });
+        const rcPrint = (x, z, rot, w, h) => {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rcTrackMat);
+            m.rotation.set(-Math.PI / 2, 0, rot);
+            m.position.set(x, 0.016, z);
+            addTarget.add(m);
+        };
+        {   // airlock steps out to the rover
+            const ax = Math.cos(RC_AL_A) * (RC_R + 1.5), az = RC_CZ + Math.sin(RC_AL_A) * (RC_R + 1.5);
+            for (let i = 0; i < 16; i++) {
+                const u = i / 15;
+                const px = ax + (-4.7 - ax) * u, pz = az + (4.3 - az) * u;
+                const side = (i % 2 ? 0.13 : -0.13);
+                rcPrint(px + side * 0.9, pz - side * 0.4, 0.9 + Math.sin(i) * 0.2, 0.1, 0.2);
+            }
+            for (let i = 0; i < 22; i++) {   // wheel ruts trailing off the pad
+                const u = i / 21;
+                [-0.46, 0.46].forEach(off => rcPrint(
+                    -4.7 - u * 5.2 + off * 0.6, 4.3 + u * 3.0 + off * 0.8, 0.9, 0.13, 0.34));
+            }
+        }
+
+        // Conduit runs from the plant back into the pod
+        cable([[-4.6, 0.18, -2.1], [-3.9, 0.06, -1.6], [-2.9, 0.06, -1.1], [-2.2, 0.14, -0.85]], 0.035);
+        cable([[5.5, 0.16, 1.3], [4.6, 0.06, 1.5], [3.4, 0.06, 1.5], [2.6, 0.14, 1.4]], 0.03);
+        cable([[3.3, 0.2, -3.9], [2.9, 0.06, -3.1], [2.4, 0.06, -2.2], [2.0, 0.14, -1.6]], 0.026);
+
+        // ── The alien reactor. Dormant basalt until the sliders wake it ──
+        const rcPyrG = new THREE.Group();
+        rcPyrG.position.set(RC_PYR.x, rcH(RC_PYR.x, RC_PYR.z) - 0.4, RC_PYR.z);
+        rcPyrG.rotation.y = 0.5;
+        addTarget.add(rcPyrG);
+        // Weathered basalt with carved channels running down the faces
+        const rcBasaltCv = mkCanvas(256, 256);
+        {
+            const g = rcBasaltCv.getContext('2d');
+            g.fillStyle = '#241a13'; g.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 130; i++) {
+                g.fillStyle = ['#302418', '#1b130d', '#3a2c1e', '#150e09'][(Math.random() * 4) | 0];
+                g.globalAlpha = 0.35 + Math.random() * 0.4;
+                g.beginPath();
+                g.ellipse(Math.random() * 256, Math.random() * 256,
+                    10 + Math.random() * 38, 6 + Math.random() * 22, Math.random() * 3, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalAlpha = 1;
+            g.strokeStyle = '#0e0906'; g.lineWidth = 3;
+            for (let i = 0; i < 12; i++) {
+                const x0 = Math.random() * 256;
+                g.beginPath(); g.moveTo(x0, 0); g.lineTo(x0 + (Math.random() - 0.5) * 36, 256); g.stroke();
+            }
+            speckle(g, 256, 256, 1100, 0.3, '#4a3826', '#0e0806');
+        }
+        const rcPyrStone = new THREE.MeshStandardMaterial({
+            map: asTex(rcBasaltCv, 3, 1), roughness: 0.94, metalness: 0.08,
+        });
+        const rcSeamMat = lm(0x140a05, 0xff5a22, 0.4);
+        // Stepped ziggurat: every course is straight-sided and narrower than the
+        // one under it, so the terraces read as terraces rather than a cone
+        const rcPyrSteps = 7, RC_PYR_RB = 6.9;
+        for (let i = 0; i < rcPyrSteps; i++) {
+            const r = RC_PYR_RB * (1 - (i / rcPyrSteps) * 0.84);
+            const sh = RC_PYR.h / rcPyrSteps;
+            const s = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.97, r, sh, 4), rcPyrStone);
+            s.position.y = sh * i + sh / 2;
+            s.rotation.y = Math.PI / 4;
+            s.castShadow = s.receiveShadow = true;
+            rcPyrG.add(s);
+            // a lit groove recessed into the riser, not a band wrapped around it
+            const seam = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r * 0.9, 0.08, 4), rcSeamMat);
+            seam.position.y = sh * i + sh - 0.16;
+            seam.rotation.y = Math.PI / 4;
+            rcPyrG.add(seam);
+        }
+        for (let i = 0; i < 4; i++) {          // squat corner buttresses
+            const a = i * Math.PI / 2;
+            const bh = RC_PYR.h * 0.3;
+            const bt = new THREE.Mesh(new THREE.BoxGeometry(1.5, bh, 1.5), rcPyrStone);
+            bt.position.set(Math.cos(a) * RC_PYR_RB * 0.62, bh / 2, Math.sin(a) * RC_PYR_RB * 0.62);
+            bt.rotation.y = a;
+            bt.castShadow = bt.receiveShadow = true;
+            rcPyrG.add(bt);
+        }
+        // Crown: four leaning slabs cradling the core
+        const rcTopR = RC_PYR_RB * (1 - ((rcPyrSteps - 1) / rcPyrSteps) * 0.84);
+        for (let i = 0; i < 4; i++) {
+            const a = Math.PI / 4 + i * Math.PI / 2;
+            const sl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 2.3, 0.9), rcPyrStone);
+            sl.position.set(Math.cos(a) * rcTopR * 0.8, RC_PYR.h + 0.9, Math.sin(a) * rcTopR * 0.8);
+            sl.rotation.y = -a;
+            sl.rotation.z = Math.cos(a) * 0.26;
+            sl.rotation.x = -Math.sin(a) * 0.26;
+            sl.castShadow = true;
+            rcPyrG.add(sl);
+        }
+        const rcCollar = new THREE.Mesh(new THREE.CylinderGeometry(rcTopR * 0.72, rcTopR * 0.82, 0.22, 4), rcSeamMat);
+        rcCollar.rotation.y = Math.PI / 4;
+        rcCollar.position.y = RC_PYR.h + 0.12;
+        rcPyrG.add(rcCollar);
+        const rcCoreMat = lm(0x2a1008, 0xff7030, 0.5);
+        const rcPyrCore = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), rcCoreMat);
+        rcPyrCore.position.y = RC_PYR.h + 1.15;
+        rcPyrG.add(rcPyrCore);
         const rcBeamMat = new THREE.MeshBasicMaterial({
-            color: 0xff6a30, transparent: true, opacity: 0.1, fog: false, depthWrite: false, side: THREE.DoubleSide,
+            color: 0xff6a2a, transparent: true, opacity: 0.1, fog: false, depthWrite: false, side: THREE.DoubleSide,
         });
-        const rcBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.55, 9, 10, 1, true), rcBeamMat);
-        rcBeam.position.set(RC_PYR_X, 8.6, RC_PYR_Z);
-        addTarget.add(rcBeam);
-        const rcReactorLight = new THREE.PointLight(0xff5a2a, 1.0, 22);
-        rcReactorLight.position.set(RC_PYR_X, 5.5, RC_PYR_Z);
+        const rcBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 1.4, 11, 14, 1, true), rcBeamMat);
+        rcBeam.position.y = RC_PYR.h + 6.4;
+        rcPyrG.add(rcBeam);
+        const rcBeamGlowMat = new THREE.MeshBasicMaterial({
+            color: 0xff8a4a, transparent: true, opacity: 0.06, fog: false, depthWrite: false, side: THREE.DoubleSide,
+        });
+        const rcBeamHalo = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 3.1, 11.5, 14, 1, true), rcBeamGlowMat);
+        rcBeamHalo.position.y = RC_PYR.h + 6.4;
+        rcPyrG.add(rcBeamHalo);
+        const rcBeamCap = new THREE.Mesh(new THREE.SphereGeometry(3.4, 18, 12), rcBeamGlowMat);
+        rcBeamCap.position.y = RC_PYR.h + 11.8;
+        rcBeamCap.scale.set(1, 0.42, 1);
+        rcPyrG.add(rcBeamCap);
+        const rcReactorLight = new THREE.PointLight(0xff5a2a, 1.0, 40);
+        rcReactorLight.position.set(RC_PYR.x, rcH(RC_PYR.x, RC_PYR.z) + RC_PYR.h, RC_PYR.z);
         addTarget.add(rcReactorLight);
+        // Dig site at the foot: braced derricks, floodlights and spoil heaps
+        const rcPyrBaseY = rcH(RC_PYR.x, RC_PYR.z);
+        for (let i = 0; i < 4; i++) {
+            const a = 0.9 + i * 0.5;
+            const dx = RC_PYR.x + Math.cos(a) * 7.4, dz = RC_PYR.z + Math.sin(a) * 7.4;
+            const der = new THREE.Group();
+            der.position.set(dx, rcPyrBaseY, dz);
+            der.rotation.y = a;
+            addTarget.add(der);
+            [-0.34, 0.34].forEach(o => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.11, 1.9, 0.11), rcSteelDk);
+                leg.position.set(o, 0.95, 0);
+                leg.rotation.z = -o * 0.28;
+                leg.castShadow = true;
+                der.add(leg);
+            });
+            const xb = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.09, 0.09), rcSteelDk);
+            xb.position.y = 1.55;
+            der.add(xb);
+            const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.12), lm(0x2a2418, 0xffd88a, 1.3));
+            lamp.position.set(0, 1.86, 0.08);
+            der.add(lamp);
+        }
+        for (let i = 0; i < 7; i++) {          // spoil heaps from the excavation
+            const a = 2.4 + i * 0.55;
+            const hx = RC_PYR.x + Math.cos(a) * (8 + (i % 3)), hz = RC_PYR.z + Math.sin(a) * (8 + (i % 3));
+            const hp = new THREE.Mesh(new THREE.ConeGeometry(0.7 + (i % 4) * 0.25, 0.5 + (i % 3) * 0.3, 7), rcRockDark);
+            hp.position.set(hx, rcH(hx, hz) + 0.2, hz);
+            hp.castShadow = hp.receiveShadow = true;
+            addTarget.add(hp);
+        }
 
-        // Dust storm — a wide field of drifting particles, thickest before the air clears
-        const RC_DUST_N = 140;
+        // ── Dust: a blowing field plus two devils walking the plain ──
+        const RC_DUST_N = 220;
         const rcDustPos = new Float32Array(RC_DUST_N * 3);
         for (let i = 0; i < RC_DUST_N; i++) {
-            const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 16;
-            rcDustPos[i * 3] = Math.cos(a) * r;
-            rcDustPos[i * 3 + 1] = Math.random() * 3.5;
-            rcDustPos[i * 3 + 2] = Math.sin(a) * r - 2;
+            rcDustPos[i * 3] = (Math.random() - 0.5) * 46;
+            rcDustPos[i * 3 + 1] = Math.random() * 5.5;
+            rcDustPos[i * 3 + 2] = (Math.random() - 0.5) * 46;
         }
         const rcDustGeo = new THREE.BufferGeometry();
         rcDustGeo.setAttribute('position', new THREE.BufferAttribute(rcDustPos, 3));
         const rcDustMat = new THREE.PointsMaterial({
-            color: 0xc86a3a, size: 0.16, transparent: true, opacity: 0.4, sizeAttenuation: true, depthWrite: false,
+            color: 0xc07a4a, size: 0.42, map: rcDotTex, transparent: true, opacity: 0.4,
+            sizeAttenuation: true, depthWrite: false,
         });
-        const rcDustPoints = new THREE.Points(rcDustGeo, rcDustMat);
-        addTarget.add(rcDustPoints);
+        addTarget.add(new THREE.Points(rcDustGeo, rcDustMat));
+        const RC_DEV_N = 420;
+        const rcDevilMat = new THREE.PointsMaterial({
+            color: 0xba7048, size: 0.3, map: rcDotTex, transparent: true, opacity: 0.35,
+            sizeAttenuation: true, depthWrite: false,
+        });
+        const rcDevils = [[11, -10, 1], [-16, 6, -1]].map(([dx, dz, dir]) => {
+            const pos = new Float32Array(RC_DEV_N * 3);
+            for (let i = 0; i < RC_DEV_N; i++) {
+                const u = Math.pow(Math.random(), 0.7);            // denser at the foot
+                const a = Math.random() * Math.PI * 2;
+                const rr = (0.2 + u * 1.7) * (0.45 + Math.random() * 0.75);
+                pos[i * 3] = Math.cos(a) * rr;
+                pos[i * 3 + 1] = u * 7.5;
+                pos[i * 3 + 2] = Math.sin(a) * rr;
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const pts = new THREE.Points(geo, rcDevilMat);
+            pts.position.set(dx, 0, dz);
+            addTarget.add(pts);
+            return { pts, dir, cx: dx, cz: dz, ph: Math.random() * 6 };
+        });
 
-        // REKALL sign, mounted just inside the pod
-        const rcSignMat = new THREE.MeshBasicMaterial({
-            map: signCv('REKALL', 512, 128, '#ff3a4a', '#120608', 78),
-            transparent: true, opacity: 0.95, fog: false,
+        // ── Pod interior ──
+        // REKALL sign: housing, glass face, and a neon tube that never quite settles
+        const rcSignFaceTex = signCv('REKALL', 512, 128, '#ff3a4a', '#0e0508', 76);
+        const rcSignMat = new THREE.MeshStandardMaterial({
+            map: rcSignFaceTex, emissiveMap: rcSignFaceTex, emissive: 0xffffff,
+            emissiveIntensity: 1.2, roughness: 0.55,
         });
-        const rcSign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), rcSignMat);
-        rcSign.position.set(-1.55, 2.05, 1.15);
-        rcSign.rotation.y = 0.5;
-        addTarget.add(rcSign);
-        box(0.05, 2.0, 0.05, lm(0x1a1a1e, 0, 0, 0.6, 0.5), -1.55, 1.05, 1.15);
-        const rcSignLight = new THREE.PointLight(0xff3a4a, 1.1, 3);
-        rcSignLight.position.set(-1.55, 2.05, 1.3);
+        const rcSignFace = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.31), rcSignMat);
+        rcSignFace.position.set(-1.62, 2.06, 1.26);
+        rcSignFace.rotation.y = 0.62;
+        addTarget.add(rcSignFace);
+        const rcSignBox = box(1.34, 0.41, 0.1, rcSteelDk, -1.66, 2.06, 1.20, 0, 0.62, 0);
+        rcSignBox.castShadow = true;
+        box(0.05, 1.05, 0.05, rcSteel, -1.66, 2.58, 1.20);
+        box(0.44, 0.05, 0.05, rcSteel, -1.66, 3.06, 1.20, 0, 0.62, 0);
+        const rcSignLight = new THREE.PointLight(0xff3a4a, 1.2, 3.6);
+        rcSignLight.position.set(-1.5, 2.0, 1.42);
         addTarget.add(rcSignLight);
 
-        // The Rekall chair — recline, and let the machine implant a memory
-        const RC_CHAIR_X = 2.25, RC_CHAIR_Z = 0.95;
-        const rcChairMat = lm(0x2a3038, 0, 0, 0.6, 0.3);
-        const rcChairPadMat = lm(0x7a1a20, 0, 0, 0.7, 0.1);
-        box(0.42, 0.08, 0.5, rcChairMat, RC_CHAIR_X, 0.32, RC_CHAIR_Z);
-        box(0.4, 0.06, 0.46, rcChairPadMat, RC_CHAIR_X, 0.365, RC_CHAIR_Z);
-        box(0.42, 0.55, 0.08, rcChairMat, RC_CHAIR_X, 0.62, RC_CHAIR_Z - 0.30, 0.55, 0, 0);
-        box(0.38, 0.5, 0.05, rcChairPadMat, RC_CHAIR_X, 0.63, RC_CHAIR_Z - 0.285, 0.55, 0, 0);
-        box(0.1, 0.32, 0.1, rcChairMat, RC_CHAIR_X, 0.16, RC_CHAIR_Z);
-        box(0.5, 0.03, 0.5, rcChairMat, RC_CHAIR_X, 0.02, RC_CHAIR_Z);
-        const rcArmMat = lm(0x8a8e96, 0, 0, 0.4, 0.7);
-        box(0.05, 0.6, 0.05, rcArmMat, RC_CHAIR_X, 0.95, RC_CHAIR_Z - 0.45, -0.3, 0, 0);
-        const rcHelmet = new THREE.Mesh(
-            new THREE.SphereGeometry(0.16, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6),
-            new THREE.MeshStandardMaterial({
-                color: 0xc8d0dc, roughness: 0.25, metalness: 0.6, emissive: 0x3050ff, emissiveIntensity: 0.15,
-            }));
-        rcHelmet.position.set(RC_CHAIR_X, 1.18, RC_CHAIR_Z - 0.10);
-        rcHelmet.rotation.x = Math.PI;
-        rcHelmet.castShadow = true;
-        addTarget.add(rcHelmet);
+        // Equipment rack: blinking gear, a status screen, cable bundle
+        const rcRack = new THREE.Group();
+        rcRack.position.set(-2.35, 0, -1.45);
+        rcRack.rotation.y = 1.0;
+        addTarget.add(rcRack);
+        const rackAdd = m => { m.castShadow = true; m.receiveShadow = true; rcRack.add(m); return m; };
+        rackAdd(new THREE.Mesh(new THREE.BoxGeometry(0.98, 1.5, 0.46), rcSteelDk)).position.y = 0.75;
+        rackAdd(new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.06, 0.5), rcSteel)).position.y = 1.53;
+        const rcRackLeds = [];
+        for (let u = 0; u < 5; u++) {
+            rackAdd(new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.2, 0.03), rcSteel)).position.set(0, 0.28 + u * 0.26, 0.24);
+            for (let i = 0; i < 5; i++) {
+                const mat = lm(0x0a1408, u % 2 ? 0x30ff70 : 0xffc030, 1.3);
+                const led = rackAdd(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), mat));
+                led.position.set(-0.3 + i * 0.15, 0.28 + u * 0.26, 0.262);
+                rcRackLeds.push({ m: mat, ph: Math.random() * 7, rate: 1.4 + Math.random() * 5 });
+            }
+        }
+        const rcRackScreenCv = mkCanvas(128, 96);
+        {
+            const g = rcRackScreenCv.getContext('2d');
+            g.fillStyle = '#050c10'; g.fillRect(0, 0, 128, 96);
+            g.fillStyle = '#1a4a3a'; g.fillRect(0, 0, 128, 14);
+            g.fillStyle = '#7ee7b0'; g.font = 'bold 9px monospace'; g.textBaseline = 'middle';
+            g.fillText('LIFE SUPPORT', 6, 8);
+            const rows = ['O2      21.0%', 'CO2      0.3%', 'PRESS  1013mb', 'TEMP   20.4 C', 'SEAL     GOOD'];
+            g.font = '9px monospace';
+            rows.forEach((r, i) => {
+                g.fillStyle = i === 4 ? '#7ee7b0' : '#a8c8d8';
+                g.fillText(r, 8, 28 + i * 13);
+            });
+        }
+        const rcRackScreen = rackAdd(new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3),
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(rcRackScreenCv) })));
+        rcRackScreen.position.set(0, 1.28, 0.235);
 
-        // Clark's rest spot — a foil thermal blanket, same BEDX/BEDZ as every world
-        box(0.58, 0.02, 0.42, lm(0xb0632a, 0, 0, 0.8, 0.15), BEDX, 0.011, BEDZ);
-        box(0.5, 0.012, 0.34, lm(0xd8d8dc, 0, 0, 0.5, 0.6), BEDX, 0.023, BEDZ);
+        // Supply crates
+        const rcCrateCv = mkCanvas(128, 128);
+        {
+            const g = rcCrateCv.getContext('2d');
+            g.fillStyle = '#7d7264'; g.fillRect(0, 0, 128, 128);
+            g.strokeStyle = '#5a5045'; g.lineWidth = 5;
+            g.strokeRect(8, 8, 112, 112);
+            g.fillStyle = '#3a352e';
+            g.font = 'bold 15px Arial, sans-serif'; g.textAlign = 'center';
+            g.fillText('RATIONS', 64, 58);
+            g.font = 'bold 11px Arial, sans-serif';
+            g.fillText('MARS COL. 7', 64, 78);
+            speckle(g, 128, 128, 420, 0.4, '#a09484', '#4a4238');
+        }
+        const rcCrateMat = new THREE.MeshStandardMaterial({ map: asTex(rcCrateCv), roughness: 0.85 });
+        [[2.3, -1.75, 0.28, 0.4], [2.3, -1.75, 0.78, 0.25], [1.82, -2.0, 0.24, -0.5]].forEach(([cx, cz, cy, ry]) => {
+            const s = cy > 0.3 ? 0.54 : 0.44;
+            const cr = box(s, s * 0.92, s, rcCrateMat, cx, cy, cz, 0, ry, 0);
+            cr.castShadow = cr.receiveShadow = true;
+        });
 
-        const rcSkyDusty = new THREE.Color(0x8a3c1e);
-        const rcSkyClear = new THREE.Color(0x5a86c8);
-        const rcSkyCol = new THREE.Color();
-        const rcGroundColdCol = new THREE.Color(0x3a1c10), rcGroundWarmCol = new THREE.Color(0x2a4a3a);
+        // ── The Rekall chair ──
+        const rcChairG = new THREE.Group();
+        rcChairG.position.set(2.05, 0, 1.18);
+        rcChairG.rotation.y = -2.0;
+        addTarget.add(rcChairG);
+        const chAdd = m => { m.castShadow = true; m.receiveShadow = true; rcChairG.add(m); return m; };
+        const rcUph   = lm(0x9c3138, 0, 0, 0.72, 0.05);
+        const rcUphDk = lm(0x6e1c24, 0, 0, 0.80, 0.05);
+        chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.07, 20), rcSteelDk)).position.y = 0.035;
+        chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.38, 12), rcSteel)).position.y = 0.25;
+        chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.09, 0.56), rcSteelDk)).position.y = 0.47;
+        chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, 0.52), rcUph)).position.y = 0.54;
+        [-0.22, 0.22].forEach(dx => chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.5), rcUphDk)).position.set(dx, 0.59, 0));
+        const rcBack = chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.74, 0.1), rcSteelDk));
+        rcBack.position.set(0, 0.87, -0.31); rcBack.rotation.x = 0.42;
+        const rcBackPad = chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.68, 0.07), rcUph));
+        rcBackPad.position.set(0, 0.88, -0.25); rcBackPad.rotation.x = 0.42;
+        const rcHeadPad = chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.11), rcUph));
+        rcHeadPad.position.set(0, 1.23, -0.48); rcHeadPad.rotation.x = 0.42;
+        [-0.32, 0.32].forEach(dx => {
+            chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.46), rcSteel)).position.set(dx, 0.71, 0.02);
+            chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.04, 0.44), rcUphDk)).position.set(dx, 0.745, 0.02);
+            chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), rcSteel)).position.set(dx, 0.60, 0.17);
+        });
+        const rcFoot = chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.36), rcUph));
+        rcFoot.position.set(0, 0.45, 0.44); rcFoot.rotation.x = -0.3;
+        chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.95, 10), rcSteel)).position.set(0, 1.05, -0.8);
+        const rcHaloArm = chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.64, 10), rcSteel));
+        rcHaloArm.position.set(0, 1.54, -0.6); rcHaloArm.rotation.x = 1.05;
+        const rcHaloG = new THREE.Group();
+        rcHaloG.position.set(0, 1.42, -0.44);
+        rcHaloG.rotation.x = 0.42;
+        rcChairG.add(rcHaloG);
+        const rcHaloRing = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.036, 8, 28), rcSteel);
+        rcHaloRing.castShadow = true;
+        rcHaloG.add(rcHaloRing);
+        const rcEmitters = [];
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const mat = lm(0x101828, 0x4a78ff, 1.2);
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), mat);
+            e.position.set(Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0.03);
+            rcHaloG.add(e);
+            rcEmitters.push(mat);
+        }
+        const rcHaloLight = new THREE.PointLight(0x4a78ff, 0.7, 2.8);
+        rcHaloLight.position.set(0, 1.42, -0.44);
+        rcChairG.add(rcHaloLight);
+
+        // Rekall console — a live readout of whatever the chair is writing
+        const rcConCv = mkCanvas(256, 160);
+        const rcConCtx = rcConCv.getContext('2d');
+        const rcConTex = new THREE.CanvasTexture(rcConCv);
+        let rcConLast = 0;
+        const rcConG = new THREE.Group();
+        rcConG.position.set(2.55, 0, -0.55);
+        rcConG.rotation.y = -0.95;
+        addTarget.add(rcConG);
+        const conAdd = m => { m.castShadow = true; m.receiveShadow = true; rcConG.add(m); return m; };
+        conAdd(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.86, 0.42), rcPaint)).position.y = 0.43;
+        conAdd(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.06, 0.46), rcSteelDk)).position.y = 0.88;
+        const rcConHead = conAdd(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.42, 0.08), rcSteelDk));
+        rcConHead.position.set(0, 1.1, 0.06); rcConHead.rotation.x = -0.42;
+        const rcConScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.34),
+            new THREE.MeshBasicMaterial({ map: rcConTex }));
+        rcConScreen.position.set(0, 1.104, 0.115);
+        rcConScreen.rotation.x = -0.42;
+        rcConG.add(rcConScreen);
+        for (let i = 0; i < 4; i++) {
+            const mat = lm(0x1a1208, i % 2 ? 0xff8020 : 0x30d0ff, 1.1);
+            conAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.02, 10), mat))
+                .position.set(-0.2 + i * 0.13, 0.9, 0.06);
+            rcRackLeds.push({ m: mat, ph: i * 1.7, rate: 2.2 + i });
+        }
+        const rcConLight = new THREE.PointLight(0x60a0ff, 0.5, 2);
+        rcConLight.position.set(2.55, 1.25, -0.35);
+        addTarget.add(rcConLight);
+        cable([[2.62, 0.95, -0.42], [2.72, 0.6, 0.2], [2.6, 0.3, 0.85], [2.45, 1.05, 1.3]], 0.016);
+
+        // Clark's spot — a foil thermal blanket over the deck plate
+        box(0.6, 0.02, 0.44, lm(0x9a5a28, 0, 0, 0.8, 0.15), BEDX, 0.026, BEDZ);
+        box(0.52, 0.014, 0.36, lm(0xd8d8dc, 0, 0, 0.45, 0.7), BEDX, 0.04, BEDZ);
+
+        // ── Sun and colour ramps ──
+        const rcSun = new THREE.DirectionalLight(0xffd0a0, 1.4);
+        rcSun.castShadow = true;
+        rcSun.shadow.mapSize.set(2048, 2048);
+        rcSun.shadow.camera.left = -14; rcSun.shadow.camera.right = 14;
+        rcSun.shadow.camera.top = 14;   rcSun.shadow.camera.bottom = -14;
+        rcSun.shadow.camera.near = 1;   rcSun.shadow.camera.far = 60;
+        rcSun.shadow.bias = -0.0012;
+        rcSun.position.copy(RC_SUN_DIR).multiplyScalar(22);
+        addTarget.add(rcSun);
+        addTarget.add(rcSun.target);
+        const rcHorizonDusty = new THREE.Color(0xc4763c), rcHorizonClear = new THREE.Color(0xa8c4de);
+        const rcSunDusty = new THREE.Color(0xffcf9c), rcSunClear = new THREE.Color(0xfff4e2);
+        const rcGrCold = new THREE.Color(0x4a2413), rcGrWarm = new THREE.Color(0x3c4a34);
+        const rcGlassCold = new THREE.Color(0xd9a97e), rcGlassWarm = new THREE.Color(0xcfe4f6);
+        const rcGlassInCold = new THREE.Color(0xe8c0a0), rcGlassInWarm = new THREE.Color(0xd8ecff);
+        const rcBeamHot = new THREE.Color(0xff6a2a), rcBeamCold = new THREE.Color(0x9ad8ff);
+        const rcSkyCol = new THREE.Color(), rcBeamCol = new THREE.Color();
 
         addTarget = scene; // ── shared lights ──
 
@@ -6852,6 +7712,10 @@
             document.getElementById('sound-btn').classList.remove('hidden');
             // the module interior is tight — keep the camera inside its hull
             controls.maxDistance = isSP ? 3.0 : 22;
+            // Mars needs a much deeper view — the sky shell and the reactor sit
+            // far past where every other world's far plane cuts off
+            const wantFar = isRecall ? 72 : 30;
+            if (camera.far !== wantFar) { camera.far = wantFar; camera.updateProjectionMatrix(); }
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
 
@@ -7900,25 +8764,44 @@
         }));
 
         // ── TOTAL RECALL ──
-        addInteract(rcSign, {
+        // Knock the sign and the tube drops out for a beat before catching again
+        let rcSignOutUntil = -10;
+        addInteract(rcSignFace, {
             theme: 'recall',
-            onClick: () => { rcSign.material.opacity = Math.random() < 0.5 ? 0.15 : 0.95; },
+            onClick: () => { rcSignOutUntil = clock.getElapsedTime() + 0.9 + Math.random() * 1.2; },
         });
-        addInteract(rcHelmet, {
+        // Sit under the halo and the machine writes you a memory — Clark disputes it
+        let rcImplantUntil = -10;
+        addInteract([rcHaloRing, rcHeadPad], {
             theme: 'recall',
             onClick: () => {
+                rcImplantUntil = clock.getElapsedTime() + 3.2;
                 dogState.mode = 'howling';
                 dogState.howlUntil = clock.getElapsedTime() + 2.4;
                 if (soundOn && audioCtx) aroo();
+            },
+        });
+        // Thump the pyramid and the reactor surges
+        addInteract(rcPyrCore, {
+            theme: 'recall',
+            onClick: () => {
                 const start = clock.getElapsedTime();
                 addEffect(t2 => {
                     const el = t2 - start;
-                    if (el > 0.5) return false;
-                    const k = Math.max(0, 1 - el / 0.5);
-                    rcReactorLight.intensity += k * 6;
+                    if (el > 1.6) return false;
+                    const k = Math.sin((el / 1.6) * Math.PI);
+                    rcReactorLight.intensity += k * 9;
+                    rcCoreMat.emissiveIntensity += k * 1.6;
+                    rcBeamMat.opacity += k * 0.22;
                     return true;
                 });
             },
+        });
+        // The rover's mast camera swivels over to look at whoever poked it
+        let rcRoverLookUntil = -10;
+        addInteract(rcRover, {
+            theme: 'recall',
+            onClick: () => { rcRoverLookUntil = clock.getElapsedTime() + 3.5; },
         });
 
         // ?clean hides the UI chrome — for screenshots and embeds
@@ -9010,41 +9893,169 @@
                     owl();
                 }
             } else if (theme === 'recall') {
-                // ── Total Recall: dusty red Mars, or — if the reactor's running — the
-                //    first blue break in the sky (atmosphere slider: 0 dust storm → 1 terraformed) ──
-                const atmo = params.time;
-                rcSkyCol.copy(rcSkyDusty).lerp(rcSkyClear, atmo);
+                // ── Total Recall: a red dust storm, or — once the reactor is
+                //    running — the first blue break in the Martian sky ──
+                const atmo = params.time;                              // 0 storm → 1 terraformed
+                const rx = Math.min(1, params.lampBrightness / 2.0);   // reactor output
+                const dusty = 1 - atmo;
+
+                // The sky shells and everything hung in them ride with the camera,
+                // so the horizon stays out of reach however far you orbit
+                rcSkyDust.position.copy(camera.position);
+                rcSkyClear.position.copy(camera.position);
+                rcSkyRig.position.copy(camera.position);
+                rcSkyClear.material.opacity = atmo;
+                rcSkyCol.copy(rcHorizonDusty).lerp(rcHorizonClear, atmo);
                 scene.background.copy(rcSkyCol);
-                scene.fog.color.copy(rcSkyCol).multiplyScalar(0.95);
-                scene.fog.density = 0.030 - atmo * 0.018;
+                scene.fog.color.copy(rcSkyCol).multiplyScalar(0.96);
+                scene.fog.density = 0.030 - atmo * 0.022;
 
-                hemiLight.intensity = (1.3 + atmo * 1.6) * b;
+                // Sun burns through as the dust settles out of the air
+                rcSun.intensity = (1.7 + atmo * 1.8) * b;
+                rcSun.color.copy(rcSunDusty).lerp(rcSunClear, atmo);
+                rcSunDisc.material.opacity = 0.45 + atmo * 0.5;
+                rcSunHalo.material.opacity = 0.85 - atmo * 0.45;
+                hemiLight.intensity = (0.55 + atmo * 0.75) * b;
                 hemiLight.color.copy(rcSkyCol);
-                hemiLight.groundColor.copy(rcGroundColdCol).lerp(rcGroundWarmCol, atmo);
-                fillLight.intensity = 0.6 * b;
+                hemiLight.groundColor.copy(rcGrCold).lerp(rcGrWarm, atmo);
+                fillLight.intensity = (0.22 + atmo * 0.22) * b;
                 fillLight.color.copy(rcSkyCol);
+                rcClouds.forEach((cl, i) => {
+                    cl.material.opacity = Math.max(0, (atmo - 0.35) / 0.65) * 0.5;
+                    cl.position.x += dt * (0.12 + i * 0.03);
+                    if (cl.position.x > 26) cl.position.x = -26;
+                });
 
-                rcDomeMat.color.copy(rcDomeColdCol).lerp(rcDomeWarmCol, atmo);
-                rcDomeInnerMat.color.copy(rcDomeInnerColdCol).lerp(rcDomeInnerWarmCol, atmo);
+                // Dome glass picks up whatever colour the sky is
+                rcGlassMat.color.copy(rcGlassCold).lerp(rcGlassWarm, atmo);
+                rcGlassInnerMat.color.copy(rcGlassInCold).lerp(rcGlassInWarm, atmo);
 
-                // Reactor: dull and dormant at low atmosphere, a bright climbing
-                // beam once the reactor slider and atmosphere both come up
-                const reactor = params.lampBrightness;
-                const pulse = 0.85 + Math.sin(t * 1.3) * 0.1 + Math.sin(t * 3.1) * 0.05;
-                rcPyramidMat.emissiveIntensity = (0.15 + reactor * 0.5) * pulse;
-                rcReactorLight.intensity = (1.0 + reactor * 4.0) * pulse * b;
-                rcBeamMat.opacity = Math.min(0.55, 0.06 + reactor * (0.2 + atmo * 0.5)) * pulse;
-                const beamHue = 0.06 - atmo * 0.5;
-                rcBeamMat.color.setHSL((beamHue + 1) % 1, 1.0, 0.55);
-                rcReactorLight.color.setHSL((beamHue + 1) % 1, 1.0, 0.55);
+                // Reactor: dead basalt at rest, a climbing column once it spins up.
+                // It runs furnace-orange under the red sky and goes cold blue-white
+                // as the atmosphere takes hold
+                const pulse = 0.82 + Math.sin(t * 1.15) * 0.12 + Math.sin(t * 3.3) * 0.06;
+                rcBeamCol.copy(rcBeamHot).lerp(rcBeamCold, atmo);
+                rcSeamMat.emissiveIntensity = (0.05 + rx * 1.3) * pulse;
+                rcCoreMat.emissiveIntensity = (0.1 + rx * 2.4) * pulse;
+                rcCoreMat.emissive.copy(rcBeamCol);
+                rcSeamMat.emissive.copy(rcBeamCol);
+                rcPyrCore.rotation.y += dt * (0.15 + rx * 0.55);
+                rcPyrCore.rotation.x = Math.sin(t * 0.4) * 0.16;
+                rcReactorLight.intensity = (0.4 + rx * 7) * pulse * b;
+                rcReactorLight.color.copy(rcBeamCol);
+                rcBeamMat.color.copy(rcBeamCol);
+                rcBeamGlowMat.color.copy(rcBeamCol);
+                rcBeamMat.opacity = (0.025 + rx * 0.24) * pulse;
+                rcBeamGlowMat.opacity = (0.015 + rx * 0.22) * pulse;
+                rcBeam.scale.set(1 + rx * 0.3, 1, 1 + rx * 0.3);
+                rcBeamHalo.scale.copy(rcBeam.scale);
+                rcBeamCap.scale.set(1 + rx * 0.5, 0.42 + rx * 0.2, 1 + rx * 0.5);
+                rcBeam.rotation.y += dt * 0.25;
 
-                // The storm thins out as the atmosphere clears
-                rcDustMat.opacity = Math.max(0.05, 0.5 - atmo * 0.4);
-                rcDustPoints.rotation.y += dt * (0.15 - atmo * 0.1);
+                // Blowing dust, and two devils walking the plain
+                rcDustMat.opacity = 0.05 + dusty * 0.4;
+                const dp = rcDustGeo.attributes.position.array;
+                const drift = dt * (0.8 + dusty * 2.6);
+                for (let i = 0; i < RC_DUST_N; i++) {
+                    dp[i * 3] += drift;
+                    dp[i * 3 + 1] += Math.sin(t * 0.8 + i) * dt * 0.12;
+                    if (dp[i * 3] > 23) { dp[i * 3] = -23; dp[i * 3 + 1] = Math.random() * 5.5; }
+                }
+                rcDustGeo.attributes.position.needsUpdate = true;
+                rcDevils.forEach((d, i) => {
+                    d.pts.rotation.y += dt * (2.6 + i * 0.7) * d.dir;
+                    const a = t * 0.06 * d.dir + d.ph;
+                    d.pts.position.set(d.cx + Math.cos(a) * 4.5, 0, d.cz + Math.sin(a) * 4.5);
+                    d.pts.visible = dusty > 0.12;
+                    d.pts.scale.setScalar(0.5 + dusty * 0.8);
+                });
 
-                // REKALL sign flickers like any good neon
-                rcSign.material.opacity = Math.max(0, 0.75 + Math.sin(t * 23) * 0.06 + (Math.random() < 0.02 ? -0.4 : 0));
-                rcSignLight.intensity = 1.1 + Math.sin(t * 23) * 0.2;
+                // Processor stacks vent harder the more work the reactor is doing
+                const vent = 0.25 + rx * 0.55;
+                rcVentMat.opacity = vent * 0.4;
+                const vp = rcVentGeo.attributes.position.array;
+                for (let i = 0; i < RC_VENT_N; i++) {
+                    const ph = (rcVentSeed[i] + t * 0.19) % 1;
+                    const src = rcStacks[i % 2];
+                    rcProc.localToWorld(rcVentWorld.copy(src.position));
+                    vp[i * 3]     = rcVentWorld.x + Math.sin(t * 0.7 + i) * 0.1 + ph * 0.5;
+                    vp[i * 3 + 1] = rcVentWorld.y + 0.5 + ph * (1.4 + vent * 1.6);
+                    vp[i * 3 + 2] = rcVentWorld.z + Math.cos(t * 0.6 + i) * 0.1 + ph * 0.3;
+                }
+                rcVentGeo.attributes.position.needsUpdate = true;
+
+                // The flag only has air to move it once the reactor has made some
+                const fp = rcFlagGeo.attributes.position;
+                const wind = 0.1 + atmo * 0.9;
+                for (let i = 0; i < fp.count; i++) {
+                    const bx = rcFlagBase[i * 3], by = rcFlagBase[i * 3 + 1];
+                    const u = (bx + 0.46) / 0.92;
+                    fp.setZ(i, Math.sin(t * 3.4 - u * 5.5) * 0.1 * u * wind);
+                    fp.setY(i, by - u * u * 0.05 * (1 - wind));
+                }
+                fp.needsUpdate = true;
+
+                // The dish sweeps for Earth; the rover looks over when prodded
+                rcDishHead.rotation.y = Math.sin(t * 0.12) * 0.8;
+                const roverLook = t < rcRoverLookUntil;
+                rcRovHead.rotation.y += ((roverLook ? -1.15 : Math.sin(t * 0.2) * 0.25) - rcRovHead.rotation.y) * Math.min(1, dt * 3);
+
+                // Rack and console telltales
+                for (const l of rcRackLeds) l.m.emissiveIntensity = Math.sin(t * l.rate + l.ph) > 0 ? 1.4 : 0.1;
+                rcAlBeaconMat.emissiveIntensity = 0.15 + Math.pow(Math.max(0, Math.sin(t * 2.1)), 6) * 2.2;
+                rcAlBeaconLight.intensity = 0.1 + Math.pow(Math.max(0, Math.sin(t * 2.1)), 6) * 1.6;
+                rcPodLedMat.emissiveIntensity = 0.7 + Math.sin(t * 0.9) * 0.08;
+
+                // Halo emitters chase around the ring, and run hot mid-implant
+                const implanting = t < rcImplantUntil;
+                for (let i = 0; i < rcEmitters.length; i++) {
+                    const chase = Math.pow(Math.max(0, Math.sin(t * (implanting ? 7 : 2) - i * 0.8)), 4);
+                    rcEmitters[i].emissiveIntensity = 0.5 + chase * (implanting ? 4.5 : 1.6);
+                }
+                rcHaloLight.intensity = implanting ? 2.4 + Math.sin(t * 22) * 0.8 : 0.6;
+
+                // Console readout — cheap redraw, and only while you're in this world
+                if (t - rcConLast > 0.08) {
+                    rcConLast = t;
+                    const g = rcConCtx;
+                    g.fillStyle = '#060a12'; g.fillRect(0, 0, 256, 160);
+                    g.fillStyle = implanting ? '#4a1018' : '#141c2c'; g.fillRect(0, 0, 256, 18);
+                    g.fillStyle = implanting ? '#ff6a7a' : '#7aa8ff';
+                    g.font = 'bold 11px monospace'; g.textAlign = 'left'; g.textBaseline = 'middle';
+                    g.fillText('REKALL  MEMORY IMPLANT', 7, 9);
+                    g.textAlign = 'right';
+                    g.fillText(implanting ? 'WRITING' : 'STANDBY', 249, 9);
+                    g.textAlign = 'left';
+                    // live trace
+                    g.strokeStyle = implanting ? '#ff8a5a' : '#3ad0a0';
+                    g.lineWidth = 1.6;
+                    g.beginPath();
+                    for (let x = 0; x < 240; x++) {
+                        const amp = implanting ? 22 : 7;
+                        const yy = 56 + Math.sin(x * 0.14 + t * 7) * amp * Math.sin(x * 0.031 + t * 1.7)
+                                 + Math.sin(x * 0.4 + t * 15) * (implanting ? 6 : 1.6);
+                        x === 0 ? g.moveTo(8 + x, yy) : g.lineTo(8 + x, yy);
+                    }
+                    g.stroke();
+                    // channel bars
+                    for (let i = 0; i < 8; i++) {
+                        const lv = (Math.sin(t * (1.6 + i * 0.4) + i) * 0.5 + 0.5) * (implanting ? 1 : 0.4);
+                        g.fillStyle = '#16202e'; g.fillRect(10 + i * 30, 92, 22, 34);
+                        g.fillStyle = implanting ? '#ff7a4a' : '#2f9ad0';
+                        g.fillRect(10 + i * 30, 126 - lv * 34, 22, lv * 34);
+                    }
+                    g.fillStyle = '#5d7590'; g.font = '9px monospace';
+                    g.fillText(implanting ? 'SUBJECT: QUAID   PKG: BLUE SKIES / MARS' : 'SUBJECT: —       PKG: SELECT PACKAGE', 9, 143);
+                    rcConTex.needsUpdate = true;
+                }
+
+                // REKALL neon: a steady hum, the odd dropout, and a hard cut-out
+                // for a beat after you knock it
+                const signOut = t < rcSignOutUntil;
+                const signLv = signOut ? (Math.random() < 0.25 ? 0.35 : 0.03)
+                    : 1 + Math.sin(t * 23) * 0.06 + (Math.random() < 0.015 ? -0.55 : 0);
+                rcSignMat.emissiveIntensity = Math.max(0, signLv) * 1.25;
+                rcSignLight.intensity = Math.max(0, signLv) * 1.3;
             }
 
             // Spillway rush fades in only while the river is on screen
