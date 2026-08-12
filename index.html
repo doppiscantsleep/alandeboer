@@ -5175,148 +5175,372 @@
         addTarget = tavernGroup;
 
         // ═══════════════════════════════
-        //  TAVERN — dark autumn inn, hearth + cauldron
+        //  THE TAVERN — a low, timber-framed inn on a wet autumn night.
+        //  An inglenook hearth at one end, a bar down the other, and a cat
+        //  who has claimed the warm end of the counter.
         // ═══════════════════════════════
 
-        // ── Fieldstone wall texture ──
-        const stoneCv = mkCanvas(512, 512);
+        const TV = { hx: 5.4, zBack: -5.0, zFront: 4.6, ceil: 3.0 };
+        const TV_CZ = (TV.zBack + TV.zFront) / 2, TV_DEPTH = TV.zFront - TV.zBack;
+
+        // ── Soft grain, for embers and motes ──
+        const tvDotCv = mkCanvas(64, 64);
+        {
+            const g = tvDotCv.getContext('2d');
+            const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+            rg.addColorStop(0, 'rgba(255,255,255,1)');
+            rg.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+            rg.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+        }
+        const tvDotTex = new THREE.CanvasTexture(tvDotCv);
+
+        // ── Fieldstone: irregular courses, soot at the top, damp at the foot ──
+        const stoneCv = mkCanvas(1024, 1024);
+        const stoneBumpCv = mkCanvas(512, 512);
         {
             const st = stoneCv.getContext('2d');
-            st.fillStyle = '#4a4340'; st.fillRect(0, 0, 512, 512);   // mortar
-            for (let row = 0; row < 8; row++) {
-                let x = (row % 2) * -30;
-                while (x < 512) {
-                    const w = 55 + Math.random() * 60, h = 52;
-                    const tone = 88 + Math.random() * 46;
-                    st.fillStyle = `rgb(${tone | 0},${tone * 0.92 | 0},${tone * 0.82 | 0})`;
+            const bp = stoneBumpCv.getContext('2d');
+            st.fillStyle = '#3b352f'; st.fillRect(0, 0, 1024, 1024);        // mortar
+            bp.fillStyle = '#3a3a3a'; bp.fillRect(0, 0, 512, 512);
+            let y = 0, row = 0;
+            while (y < 1024) {
+                const rh = 74 + Math.random() * 46;
+                let x = -Math.random() * 120;
+                while (x < 1024) {
+                    const w = 90 + Math.random() * 130;
+                    const warm = Math.random() < 0.4;
+                    const tone = 78 + Math.random() * 58;
+                    st.fillStyle = warm
+                        ? `rgb(${tone * 1.1 | 0},${tone * 0.92 | 0},${tone * 0.76 | 0})`
+                        : `rgb(${tone * 0.92 | 0},${tone * 0.94 | 0},${tone * 0.9 | 0})`;
                     st.beginPath();
-                    st.roundRect(x + 4, row * 64 + 5, w - 8, h, 12);
+                    st.roundRect(x + 6, y + 6, w - 12, rh - 12, 10 + Math.random() * 14);
                     st.fill();
-                    // face shading
-                    st.fillStyle = 'rgba(255,255,255,0.07)';
-                    st.beginPath(); st.roundRect(x + 7, row * 64 + 8, w - 14, 18, 9); st.fill();
+                    st.fillStyle = 'rgba(255,246,230,0.07)';                 // top-lit face
+                    st.beginPath(); st.roundRect(x + 10, y + 10, w - 20, (rh - 12) * 0.34, 9); st.fill();
+                    st.fillStyle = 'rgba(0,0,0,0.22)';                       // shadowed underside
+                    st.beginPath(); st.roundRect(x + 10, y + rh - 20, w - 20, 9, 5); st.fill();
+                    bp.fillStyle = `rgb(${150 + Math.random() * 60 | 0},0,0)`;
+                    bp.beginPath();
+                    bp.roundRect((x + 6) / 2, (y + 6) / 2, (w - 12) / 2, (rh - 12) / 2, 6);
+                    bp.fill();
                     x += w;
                 }
+                y += rh; row++;
             }
-            speckle(st, 512, 512, 3200, 0.10, '#8a8078', '#2e2a26');
+            for (let i = 0; i < 90; i++) {                                   // damp and soot
+                const dark = Math.random() < 0.5;
+                st.fillStyle = dark ? 'rgba(18,14,10,0.30)' : 'rgba(70,80,58,0.16)';
+                st.beginPath();
+                st.ellipse(Math.random() * 1024, dark ? Math.random() * 340 : 700 + Math.random() * 324,
+                    40 + Math.random() * 130, 24 + Math.random() * 80, Math.random() * 3, 0, Math.PI * 2);
+                st.fill();
+            }
+            speckle(st, 1024, 1024, 5200, 0.11, '#8a8078', '#221e1a');
+            speckle(bp, 512, 512, 2600, 0.3, '#c8c8c8', '#2a2a2a');
         }
-        const stoneTex = new THREE.CanvasTexture(stoneCv);
-        stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
-        stoneTex.repeat.set(2.4, 1.6);
-        stoneTex.colorSpace = THREE.SRGBColorSpace;
-        const stoneMat = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.95 });
+        const stoneMat = new THREE.MeshStandardMaterial({
+            map: asTex(stoneCv, 2.2, 1.1), bumpMap: asTex(stoneBumpCv, 2.2, 1.1, false),
+            bumpScale: 0.7, roughness: 0.96,
+        });
+        const stoneMatV = new THREE.MeshStandardMaterial({
+            map: asTex(stoneCv, 1.8, 1.1), bumpMap: asTex(stoneBumpCv, 1.8, 1.1, false),
+            bumpScale: 0.7, roughness: 0.96,
+        });
 
-        // ── Shell: dark plank floor, stone walls, beamed ceiling ──
-        const tvFloor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12),
-            new THREE.MeshStandardMaterial({
-                map: asTex(planks.map, 3, 3), bumpMap: asTex(planks.bump, 3, 3, false),
-                bumpScale: 0.9, color: 0x9a8570, roughness: 0.75,
-            }));
-        tvFloor.rotation.x = -Math.PI / 2;
-        tvFloor.receiveShadow = true;
-        addTarget.add(tvFloor);
-        const tvBack = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.4), stoneMat);
-        tvBack.position.set(0, 1.7, -3.0);
-        tvBack.receiveShadow = true;
-        addTarget.add(tvBack);
-        const tvSide = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.4), stoneMat.clone());
-        tvSide.material.map = stoneTex.clone();
-        tvSide.material.map.needsUpdate = true;
-        tvSide.position.set(-3.1, 1.7, 0);
-        tvSide.rotation.y = Math.PI / 2;
-        tvSide.receiveShadow = true;
-        addTarget.add(tvSide);
+        // ── Lime plaster between the timbers ──
+        const tvPlasterCv = mkCanvas(512, 512);
+        {
+            const g = tvPlasterCv.getContext('2d');
+            g.fillStyle = '#cbbb9c'; g.fillRect(0, 0, 512, 512);
+            for (let i = 0; i < 220; i++) {
+                g.fillStyle = ['#d6c7a8', '#bfae8e', '#c4b393', '#ab9a7c'][(Math.random() * 4) | 0];
+                g.globalAlpha = 0.14 + Math.random() * 0.24;
+                g.beginPath();
+                g.ellipse(Math.random() * 512, Math.random() * 512,
+                    18 + Math.random() * 70, 12 + Math.random() * 46, Math.random() * 3, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalAlpha = 0.2;                                             // smoke staining up top
+            g.fillStyle = '#5a4c3a';
+            for (let i = 0; i < 40; i++) {
+                g.beginPath();
+                g.ellipse(Math.random() * 512, Math.random() * 150, 30 + Math.random() * 90, 16 + Math.random() * 40, 0, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.globalAlpha = 1;
+            speckle(g, 512, 512, 3000, 0.1, '#e0d2b4', '#8a7a60');
+        }
+        const tvPlaster = new THREE.MeshStandardMaterial({ map: asTex(tvPlasterCv, 2.4, 1), roughness: 0.97 });
+
         const oakMat = new THREE.MeshStandardMaterial({
             map: asTex(darkWood.map, 1, 1), bumpMap: asTex(darkWood.bump, 1, 1, false),
             bumpScale: 0.4, color: 0x8a7050, roughness: 0.8,
         });
-        // ceiling + heavy beams
-        const tvCeil = new THREE.Mesh(new THREE.PlaneGeometry(12, 12),
-            new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.95 }));
-        tvCeil.rotation.x = Math.PI / 2;
-        tvCeil.position.y = 3.35;
-        addTarget.add(tvCeil);
-        for (let bz2 = -2.4; bz2 <= 2.6; bz2 += 1.25) {
-            box(11.5, 0.22, 0.18, oakMat, 0, 3.24, bz2);
-        }
-        box(0.24, 3.4, 0.24, oakMat, -2.95, 1.7, -2.85);   // corner posts
-        box(0.24, 3.4, 0.24, oakMat, 2.9, 1.7, -2.85);
-        box(0.24, 3.4, 0.24, oakMat, -2.95, 1.7, 2.6);
+        const oakDk = new THREE.MeshStandardMaterial({
+            map: asTex(darkWood.map, 1, 1), bumpMap: asTex(darkWood.bump, 1, 1, false),
+            bumpScale: 0.4, color: 0x50402c, roughness: 0.85,
+        });
+        const tvIron = lm(0x24242a, 0, 0, 0.55, 0.55);
+        const tvBrass = lm(0xb08a3a, 0, 0, 0.55, 0.45);
+        const tvPewter = lm(0x8e8f96, 0, 0, 0.42, 0.6);
 
-        // ── Fireplace: stone breast, glowing firebox, log fire ──
-        const FPX2 = 1.6, FPZ2 = -2.85;
-        box(2.0, 3.35, 0.45, stoneMat, FPX2, 1.67, FPZ2);            // chimney breast
-        box(2.4, 0.16, 0.9, stoneMat, FPX2, 0.08, FPZ2 + 0.2);       // hearth stone
-        box(1.9, 0.10, 0.5, oakMat, FPX2, 1.42, FPZ2 + 0.28);        // mantel shelf
-        // firebox opening
-        box(1.15, 1.0, 0.1, lm(0x0c0806, 0, 0, 1.0), FPX2, 0.62, FPZ2 + 0.24);
-        // glowing ember bed + crossed logs
+        // ── Floor: worn boards, darker under the tables, polished by the hearth ──
+        const tvFloorGeo = new THREE.PlaneGeometry(TV.hx * 2, TV_DEPTH, 36, 32);
+        {
+            const p = tvFloorGeo.attributes.position;
+            const cols = new Float32Array(p.count * 3);
+            const tmp = new THREE.Color();
+            const dark = new THREE.Color(0.52, 0.46, 0.38), pale = new THREE.Color(1.22, 1.14, 1.0);
+            for (let i = 0; i < p.count; i++) {
+                const x = p.getX(i), z = -p.getY(i) + TV_CZ;
+                // scuffed pale where boots go: along the bar and in front of the fire
+                const bar = Math.exp(-Math.pow((x - 3.5) / 0.9, 2));
+                const fire = Math.exp(-(Math.pow((x - 2.2) / 1.6, 2) + Math.pow((z + 3.5) / 1.2, 2)));
+                const mid = Math.exp(-Math.pow((x - 0.2) / 2.4, 2)) * 0.5;
+                tmp.copy(dark).lerp(pale, THREE.MathUtils.clamp(Math.max(bar, fire, mid), 0, 1));
+                cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+            }
+            tvFloorGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        }
+        const tvFloor = new THREE.Mesh(tvFloorGeo,
+            new THREE.MeshStandardMaterial({
+                map: asTex(planks.map, 3, 3), bumpMap: asTex(planks.bump, 3, 3, false),
+                bumpScale: 0.9, color: 0x8f7c66, roughness: 0.8, vertexColors: true,
+            }));
+        tvFloor.rotation.x = -Math.PI / 2;
+        tvFloor.position.z = TV_CZ;
+        tvFloor.receiveShadow = true;
+        addTarget.add(tvFloor);
+
+        // ── Walls: stone dado, plaster above, exposed timber frame ──
+        const tvWall = (w, x, z, ry, sMat) => {
+            const dado = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.15), sMat);
+            dado.position.set(x, 0.575, z); dado.rotation.y = ry;
+            dado.receiveShadow = true; addTarget.add(dado);
+            const up = new THREE.Mesh(new THREE.PlaneGeometry(w, TV.ceil - 1.15), tvPlaster);
+            up.position.set(x, 1.15 + (TV.ceil - 1.15) / 2, z); up.rotation.y = ry;
+            up.receiveShadow = true; addTarget.add(up);
+            // frame: sill rail, studs, and a brace or two
+            const nx = Math.sin(ry) * 0.05, nz = Math.cos(ry) * 0.05;
+            box(w, 0.17, 0.1, oakDk, x + nx, 1.2, z + nz, 0, ry, 0);
+            box(w, 0.19, 0.1, oakDk, x + nx, TV.ceil - 0.1, z + nz, 0, ry, 0);
+            const studs = Math.max(2, Math.round(w / 1.35));
+            for (let i = 0; i <= studs; i++) {
+                const o = -w / 2 + (i / studs) * w;
+                box(0.15, TV.ceil - 1.3, 0.09, oakDk,
+                    x + nx + Math.cos(ry) * o, (TV.ceil + 1.28) / 2 - 0.05, z + nz - Math.sin(ry) * o, 0, ry, 0);
+            }
+            for (let i = 0; i < studs; i += 2) {                              // diagonal braces
+                const o = -w / 2 + ((i + 0.5) / studs) * w;
+                box(0.12, (TV.ceil - 1.3) * 1.25, 0.08, oakDk,
+                    x + nx + Math.cos(ry) * o, (TV.ceil + 1.28) / 2 - 0.05, z + nz - Math.sin(ry) * o,
+                    0, ry, (i % 4 === 0 ? 0.5 : -0.5));
+            }
+        };
+        tvWall(TV.hx * 2, 0, TV.zBack, 0, stoneMat);
+        tvWall(TV_DEPTH, -TV.hx, TV_CZ, Math.PI / 2, stoneMatV);
+        tvWall(TV_DEPTH, TV.hx, TV_CZ, -Math.PI / 2, stoneMatV);
+
+        // ── Ceiling: sooty boards on heavy joists, hung with the season's drying ──
+        const tvCeil = new THREE.Mesh(new THREE.PlaneGeometry(TV.hx * 2, TV_DEPTH),
+            new THREE.MeshStandardMaterial({
+                map: asTex(darkWood.map, 5, 5), color: 0x4a3a26, roughness: 0.96,
+            }));
+        tvCeil.rotation.x = Math.PI / 2;
+        tvCeil.position.set(0, TV.ceil, TV_CZ);
+        addTarget.add(tvCeil);
+        for (let bz = TV.zBack + 0.9; bz < TV.zFront; bz += 1.15)
+            box(TV.hx * 2, 0.24, 0.2, oakDk, 0, TV.ceil - 0.13, bz);
+        box(0.3, TV.ceil, 0.3, oakDk, -TV.hx + 0.2, TV.ceil / 2, TV.zBack + 0.2);   // corner posts
+        box(0.3, TV.ceil, 0.3, oakDk, TV.hx - 0.2, TV.ceil / 2, TV.zBack + 0.2);
+        box(0.3, TV.ceil, 0.3, oakDk, -TV.hx + 0.2, TV.ceil / 2, TV.zFront - 0.2);
+        // bundles of herbs and hops strung from the joists
+        const tvHerbCols = [0x6a7a3a, 0x8a7a32, 0x5a6a30, 0x7a6a3c];
+        for (let i = 0; i < 14; i++) {
+            const hx = -4.4 + (i % 7) * 1.45, hz = TV.zBack + 1.05 + ((i / 7) | 0) * 2.3;
+            const bundle = new THREE.Group();
+            bundle.position.set(hx, TV.ceil - 0.26, hz);
+            addTarget.add(bundle);
+            for (let k = 0; k < 5; k++) {
+                const sprig = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.26 + Math.random() * 0.12, 5),
+                    lm(tvHerbCols[(k + i) % 4], 0, 0, 0.95));
+                sprig.position.set((Math.random() - 0.5) * 0.07, -0.15, (Math.random() - 0.5) * 0.07);
+                sprig.rotation.set((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3);
+                bundle.add(sprig);
+            }
+            box(0.02, 0.09, 0.02, tvIron, hx, TV.ceil - 0.22, hz);
+        }
+
+        // ── The inglenook: stone arch, bressummer beam, and a fire that works ──
+        const FPX2 = 2.2, FPZ2 = -4.88;
+        box(3.3, TV.ceil, 0.55, stoneMat, FPX2, TV.ceil / 2, FPZ2 - 0.05);
+        box(3.7, 0.2, 1.15, stoneMat, FPX2, 0.1, FPZ2 + 0.42);                // hearthstone
+        box(3.1, 0.34, 0.62, oakDk, FPX2, 1.66, FPZ2 + 0.3);                  // bressummer
+        box(3.2, 0.1, 0.7, oakMat, FPX2, 1.86, FPZ2 + 0.32);                  // mantel shelf
+        [-1.25, 1.25].forEach(o => box(0.42, 1.5, 0.62, stoneMat, FPX2 + o, 0.95, FPZ2 + 0.3));  // jambs
+        box(1.95, 1.3, 0.12, lm(0x080604, 0, 0, 1.0), FPX2, 0.85, FPZ2 + 0.22);   // firebox void
+        for (let i = 0; i < 5; i++)                                            // sooty back-brick
+            box(0.36, 0.22, 0.06, lm(0x19120c, 0, 0, 0.98), FPX2 - 0.72 + i * 0.36, 0.4 + (i % 2) * 0.24, FPZ2 + 0.26);
+        // andirons, ember bed, logs
+        [-0.6, 0.6].forEach(o => {
+            box(0.05, 0.3, 0.05, tvIron, FPX2 + o, 0.34, FPZ2 + 0.52);
+            box(0.05, 0.06, 0.7, tvIron, FPX2 + o, 0.24, FPZ2 + 0.3);
+        });
         const emberMat2 = lm(0x3a1002, 0xff3c08, 0.9);
-        box(0.9, 0.07, 0.3, emberMat2, FPX2, 0.16, FPZ2 + 0.3);
-        [[-0.28, 0.55], [0.3, -0.5], [0.0, 0.2]].forEach(([ox, rz3], i) => {
-            const log = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.7, 7), lm(0x2e1c10, 0x8a2a04, 0.25));
-            log.position.set(FPX2 + ox * 0.5, 0.24 + i * 0.05, FPZ2 + 0.3);
-            log.rotation.z = Math.PI / 2 + rz3 * 0.4;
-            log.rotation.y = rz3;
+        box(1.5, 0.09, 0.5, emberMat2, FPX2, 0.24, FPZ2 + 0.32);
+        const tvLogs = [];
+        [[-0.34, 0.5, 0], [0.3, -0.45, 0.06], [-0.02, 0.18, 0.13]].forEach(([ox, rz3, oy]) => {
+            const log = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.082, 0.95, 8), lm(0x2b1a0e, 0x8a2a04, 0.25));
+            log.position.set(FPX2 + ox * 0.6, 0.33 + oy, FPZ2 + 0.32);
+            log.rotation.z = Math.PI / 2 + rz3 * 0.35;
+            log.rotation.y = rz3 * 0.7;
             log.castShadow = true;
             addTarget.add(log);
+            tvLogs.push(log);
         });
-        // flames — layered cones that flicker in the animate loop
         const tvFlames = [];
-        const tvFlameCols = [0xffdd66, 0xff9922, 0xff5511];
-        for (let i = 0; i < 5; i++) {
-            const fh2 = 0.28 + Math.random() * 0.2;
-            const fm = new THREE.Mesh(new THREE.ConeGeometry(0.07 + Math.random() * 0.05, fh2, 6),
-                new THREE.MeshBasicMaterial({ color: tvFlameCols[i % 3], transparent: true, opacity: 0.85 }));
-            fm.position.set(FPX2 - 0.25 + i * 0.13, 0.24 + fh2 / 2, FPZ2 + 0.3);
-            fm.userData.baseY = 0.24;
+        const tvFlameCols = [0xffdd66, 0xff9922, 0xff5511, 0xffc040];
+        for (let i = 0; i < 9; i++) {
+            const fh2 = 0.34 + Math.random() * 0.3;
+            const fm = new THREE.Mesh(new THREE.ConeGeometry(0.08 + Math.random() * 0.06, fh2, 6),
+                new THREE.MeshBasicMaterial({ color: tvFlameCols[i % 4], transparent: true, opacity: 0.85, depthWrite: false }));
+            fm.position.set(FPX2 - 0.55 + i * 0.14, 0.34 + fh2 / 2, FPZ2 + 0.32 + (Math.random() - 0.5) * 0.16);
+            fm.userData.baseY = 0.34;
+            fm.renderOrder = 2;
             addTarget.add(fm);
             tvFlames.push(fm);
         }
-        const hearthLight = new THREE.PointLight(0xff7726, 0, 9, 1.6);
-        hearthLight.position.set(FPX2, 0.7, FPZ2 + 0.7);
+        const hearthLight = new THREE.PointLight(0xff7726, 0, 11, 1.6);
+        hearthLight.position.set(FPX2, 0.85, FPZ2 + 0.85);
         addTarget.add(hearthLight);
-        // mantel dressing: candles + little pumpkins
+        const hearthLight2 = new THREE.PointLight(0xff5a18, 0, 5, 1.8);
+        hearthLight2.position.set(FPX2, 0.4, FPZ2 + 0.4);
+        addTarget.add(hearthLight2);
+        // embers riding the draught up the flue
+        const TV_EMB = 70;
+        const tvEmbPos = new Float32Array(TV_EMB * 3);
+        const tvEmbSeed = [];
+        for (let i = 0; i < TV_EMB; i++) tvEmbSeed.push(Math.random(), (Math.random() - 0.5) * 1.3, (Math.random() - 0.5) * 0.4);
+        const tvEmbGeo = new THREE.BufferGeometry();
+        tvEmbGeo.setAttribute('position', new THREE.BufferAttribute(tvEmbPos, 3));
+        const tvEmbMat = new THREE.PointsMaterial({
+            color: 0xff9a3a, size: 0.05, map: tvDotTex, transparent: true, opacity: 0.9,
+            sizeAttenuation: true, depthWrite: false,
+        });
+        addTarget.add(new THREE.Points(tvEmbGeo, tvEmbMat));
+        // fire irons and a log basket
+        [[-1.72, 0.5], [-1.62, 0.6], [-1.52, 0.45]].forEach(([ix, ih], i) => {
+            box(0.025, ih, 0.025, tvIron, FPX2 + ix, ih / 2 + 0.2, FPZ2 + 0.6);
+            if (i === 0) box(0.14, 0.03, 0.03, tvIron, FPX2 + ix + 0.05, 0.2, FPZ2 + 0.6);
+        });
+        {
+            const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.3, 12, 1, true),
+                new THREE.MeshStandardMaterial({ map: asTex(weaveTex(), 3, 1), roughness: 0.95, side: THREE.DoubleSide }));
+            basket.position.set(FPX2 + 1.95, 0.15, FPZ2 + 0.75);
+            basket.castShadow = true;
+            addTarget.add(basket);
+            for (let i = 0; i < 5; i++) {
+                const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.42, 7), oakDk);
+                l.position.set(FPX2 + 1.95 + (Math.random() - 0.5) * 0.2, 0.24 + i * 0.045, FPZ2 + 0.75 + (Math.random() - 0.5) * 0.16);
+                l.rotation.set(Math.PI / 2 + (Math.random() - 0.5) * 0.4, Math.random(), 0);
+                l.castShadow = true;
+                addTarget.add(l);
+            }
+        }
+        // pot crane with a copper kettle swung clear above the flame tips
+        box(0.04, 1.35, 0.04, tvIron, FPX2 - 0.92, 0.88, FPZ2 + 0.3);
+        box(0.9, 0.04, 0.04, tvIron, FPX2 - 0.48, 1.5, FPZ2 + 0.3);
+        const tvKettle = new THREE.Group();
+        tvKettle.position.set(FPX2 - 0.1, 1.5, FPZ2 + 0.3);
+        addTarget.add(tvKettle);
+        {
+            const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.18, 6), tvIron);
+            chain.position.set(0, -0.09, 0);
+            chain.castShadow = true;
+            tvKettle.add(chain);
+        }
+        {
+            const pot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 9), lm(0x9a5a28, 0, 0, 0.4, 0.7));
+            pot.scale.y = 0.85;
+            pot.position.y = -0.28;
+            pot.castShadow = true;
+            tvKettle.add(pot);
+            const handle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.011, 6, 14, Math.PI), tvIron);
+            handle.position.y = -0.26;
+            tvKettle.add(handle);
+            const spout = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.11, 7), lm(0x9a5a28, 0, 0, 0.4, 0.7));
+            spout.position.set(0.13, -0.24, 0);
+            spout.rotation.z = -1.0;
+            tvKettle.add(spout);
+        }
+
+        // ── Mantel dressing: candles, pewter, a clock, small pumpkins ──
         const candleLights = [];
-        const candleAt = (cx3, cy3, cz3) => {
-            box(0.045, 0.11, 0.045, lm(0xe8e0cc, 0, 0, 0.85), cx3, cy3 + 0.055, cz3);
-            const fl2 = box(0.02, 0.045, 0.02, lm(0xffdd88, 0xffcc55, 2.2), cx3, cy3 + 0.135, cz3);
-            const cl = new THREE.PointLight(0xffb050, 0.55, 1.6);
-            cl.position.set(cx3, cy3 + 0.2, cz3);
+        const candleAt = (cx3, cy3, cz3, scale = 1) => {
+            box(0.045 * scale, 0.11 * scale, 0.045 * scale, lm(0xe8e0cc, 0, 0, 0.85), cx3, cy3 + 0.055 * scale, cz3);
+            const fl2 = box(0.02, 0.05, 0.02, lm(0xffdd88, 0xffcc55, 2.2), cx3, cy3 + 0.135 * scale, cz3);
+            const cl = new THREE.PointLight(0xffb050, 0.55, 1.9);
+            cl.position.set(cx3, cy3 + 0.2 * scale, cz3);
             addTarget.add(cl);
             candleLights.push({ l: cl, f: fl2, ph: Math.random() * 9 });
+            return fl2;
         };
-        candleAt(FPX2 - 0.7, 1.47, FPZ2 + 0.28);
-        candleAt(FPX2 + 0.75, 1.47, FPZ2 + 0.28);
+        candleAt(FPX2 - 1.15, 1.91, FPZ2 + 0.3);
+        candleAt(FPX2 + 1.2, 1.91, FPZ2 + 0.3);
+        [[-0.55, 0.09], [-0.3, 0.07]].forEach(([o, s]) => {                    // pewter tankards on the mantel
+            const tk = new THREE.Mesh(new THREE.CylinderGeometry(s, s * 1.08, s * 2.1, 9), tvPewter);
+            tk.position.set(FPX2 + o, 1.91 + s * 1.05, FPZ2 + 0.3);
+            tk.castShadow = true;
+            addTarget.add(tk);
+        });
+        {                                                                       // a small mantel clock
+            const cv = mkCanvas(64, 64), c = cv.getContext('2d');
+            c.fillStyle = '#e8e0c8'; c.beginPath(); c.arc(32, 32, 30, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = '#2a1a10'; c.lineWidth = 3;
+            c.beginPath(); c.arc(32, 32, 30, 0, Math.PI * 2); c.stroke();
+            c.lineWidth = 2.5; c.beginPath(); c.moveTo(32, 32); c.lineTo(44, 24); c.stroke();
+            c.beginPath(); c.moveTo(32, 32); c.lineTo(28, 12); c.stroke();
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            box(0.2, 0.26, 0.12, oakMat, FPX2 + 0.62, 2.04, FPZ2 + 0.3);
+            const face = new THREE.Mesh(new THREE.CircleGeometry(0.075, 18),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.6 }));
+            face.position.set(FPX2 + 0.62, 2.05, FPZ2 + 0.365);
+            addTarget.add(face);
+        }
         const pumpkin = (px3, py3, pz3, s3) => {
-            const p2 = new THREE.Mesh(new THREE.SphereGeometry(s3, 10, 8), lm(0xd86818, 0, 0, 0.75));
+            const p2 = new THREE.Mesh(new THREE.SphereGeometry(s3, 11, 8), lm(0xd86818, 0, 0, 0.75));
             p2.scale.y = 0.78;
             p2.position.set(px3, py3 + s3 * 0.75, pz3);
             p2.castShadow = true;
             addTarget.add(p2);
             box(0.02, s3 * 0.5, 0.02, lm(0x4a5a2a, 0, 0, 0.9), px3, py3 + s3 * 1.55, pz3, 0, 0, 0.2);
         };
-        pumpkin(FPX2 + 0.35, 1.47, FPZ2 + 0.28, 0.07);
-        pumpkin(2.25, 0, -2.55, 0.13);
-        // jack-o'-lanterns: carved faces flickering with candlelight inside
+        pumpkin(FPX2 + 0.95, 1.91, FPZ2 + 0.3, 0.075);
+        pumpkin(FPX2 + 2.35, 0.2, FPZ2 + 0.5, 0.16);
+        pumpkin(FPX2 + 2.62, 0.2, FPZ2 + 0.9, 0.11);
+
+        // ── Jack-o'-lanterns ──
         const jacks = [];
-        const jackOLantern = (jx, jz, s3, ry3) => {
+        const jackOLantern = (jx, jy, jz, s3, ry3) => {
             const g = new THREE.Group();
-            g.position.set(jx, 0, jz);
+            g.position.set(jx, jy, jz);
             g.rotation.y = ry3;
             addTarget.add(g);
-            const body = new THREE.Mesh(new THREE.SphereGeometry(s3, 12, 9), lm(0xd86818, 0, 0, 0.75));
+            const body = new THREE.Mesh(new THREE.SphereGeometry(s3, 13, 10), lm(0xd86818, 0, 0, 0.75));
             body.scale.y = 0.78;
             body.position.y = s3 * 0.75;
             body.castShadow = true;
             g.add(body);
-            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.02, s3 * 0.5, 0.02), lm(0x4a5a2a, 0, 0, 0.9));
+            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.025, s3 * 0.5, 0.025), lm(0x4a5a2a, 0, 0, 0.9));
             stem.position.y = s3 * 1.55;
             stem.rotation.z = 0.2;
             g.add(stem);
             const faceMat = lm(0x3a1400, 0xffb838, 1.8);
             const fz2 = s3 * 0.88;
-            [[-0.38, 0.15], [0.38, 0.15]].forEach(([ex2, ey2]) => {   // triangle-ish eyes
+            [[-0.38, 0.15], [0.38, 0.15]].forEach(([ex2, ey2]) => {
                 const eye = new THREE.Mesh(new THREE.ConeGeometry(s3 * 0.18, s3 * 0.3, 3), faceMat);
                 eye.position.set(ex2 * s3, s3 * (0.85 + ey2), fz2);
                 g.add(eye);
@@ -5324,24 +5548,420 @@
             const mouth = new THREE.Mesh(new THREE.BoxGeometry(s3 * 0.8, s3 * 0.14, 0.01), faceMat);
             mouth.position.set(0, s3 * 0.55, fz2);
             g.add(mouth);
-            [[-0.28, 1], [0, -1], [0.28, 1]].forEach(([tx2, dir2]) => {   // jagged teeth
+            [[-0.28, 1], [0, -1], [0.28, 1]].forEach(([tx2, dir2]) => {
                 const tooth = new THREE.Mesh(new THREE.BoxGeometry(s3 * 0.13, s3 * 0.12, 0.01), faceMat);
                 tooth.position.set(tx2 * s3, s3 * (0.55 + dir2 * 0.11), fz2);
                 g.add(tooth);
             });
-            const jl = new THREE.PointLight(0xff9830, 0.6, 1.6);
+            const jl = new THREE.PointLight(0xff9830, 0.6, 1.9);
             jl.position.set(0, s3 * 0.85, s3 * 0.4);
             g.add(jl);
             jacks.push({ l: jl, ph: Math.random() * 9, g });
         };
-        jackOLantern(2.6, -2.3, 0.2, -0.7);
-        jackOLantern(-2.6, -0.4, 0.16, 1.1);
+        jackOLantern(4.6, 0, -4.2, 0.22, -0.7);
+        jackOLantern(-4.7, 0, -2.0, 0.18, 1.1);
+        jackOLantern(-1.3, 0.98, 3.9, 0.14, 0.4);
 
-        // ── Mounted deer head on a wooden shield, left of the hearth ──
+        // ── Wall sconces: iron brackets with a candle, spaced round the room
+        //    so the far corners aren't lit by the hearth alone ──
+        const tvSconces = [];
+        const tvSconce = (sx, sy, sz, ry) => {
+            const g = new THREE.Group();
+            g.position.set(sx, sy, sz);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.22, 6), tvIron);
+            bracket.rotation.z = Math.PI / 2;
+            bracket.position.set(0, 0, 0.11);
+            g.add(bracket);
+            const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.03, 0.04, 8), tvIron);
+            cup.position.set(0, -0.02, 0.22);
+            g.add(cup);
+            const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.13, 8), lm(0xe8e0cc, 0, 0, 0.85));
+            candle.position.set(0, 0.065, 0.22);
+            g.add(candle);
+            const flame = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 6), lm(0xffdd88, 0xffcc55, 2.2));
+            flame.position.set(0, 0.155, 0.22);
+            g.add(flame);
+            const light = new THREE.PointLight(0xffb050, 0.6, 3.2);
+            light.position.set(0, 0.2, 0.22);
+            g.add(light);
+            candleLights.push({ l: light, f: flame, ph: Math.random() * 9 });
+            tvSconces.push(light);
+        };
+        tvSconce(-TV.hx + 0.1, 1.9, -3.0, Math.PI / 2);
+        tvSconce(-TV.hx + 0.1, 1.9, 1.0, Math.PI / 2);
+        tvSconce(-1.8, 1.9, TV.zBack + 0.1, 0);
+        tvSconce(3.6, 1.9, TV.zBack + 0.1, 0);
+
+        // ── The bar: counter, foot rail, taps, back-bar, stools ──
+        const BARX = 4.35;
+        const tvBar = new THREE.Group();
+        tvBar.position.set(BARX, 0, 0.1);
+        addTarget.add(tvBar);
+        const barAdd = m => { m.castShadow = true; m.receiveShadow = true; tvBar.add(m); return m; };
+        barAdd(new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.02, 4.6), oakDk)).position.set(0, 0.51, 0);
+        barAdd(new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.09, 4.8), oakMat)).position.set(-0.05, 1.06, 0);
+        barAdd(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.13, 4.65), oakMat)).position.set(0, 0.92, 0);   // apron
+        for (let i = 0; i < 7; i++)                                             // turned panel beading
+            barAdd(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.72, 0.05), oakMat)).position.set(-0.32, 0.55, -2.0 + i * 0.66);
+        barAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 4.5, 8), tvBrass)).rotation.x = Math.PI / 2;
+        tvBar.children[tvBar.children.length - 1].position.set(-0.5, 0.17, 0);   // brass foot rail
+        [-1.9, 1.9].forEach(o => barAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 8), tvBrass)).position.set(-0.5, 0.09, o));
+        // beer engines
+        const tvTaps = [];
+        [-0.7, -0.35, 0].forEach((o, i) => {
+            barAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.3, 10), tvBrass)).position.set(-0.12, 1.25, o);
+            const lever = barAdd(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), oakMat));
+            lever.position.set(-0.12, 1.46, o + 0.02);
+            lever.rotation.x = -0.35;
+            tvTaps.push(lever);
+            barAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8), tvBrass)).position.set(-0.22, 1.34, o);
+        });
+        // back-bar: shelves of bottles, a mirror, hanging tankards
+        box(0.22, 2.0, 4.4, oakDk, TV.hx - 0.16, 1.0, 0.1);
+        const bottleCols2 = [0x4a7a3a, 0x7a3a2a, 0xc8a028, 0x3a5a7a, 0x6a3a5a, 0x2a5a4a, 0x8a5a20];
+        for (let s = 0; s < 3; s++) {
+            box(0.3, 0.05, 4.2, oakMat, TV.hx - 0.3, 0.95 + s * 0.5, 0.1);
+            for (let i = 0; i < 13; i++) {
+                const h = 0.2 + (i % 3) * 0.06;
+                const bot = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.045, h, 9),
+                    lm(bottleCols2[(i + s) % 7], bottleCols2[(i + s) % 7], 0.14, 0.35));
+                bot.position.set(TV.hx - 0.3, 0.98 + s * 0.5 + h / 2, -1.85 + i * 0.32);
+                bot.castShadow = true;
+                addTarget.add(bot);
+                if (i % 3 === 0) box(0.03, 0.05, 0.03, lm(0x2a1a10, 0, 0, 0.9), TV.hx - 0.3, 0.98 + s * 0.5 + h + 0.02, -1.85 + i * 0.32);
+            }
+        }
+        {   // a foxed mirror behind the middle shelf
+            const cv = mkCanvas(128, 128), c = cv.getContext('2d');
+            const gr = c.createLinearGradient(0, 0, 128, 128);
+            gr.addColorStop(0, '#3a3830'); gr.addColorStop(0.5, '#5a5648'); gr.addColorStop(1, '#2e2c26');
+            c.fillStyle = gr; c.fillRect(0, 0, 128, 128);
+            speckle(c, 128, 128, 900, 0.4, '#7a7464', '#1a1814');
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            const mir = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.7),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.25, metalness: 0.7 }));
+            mir.position.set(TV.hx - 0.18, 2.15, 0.1);
+            mir.rotation.y = -Math.PI / 2;
+            addTarget.add(mir);
+            box(0.06, 0.82, 1.62, oakMat, TV.hx - 0.14, 2.15, 0.1);
+        }
+        box(0.06, 0.06, 3.4, oakMat, BARX - 0.5, 2.5, 0.1);                     // tankard rail
+        for (let i = 0; i < 9; i++) {                                            // tankards hung by the handle
+            const tk = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.062, 0.13, 9), tvPewter);
+            tk.position.set(BARX - 0.5, 2.38, -1.5 + i * 0.38);
+            tk.castShadow = true;
+            addTarget.add(tk);
+            const hd = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 5, 10, Math.PI), tvPewter);
+            hd.position.set(BARX - 0.5, 2.44, -1.5 + i * 0.38);
+            hd.rotation.y = Math.PI / 2;
+            addTarget.add(hd);
+        }
+        // stools along the bar
+        const tvStool = (sx2, sz2, h = 0.62) => {
+            const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.18, 0.07, 12), oakMat);
+            seat.position.set(sx2, h, sz2);
+            seat.castShadow = seat.receiveShadow = true;
+            addTarget.add(seat);
+            for (let i = 0; i < 3; i++) {
+                const a = (i / 3) * Math.PI * 2 + 0.4;
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, h, 6), oakDk);
+                leg.position.set(sx2 + Math.cos(a) * 0.11, h / 2, sz2 + Math.sin(a) * 0.11);
+                leg.rotation.set(Math.sin(a) * 0.11, 0, -Math.cos(a) * 0.11);
+                leg.castShadow = true;
+                addTarget.add(leg);
+            }
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 5, 12), oakDk);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.set(sx2, h * 0.35, sz2);
+            addTarget.add(ring);
+        };
+        [-1.6, -0.75, 0.85, 1.7].forEach(sz => tvStool(3.6, sz));
+        // casks stacked behind the bar end
+        [[4.9, 0.34, 2.75], [4.9, 0.34, 3.35], [4.9, 0.95, 3.05]].forEach(([kx, ky, kz]) => {
+            const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.5, 12), oakDk);
+            keg.rotation.z = Math.PI / 2;
+            keg.position.set(kx, ky, kz);
+            keg.castShadow = keg.receiveShadow = true;
+            addTarget.add(keg);
+            [-0.17, 0.17].forEach(hoop => {
+                const h2 = new THREE.Mesh(new THREE.TorusGeometry(0.275, 0.018, 6, 14), tvIron);
+                h2.rotation.y = Math.PI / 2;
+                h2.position.set(kx + hoop, ky, kz);
+                addTarget.add(h2);
+            });
+            box(0.06, 0.06, 0.06, tvBrass, kx - 0.3, ky - 0.04, kz);            // tap
+        });
+
+        // ── Tables, benches and what is on them ──
+        const tvTable = (tx2, tz2, ry, withCandle = true) => {
+            const g = new THREE.Group();
+            g.position.set(tx2, 0, tz2);
+            g.rotation.y = ry;
+            addTarget.add(g);
+            const top = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.07, 0.78), oakMat);
+            top.position.y = 0.74;
+            top.castShadow = top.receiveShadow = true;
+            g.add(top);
+            [[-0.5, -0.28], [0.5, -0.28], [-0.5, 0.28], [0.5, 0.28]].forEach(([ox, oz]) => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.71, 0.08), oakDk);
+                leg.position.set(ox, 0.355, oz);
+                leg.castShadow = true;
+                g.add(leg);
+            });
+            box(0.06, 0.06, 0.62, oakDk, tx2 + Math.cos(ry) * -0.5, 0.2, tz2 - Math.sin(ry) * -0.5, 0, ry, 0);
+            box(0.06, 0.06, 0.62, oakDk, tx2 + Math.cos(ry) * 0.5, 0.2, tz2 - Math.sin(ry) * 0.5, 0, ry, 0);
+            [-0.62, 0.62].forEach(oz => {                                        // benches
+                const b2 = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.28), oakMat);
+                b2.position.set(0, 0.44, oz);
+                b2.castShadow = b2.receiveShadow = true;
+                g.add(b2);
+                [-0.44, 0.44].forEach(ox => {
+                    const bl = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.41, 0.24), oakDk);
+                    bl.position.set(ox, 0.205, oz);
+                    bl.castShadow = true;
+                    g.add(bl);
+                });
+            });
+            if (withCandle) {
+                const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.035, 10), tvPewter);
+                stub.position.set(0.18, 0.795, -0.06);
+                g.add(stub);
+                candleAt(tx2 + Math.cos(ry) * 0.18 + Math.sin(ry) * -0.06, 0.8,
+                    tz2 - Math.sin(ry) * 0.18 + Math.cos(ry) * -0.06);
+            }
+            return g;
+        };
+        const tvTableA = tvTable(-3.5, -1.2, 0.25);
+        const tvTableB = tvTable(-3.2, 2.4, -0.4);
+        const tvTableC = tvTable(1.9, 2.9, 0.55);
+        // tankards, a jug, bread, cards and dice scattered over them
+        const tvTankards = [];
+        const tvTankard = (mx, mz, full = true) => {
+            const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.062, 0.13, 10), tvPewter);
+            mug.position.set(mx, 0.845, mz);
+            mug.castShadow = true;
+            addTarget.add(mug);
+            const hd = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.009, 5, 10, Math.PI), tvPewter);
+            hd.position.set(mx + 0.06, 0.845, mz);
+            hd.rotation.y = Math.PI / 2;
+            addTarget.add(hd);
+            if (full) {
+                const ale = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.012, 10), lm(0x8a5418, 0, 0, 0.5));
+                ale.position.set(mx, 0.9, mz);
+                addTarget.add(ale);
+                const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.051, 0.049, 0.022, 10), lm(0xf0e6cc, 0, 0, 0.9));
+                foam.position.set(mx, 0.913, mz);
+                addTarget.add(foam);
+            }
+            tvTankards.push(mug);
+            return mug;
+        };
+        tvTankard(-3.75, -1.5); tvTankard(-3.15, -0.95); tvTankard(-3.4, 2.15, false);
+        tvTankard(2.05, 3.1); tvTankard(1.62, 2.72);
+        tvTankard(3.72, -1.6); tvTankard(3.72, 0.85);
+        {   // a jug and a board of bread on table A
+            const jug = new THREE.Mesh(new THREE.SphereGeometry(0.1, 11, 8), lm(0x8a6a48, 0, 0, 0.9));
+            jug.scale.set(1, 1.2, 1);
+            jug.position.set(-3.35, 0.86, -1.35);
+            jug.castShadow = true;
+            addTarget.add(jug);
+            box(0.05, 0.09, 0.05, lm(0x8a6a48, 0, 0, 0.9), -3.35, 1.0, -1.35);
+            const board = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.2), oakMat);
+            board.position.set(-3.6, 0.79, -0.95);
+            addTarget.add(board);
+            [[-0.06, 0], [0.05, 0.03]].forEach(([ox, oz]) => {
+                const loaf = new THREE.Mesh(new THREE.SphereGeometry(0.055, 9, 7), lm(0xc09a58, 0, 0, 0.95));
+                loaf.scale.set(1.3, 0.7, 1);
+                loaf.position.set(-3.6 + ox, 0.83, -0.95 + oz);
+                loaf.castShadow = true;
+                addTarget.add(loaf);
+            });
+        }
+        {   // cards and dice mid-game on table C
+            for (let i = 0; i < 5; i++) {
+                const card = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.004, 0.1), lm(0xe4dcc4, 0, 0, 0.9));
+                card.position.set(1.75 + i * 0.02, 0.783 + i * 0.004, 3.05 + (Math.random() - 0.5) * 0.1);
+                card.rotation.y = Math.random() * 1.4;
+                addTarget.add(card);
+            }
+            [[2.22, 2.85], [2.3, 2.95]].forEach(([dx, dz]) => {
+                const die = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.035), lm(0xe8e2d0, 0, 0, 0.7));
+                die.position.set(dx, 0.795, dz);
+                die.rotation.set(Math.random(), Math.random(), Math.random());
+                die.castShadow = true;
+                addTarget.add(die);
+            });
+        }
+
+        // ── Wagon-wheel chandelier ──
+        const tvChand = new THREE.Group();
+        tvChand.position.set(0.1, TV.ceil - 0.24, 1.5);
+        addTarget.add(tvChand);
+        {
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.035, 7, 22), oakDk);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.y = -0.55;
+            rim.castShadow = true;
+            tvChand.add(rim);
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 10), oakDk);
+            hub.position.y = -0.55;
+            tvChand.add(hub);
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2;
+                const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.03), oakDk);
+                spoke.position.set(Math.cos(a) * 0.24, -0.55, Math.sin(a) * 0.24);
+                spoke.rotation.y = -a;
+                tvChand.add(spoke);
+                const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.56, 5), tvIron);
+                chain.position.set(Math.cos(a) * 0.23, -0.27, Math.sin(a) * 0.23);
+                chain.rotation.z = -Math.cos(a) * 0.38;
+                chain.rotation.x = Math.sin(a) * 0.38;
+                tvChand.add(chain);
+                // candle + flame on the rim
+                const cd = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.03, 0.16, 8), lm(0xe8e0cc, 0, 0, 0.85));
+                cd.position.set(Math.cos(a) * 0.46, -0.45, Math.sin(a) * 0.46);
+                tvChand.add(cd);
+                const fl = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.05, 6), lm(0xffdd88, 0xffcc55, 2.2));
+                fl.position.set(Math.cos(a) * 0.46, -0.35, Math.sin(a) * 0.46);
+                tvChand.add(fl);
+                candleLights.push({ l: (() => {
+                    const cl = new THREE.PointLight(0xffb050, 0.4, 2.4);
+                    cl.position.set(Math.cos(a) * 0.46, -0.33, Math.sin(a) * 0.46);
+                    tvChand.add(cl);
+                    return cl;
+                })(), f: fl, ph: Math.random() * 9 });
+            }
+            const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.22, 8), tvIron);
+            rod.position.y = 0.13;
+            rod.castShadow = true;
+            tvChand.add(rod);
+        }
+        box(0.14, 0.05, 0.14, oakDk, 0.1, TV.ceil - 0.02, 1.5);   // ceiling mount, fixed
+
+        // ── Left wall: two leaded windows with the weather outside ──
+        const dusk = mkCanvas(192, 192);
+        {
+            const du = dusk.getContext('2d');
+            const dg = du.createLinearGradient(0, 0, 0, 192);
+            dg.addColorStop(0, '#0d0c22'); dg.addColorStop(0.55, '#2e1c34'); dg.addColorStop(0.85, '#7a3a1e');
+            dg.addColorStop(1, '#3a1c10');
+            du.fillStyle = dg; du.fillRect(0, 0, 192, 192);
+            for (let i = 0; i < 34; i++) {
+                du.fillStyle = `rgba(230,235,255,${0.3 + Math.random() * 0.5})`;
+                du.fillRect(Math.random() * 192, Math.random() * 90, 1.4, 1.4);
+            }
+            du.fillStyle = '#100c16';                                          // hills and bare trees
+            du.beginPath();
+            du.moveTo(0, 192); du.lineTo(0, 150); du.lineTo(45, 138);
+            du.lineTo(90, 150); du.lineTo(135, 132); du.lineTo(192, 146); du.lineTo(192, 192);
+            du.fill();
+            du.strokeStyle = '#0a0810'; du.lineWidth = 2.5;
+            [30, 74, 150].forEach(bx => {
+                du.beginPath(); du.moveTo(bx, 150); du.lineTo(bx, 108); du.stroke();
+                du.lineWidth = 1.6;
+                [[-14, 92], [13, 96], [-9, 116]].forEach(([dx2, dy2]) => {
+                    du.beginPath(); du.moveTo(bx, 116); du.lineTo(bx + dx2, dy2); du.stroke();
+                });
+                du.lineWidth = 2.5;
+            });
+        }
+        const duskTex = new THREE.CanvasTexture(dusk);
+        duskTex.colorSpace = THREE.SRGBColorSpace;
+        const rainStreaks = [];
+        const tvWindow = (wz) => {
+            const view = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.25),
+                new THREE.MeshBasicMaterial({ map: duskTex, fog: false }));
+            view.position.set(-TV.hx + 0.09, 1.82, wz);
+            view.rotation.y = Math.PI / 2;
+            addTarget.add(view);
+            box(0.1, 1.44, 1.24, oakDk, -TV.hx + 0.05, 1.82, wz);              // reveal frame
+            box(0.07, 1.3, 0.05, oakMat, -TV.hx + 0.13, 1.82, wz);             // mullions
+            box(0.07, 0.05, 1.06, oakMat, -TV.hx + 0.13, 1.82, wz);
+            for (let i = -1; i <= 1; i += 2) box(0.06, 1.28, 0.03, oakMat, -TV.hx + 0.13, 1.82, wz + i * 0.26);
+            box(0.24, 0.09, 1.3, oakMat, -TV.hx + 0.16, 1.14, wz);             // sill
+            for (let i = 0; i < 7; i++) {                                       // rain on the glass
+                const streak = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.005, 0.06 + Math.random() * 0.11, 0.007),
+                    new THREE.MeshBasicMaterial({ color: 0x9ab8d8, transparent: true, opacity: 0.4, fog: false }));
+                streak.position.set(-TV.hx + 0.11, 1.8, wz);
+                streak.userData = { z0: wz - 0.44 + Math.random() * 0.88, sp: 0.35 + Math.random() * 0.5, ph: Math.random() };
+                addTarget.add(streak);
+                rainStreaks.push(streak);
+            }
+        };
+        tvWindow(-0.4);
+        tvWindow(2.3);
+
+        // ── The cauldron, on its trivet in the back corner ──
+        const CAX = -4.1, CAZ = -4.1;
+        const cauldron = new THREE.Mesh(new THREE.SphereGeometry(0.4, 15, 11), lm(0x17171a, 0, 0, 0.6, 0.4));
+        cauldron.scale.y = 0.82;
+        cauldron.position.set(CAX, 0.46, CAZ);
+        cauldron.castShadow = true;
+        addTarget.add(cauldron);
+        const cauldRim = new THREE.Mesh(new THREE.TorusGeometry(0.355, 0.042, 8, 22), lm(0x242426, 0, 0, 0.55, 0.5));
+        cauldRim.rotation.x = Math.PI / 2;
+        cauldRim.position.set(CAX, 0.74, CAZ);
+        addTarget.add(cauldRim);
+        {
+            const bail = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.014, 6, 18, Math.PI), tvIron);
+            bail.position.set(CAX, 0.76, CAZ);
+            bail.rotation.y = Math.PI / 2;
+            addTarget.add(bail);
+        }
+        for (let i = 0; i < 3; i++) {
+            const a3 = (i / 3) * Math.PI * 2;
+            box(0.055, 0.22, 0.055, lm(0x1a1a1c, 0, 0, 0.6, 0.4), CAX + Math.sin(a3) * 0.26, 0.11, CAZ + Math.cos(a3) * 0.26);
+        }
+        box(0.5, 0.06, 0.5, lm(0x2a1004, 0xd83c08, 0.55), CAX, 0.035, CAZ);
+        const brew = new THREE.Mesh(new THREE.CircleGeometry(0.32, 20), lm(0x2a4a14, 0x52c832, 0.85));
+        brew.rotation.x = -Math.PI / 2;
+        brew.position.set(CAX, 0.72, CAZ);
+        addTarget.add(brew);
+        const brewLight = new THREE.PointLight(0x52c832, 0, 5);
+        brewLight.position.set(CAX, 1.1, CAZ);
+        addTarget.add(brewLight);
+        const BUB_N = 28;
+        const bubPos = new Float32Array(BUB_N * 3);
+        const bubSeed = [];
+        for (let i = 0; i < BUB_N; i++) {
+            bubSeed.push(Math.random() * Math.PI * 2, Math.random() * 0.26, Math.random());
+            bubPos[i * 3] = CAX; bubPos[i * 3 + 1] = 0.74; bubPos[i * 3 + 2] = CAZ;
+        }
+        const bubGeo = new THREE.BufferGeometry();
+        bubGeo.setAttribute('position', new THREE.BufferAttribute(bubPos, 3));
+        const bubMat = new THREE.PointsMaterial({
+            color: 0x8ae858, size: 0.06, map: tvDotTex, transparent: true, opacity: 0.85,
+            sizeAttenuation: true, depthWrite: false,
+        });
+        const bubPoints = new THREE.Points(bubGeo, bubMat);
+        addTarget.add(bubPoints);
+        // a stirring paddle and a shelf of jars beside it
+        {
+            const paddle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.9, 7), oakMat);
+            paddle.position.set(CAX + 0.16, 1.05, CAZ + 0.1);
+            paddle.rotation.set(0.35, 0, 0.28);
+            paddle.castShadow = true;
+            addTarget.add(paddle);
+        }
+        box(0.9, 0.05, 0.24, oakMat, -TV.hx + 0.24, 1.55, -3.5, 0, Math.PI / 2, 0);
+        for (let i = 0; i < 4; i++) {
+            const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.13, 9),
+                lm([0x6a7a3a, 0x7a4a2a, 0x3a5a6a, 0x6a3a4a][i], 0, 0, 0.55, 0.15));
+            jar.position.set(-TV.hx + 0.24, 1.64, -3.85 + i * 0.24);
+            jar.castShadow = true;
+            addTarget.add(jar);
+            box(0.05, 0.02, 0.05, lm(0x8a6a48, 0, 0, 0.9), -TV.hx + 0.24, 1.72, -3.85 + i * 0.24);
+        }
+
+        // ── Wall dressing: deer head, dartboard, fiddle, horseshoe, lantern ──
         const deer = new THREE.Group();
-        deer.position.set(-0.6, 2.1, -2.92);
+        deer.position.set(-1.6, 2.25, TV.zBack + 0.11);
         addTarget.add(deer);
-        const plaque = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 10), oakMat);
+        const plaque = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.05, 10), oakMat);
         plaque.rotation.x = Math.PI / 2;
         deer.add(plaque);
         const deerMat = lm(0x7a5a38, 0, 0, 0.9);
@@ -5353,194 +5973,197 @@
             deer.add(mesh);
             return mesh;
         };
-        dP2(0.17, 0.19, 0.16, deerMat, 0, 0.06, 0.12);         // head
-        dP2(0.09, 0.10, 0.12, deerMat, 0, -0.04, 0.22);        // muzzle
-        dP2(0.045, 0.035, 0.03, lm(0x141210, 0, 0, 0.5), 0, -0.06, 0.29);  // nose
-        dP2(0.06, 0.09, 0.03, deerMat, -0.11, 0.14, 0.10, 0.5);  // ears
-        dP2(0.06, 0.09, 0.03, deerMat, 0.11, 0.14, 0.10, -0.5);
-        [[-1, 0], [1, 0]].forEach(([side]) => {               // antlers, three tines each
+        dP2(0.18, 0.2, 0.17, deerMat, 0, 0.06, 0.13);
+        dP2(0.1, 0.11, 0.13, deerMat, 0, -0.045, 0.235);
+        dP2(0.05, 0.04, 0.03, lm(0x141210, 0, 0, 0.5), 0, -0.065, 0.305);
+        dP2(0.065, 0.095, 0.03, deerMat, -0.115, 0.145, 0.11, 0.5);
+        dP2(0.065, 0.095, 0.03, deerMat, 0.115, 0.145, 0.11, -0.5);
+        [[-1], [1]].forEach(([side]) => {
             const antMat = lm(0xc8b898, 0, 0, 0.85);
-            dP2(0.035, 0.30, 0.035, antMat, side * 0.10, 0.30, 0.06, side * -0.35);
-            dP2(0.03, 0.16, 0.03, antMat, side * 0.19, 0.38, 0.06, side * -0.9);
-            dP2(0.028, 0.13, 0.028, antMat, side * 0.06, 0.44, 0.06, side * 0.25);
+            dP2(0.035, 0.32, 0.035, antMat, side * 0.105, 0.31, 0.065, side * -0.35);
+            dP2(0.03, 0.17, 0.03, antMat, side * 0.2, 0.4, 0.065, side * -0.9);
+            dP2(0.028, 0.14, 0.028, antMat, side * 0.065, 0.46, 0.065, side * 0.25);
         });
+        {   // dartboard with three darts in it
+            const cv = mkCanvas(128, 128), c = cv.getContext('2d');
+            c.fillStyle = '#1a1610'; c.beginPath(); c.arc(64, 64, 62, 0, Math.PI * 2); c.fill();
+            for (let i = 0; i < 20; i++) {
+                c.fillStyle = i % 2 ? '#e6dcc0' : '#241d14';
+                c.beginPath(); c.moveTo(64, 64);
+                c.arc(64, 64, 58, (i / 20) * Math.PI * 2, ((i + 1) / 20) * Math.PI * 2);
+                c.fill();
+            }
+            [[40, '#a02020', '#1f7a3a'], [24, '#a02020', '#1f7a3a']].forEach(([r, ca, cb], k) => {
+                for (let i = 0; i < 20; i++) {
+                    c.fillStyle = i % 2 ? ca : cb;
+                    c.beginPath(); c.moveTo(64, 64);
+                    c.arc(64, 64, r, (i / 20) * Math.PI * 2, ((i + 1) / 20) * Math.PI * 2);
+                    c.fill();
+                    c.beginPath(); c.moveTo(64, 64);
+                    c.arc(64, 64, r - (k ? 4 : 5), (i / 20) * Math.PI * 2, ((i + 1) / 20) * Math.PI * 2);
+                    c.fillStyle = i % 2 ? '#e6dcc0' : '#241d14';
+                    c.fill();
+                }
+            });
+            c.fillStyle = '#1f7a3a'; c.beginPath(); c.arc(64, 64, 8, 0, Math.PI * 2); c.fill();
+            c.fillStyle = '#a02020'; c.beginPath(); c.arc(64, 64, 4, 0, Math.PI * 2); c.fill();
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            const board = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 24), lm(0x2a2018, 0, 0, 0.9));
+            board.rotation.z = Math.PI / 2;
+            board.position.set(TV.hx - 0.08, 1.85, -3.4);
+            board.castShadow = true;
+            addTarget.add(board);
+            const face = new THREE.Mesh(new THREE.CircleGeometry(0.235, 26),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9 }));
+            face.position.set(TV.hx - 0.11, 1.85, -3.4);
+            face.rotation.y = -Math.PI / 2;
+            addTarget.add(face);
+            for (let i = 0; i < 3; i++) {
+                const a = 1.1 + i * 1.9, r = 0.06 + i * 0.045;
+                box(0.09, 0.012, 0.012, tvPewter, TV.hx - 0.16, 1.85 + Math.sin(a) * r, -3.4 + Math.cos(a) * r);
+                box(0.035, 0.03, 0.005, lm(0xc84020, 0, 0, 0.8), TV.hx - 0.21, 1.85 + Math.sin(a) * r, -3.4 + Math.cos(a) * r);
+            }
+        }
+        {   // fiddle hung on the left wall
+            const f = new THREE.Group();
+            f.position.set(-TV.hx + 0.14, 2.2, 0.95);
+            f.rotation.set(0, Math.PI / 2, 0.35);
+            addTarget.add(f);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), lm(0x7a3a18, 0, 0, 0.45));
+            body.scale.set(1, 1.35, 0.28);
+            f.add(body);
+            const upper = new THREE.Mesh(new THREE.SphereGeometry(0.095, 9, 7), lm(0x7a3a18, 0, 0, 0.45));
+            upper.scale.set(1, 1.1, 0.28);
+            upper.position.y = 0.14;
+            f.add(upper);
+            const neck = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, 0.028), lm(0x2a1a10, 0, 0, 0.7));
+            neck.position.y = 0.3;
+            f.add(neck);
+            const scroll = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.06, 0.035), lm(0x2a1a10, 0, 0, 0.7));
+            scroll.position.y = 0.44;
+            f.add(scroll);
+            const bow = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.56, 0.012), lm(0x3a2414, 0, 0, 0.7));
+            bow.position.set(0.1, 0.18, -0.03);
+            bow.rotation.z = 0.16;
+            f.add(bow);
+        }
+        {   // horseshoe over the door, and a hanging lantern
+            const shoe = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.022, 6, 14, Math.PI * 1.35), tvIron);
+            shoe.position.set(-1.3, 2.55, TV.zFront - 0.09);
+            shoe.rotation.z = -Math.PI / 2 - 0.35;
+            addTarget.add(shoe);
+            const lant = new THREE.Group();
+            lant.position.set(-2.6, 2.28, TV.zBack + 0.5);
+            addTarget.add(lant);
+            box(0.02, 0.42, 0.02, tvIron, -2.6, 2.52, TV.zBack + 0.5);
+            const cage = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, 0.19, 6, 1, true),
+                new THREE.MeshStandardMaterial({ color: 0xd8c890, emissive: 0xffb050, emissiveIntensity: 0.9, roughness: 0.4, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+            lant.add(cage);
+            box(0.22, 0.03, 0.22, tvIron, -2.6, 2.39, TV.zBack + 0.5);
+            box(0.2, 0.04, 0.2, tvIron, -2.6, 2.17, TV.zBack + 0.5);
+            const ll = new THREE.PointLight(0xffa848, 0.9, 3.4);
+            ll.position.set(-2.6, 2.28, TV.zBack + 0.55);
+            addTarget.add(ll);
+            candleLights.push({ l: ll, f: cage, ph: Math.random() * 9, lantern: true });
+        }
+        {   // chalk slate of the day's ale, and a broom in the corner
+            const cv = mkCanvas(128, 160), c = cv.getContext('2d');
+            c.fillStyle = '#20201c'; c.fillRect(0, 0, 128, 160);
+            c.strokeStyle = 'rgba(230,228,214,0.85)'; c.lineWidth = 2.4;
+            c.font = 'italic 700 19px Georgia, serif'; c.fillStyle = 'rgba(235,232,218,0.9)';
+            c.textAlign = 'center';
+            c.fillText('TODAY', 64, 30);
+            c.beginPath(); c.moveTo(24, 40); c.lineTo(104, 40); c.stroke();
+            c.font = '15px Georgia, serif';
+            ['Harvest Ale', 'Spiced Cider', 'Mutton Pie', 'Bread & Cheese'].forEach((r, i) =>
+                c.fillText(r, 64, 62 + i * 24));
+            const tx = new THREE.CanvasTexture(cv);
+            tx.colorSpace = THREE.SRGBColorSpace;
+            box(0.06, 0.78, 0.62, oakDk, TV.hx - 0.08, 1.85, 1.9);
+            const slate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66),
+                new THREE.MeshStandardMaterial({ map: tx, roughness: 0.95 }));
+            slate.position.set(TV.hx - 0.12, 1.85, 1.9);
+            slate.rotation.y = -Math.PI / 2;
+            addTarget.add(slate);
+            const broom = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.15, 7), oakMat);
+            broom.position.set(-5.05, 0.62, 3.9);
+            broom.rotation.z = 0.16;
+            broom.castShadow = true;
+            addTarget.add(broom);
+            const bristles = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.3, 8), lm(0xa8863c, 0, 0, 0.97));
+            bristles.position.set(-5.14, 0.15, 3.9);
+            bristles.rotation.z = Math.PI + 0.16;
+            addTarget.add(bristles);
+            // sacks slumped by the wall
+            [[-4.9, 3.0, 0.24], [-4.55, 3.2, 0.19]].forEach(([sx, sz, sr]) => {
+                const sack = new THREE.Mesh(new THREE.SphereGeometry(sr, 9, 7), lm(0x9a8a64, 0, 0, 0.98));
+                sack.scale.set(1, 1.25, 1);
+                sack.position.set(sx, sr * 1.1, sz);
+                sack.castShadow = sack.receiveShadow = true;
+                addTarget.add(sack);
+                box(sr * 0.5, 0.06, sr * 0.5, lm(0x8a7a58, 0, 0, 0.98), sx, sr * 2.3, sz);
+            });
+        }
 
-        // ── Tabby asleep on the bar top, tail curled round ──
-        const catMat = lm(0x585048, 0, 0, 0.9);
-        const catDark = lm(0x3a342e, 0, 0, 0.9);
+        // ── Dust and smoke turning in the firelight ──
+        const TV_MOTE = 90;
+        const tvMotePos = new Float32Array(TV_MOTE * 3);
+        const tvMoteSeed = [];
+        for (let i = 0; i < TV_MOTE; i++) {
+            tvMoteSeed.push(Math.random() * 7, Math.random(), Math.random() * 7);
+            tvMotePos[i * 3] = (Math.random() - 0.5) * 9;
+            tvMotePos[i * 3 + 1] = Math.random() * 2.6;
+            tvMotePos[i * 3 + 2] = TV_CZ + (Math.random() - 0.5) * 8;
+        }
+        const tvMoteGeo = new THREE.BufferGeometry();
+        tvMoteGeo.setAttribute('position', new THREE.BufferAttribute(tvMotePos, 3));
+        const tvMoteMat = new THREE.PointsMaterial({
+            color: 0xffc088, size: 0.035, map: tvDotTex, transparent: true, opacity: 0.4,
+            sizeAttenuation: true, depthWrite: false,
+        });
+        addTarget.add(new THREE.Points(tvMoteGeo, tvMoteMat));
+
+        // ── The tabby, asleep on the warm end of the bar ──
+        const catMat = lm(0x6a6058, 0, 0, 0.9);
+        const catDark = lm(0x40382f, 0, 0, 0.9);
         const cat = new THREE.Group();
-        cat.position.set(2.68, 0.97, 0.55);
-        cat.rotation.y = -0.6;
+        cat.position.set(4.3, 1.11, 1.75);
+        cat.rotation.y = -1.1;
         addTarget.add(cat);
-        const catBody = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), catMat);
+        const catBody = new THREE.Mesh(new THREE.SphereGeometry(0.145, 11, 9), catMat);
         catBody.scale.set(1, 0.62, 0.85);
-        catBody.position.y = 0.075;
+        catBody.position.y = 0.08;
         catBody.castShadow = true;
         cat.add(catBody);
-        [[-0.05, 0.02], [0.04, -0.01]].forEach(([sx3, sz3]) => {  // tabby stripes
-            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.2), catDark);
-            stripe.position.set(sx3, 0.09, sz3);
+        [[-0.055, 0.02], [0.045, -0.01]].forEach(([sx3, sz3]) => {
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.1, 0.22), catDark);
+            stripe.position.set(sx3, 0.095, sz3);
             cat.add(stripe);
         });
-        const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.065, 9, 7), catMat);
-        catHead.position.set(0.10, 0.06, 0.06);
+        const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.072, 10, 8), catMat);
+        catHead.position.set(0.11, 0.065, 0.065);
         catHead.castShadow = true;
         cat.add(catHead);
         [[-1], [1]].forEach(([side]) => {
-            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.04, 4), catDark);
-            ear.position.set(0.10 + side * 0.035, 0.125, 0.06);
+            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.045, 4), catDark);
+            ear.position.set(0.11 + side * 0.038, 0.135, 0.065);
             cat.add(ear);
         });
-        const catTail = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 6, 14, Math.PI * 1.3), catDark);
+        const catTail = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.019, 6, 15, Math.PI * 1.3), catDark);
         catTail.rotation.x = -Math.PI / 2;
-        catTail.position.set(-0.01, 0.025, 0.01);
+        catTail.position.set(-0.015, 0.028, 0.01);
         cat.add(catTail);
-
-        // ── Rain streaking down the window pane ──
-        const rainStreaks = [];
-        for (let i = 0; i < 9; i++) {
-            const streak = new THREE.Mesh(
-                new THREE.BoxGeometry(0.004, 0.05 + Math.random() * 0.09, 0.006),
-                new THREE.MeshBasicMaterial({ color: 0x9ab8d8, transparent: true, opacity: 0.4 }));
-            streak.position.set(-3.0, 1.7, 1.0);
-            streak.userData = { z0: 0.62 + Math.random() * 0.8, sp: 0.35 + Math.random() * 0.5, ph: Math.random() };
-            addTarget.add(streak);
-            rainStreaks.push(streak);
-        }
-
-        // ── The cauldron: black pot, green brew, rising bubbles ──
-        const CAX = -2.05, CAZ = -2.1;
-        const cauldron = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), lm(0x1a1a1c, 0, 0, 0.6, 0.4));
-        cauldron.scale.y = 0.82;
-        cauldron.position.set(CAX, 0.38, CAZ);
-        cauldron.castShadow = true;
-        addTarget.add(cauldron);
-        const cauldRim = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.035, 8, 20), lm(0x242426, 0, 0, 0.55, 0.5));
-        cauldRim.rotation.x = Math.PI / 2;
-        cauldRim.position.set(CAX, 0.62, CAZ);
-        addTarget.add(cauldRim);
-        for (let i = 0; i < 3; i++) {   // stubby legs over a coal bed
-            const a3 = (i / 3) * Math.PI * 2;
-            box(0.05, 0.18, 0.05, lm(0x1a1a1c, 0, 0, 0.6, 0.4), CAX + Math.sin(a3) * 0.22, 0.09, CAZ + Math.cos(a3) * 0.22);
-        }
-        box(0.4, 0.05, 0.4, lm(0x2a1004, 0xd83c08, 0.55), CAX, 0.03, CAZ);   // coals
-        const brew = new THREE.Mesh(new THREE.CircleGeometry(0.27, 18), lm(0x2a4a14, 0x52c832, 0.85));
-        brew.rotation.x = -Math.PI / 2;
-        brew.position.set(CAX, 0.60, CAZ);
-        addTarget.add(brew);
-        const brewLight = new THREE.PointLight(0x52c832, 0, 4.5);
-        brewLight.position.set(CAX, 0.95, CAZ);
-        addTarget.add(brewLight);
-        // bubbles popping out of the brew
-        const BUB_N = 22;
-        const bubPos = new Float32Array(BUB_N * 3);
-        const bubSeed = [];
-        for (let i = 0; i < BUB_N; i++) {
-            bubSeed.push(Math.random() * Math.PI * 2, Math.random() * 0.22, Math.random());
-            bubPos[i * 3] = CAX; bubPos[i * 3 + 1] = 0.62; bubPos[i * 3 + 2] = CAZ;
-        }
-        const bubGeo = new THREE.BufferGeometry();
-        bubGeo.setAttribute('position', new THREE.BufferAttribute(bubPos, 3));
-        const bubMat = new THREE.PointsMaterial({
-            color: 0x8ae858, size: 0.05, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false,
-        });
-        const bubPoints = new THREE.Points(bubGeo, bubMat);
-        addTarget.add(bubPoints);
-
-        // ── Bar corner: counter, kegs, bottle shelf ──
-        box(1.7, 0.9, 0.4, oakMat, 2.7, 0.45, 1.1, 0, Math.PI / 2, 0);
-        box(1.9, 0.07, 0.55, oakMat, 2.7, 0.93, 1.1, 0, Math.PI / 2, 0);
-        [[2.65, 0.32, 2.3], [2.65, 0.32, 2.85], [2.65, 0.98, 2.55]].forEach(([kx, ky, kz]) => {
-            const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.42, 10), oakMat);
-            keg.rotation.z = Math.PI / 2;
-            keg.rotation.y = Math.PI / 2;
-            keg.position.set(kx, ky, kz);
-            keg.castShadow = true;
-            addTarget.add(keg);
-            [-0.14, 0.14].forEach(hoop =>
-                box(0.02, 0.47, 0.47, lm(0x3a3a3e, 0, 0, 0.5, 0.6), kx, ky, kz + hoop));
-        });
-        // bottle shelf on the stone wall
-        box(1.3, 0.05, 0.2, oakMat, -3.0, 2.0, 1.4, 0, Math.PI / 2, 0);
-        const bottleCols2 = [0x4a7a3a, 0x7a3a2a, 0xc8a028, 0x3a5a7a, 0x6a3a5a];
-        for (let i = 0; i < 5; i++) {
-            const bot = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.19, 8),
-                lm(bottleCols2[i], bottleCols2[i], 0.12, 0.4));
-            bot.position.set(-2.98, 2.13, 0.9 + i * 0.24);
-            bot.castShadow = true;
-            addTarget.add(bot);
-        }
-
-        // ── Table by the fire: candle, ale mugs, stools ──
-        const tvTable = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.06, 12), oakMat);
-        tvTable.position.set(2.0, 0.72, 1.9);
-        tvTable.castShadow = tvTable.receiveShadow = true;
-        addTarget.add(tvTable);
-        box(0.12, 0.7, 0.12, oakMat, 2.0, 0.36, 1.9);
-        candleAt(2.0, 0.75, 1.9);
-        [[2.35, 2.05], [1.7, 2.2]].forEach(([mx, mz]) => {
-            const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.11, 8), lm(0x9a6838, 0, 0, 0.8));
-            mug.position.set(mx, 0.81, mz);
-            mug.castShadow = true;
-            addTarget.add(mug);
-            const foam = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.02, 8), lm(0xf0e8d0, 0, 0, 0.9));
-            foam.position.set(mx, 0.87, mz);
-            addTarget.add(foam);
-        });
-        [[1.4, 1.5], [2.5, 2.5]].forEach(([sx2, sz2]) => {
-            const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.07, 10), oakMat);
-            stool.position.set(sx2, 0.42, sz2);
-            stool.castShadow = true;
-            addTarget.add(stool);
-            box(0.06, 0.4, 0.06, oakMat, sx2, 0.2, sz2);
-        });
-
-        // ── Autumn dressing: leaf garland on the mantel beam, window night ──
-        const leafCols2 = [0xc9661e, 0xd98a24, 0xa83b1c, 0xe0a832];
-        for (let i = 0; i < 14; i++) {
-            const gx2 = FPX2 - 0.9 + (i / 13) * 1.8;
-            const sag = Math.sin((i / 13) * Math.PI) * 0.14;
-            const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0),
-                lm(leafCols2[i % 4], 0, 0, 0.9));
-            leaf.position.set(gx2, 1.55 - sag, FPZ2 + 0.3);
-            addTarget.add(leaf);
-        }
-        // diamond-pane window with a deep autumn dusk beyond
-        const dusk = mkCanvas(128, 128);
-        {
-            const du = dusk.getContext('2d');
-            const dg = du.createLinearGradient(0, 0, 0, 128);
-            dg.addColorStop(0, '#141230'); dg.addColorStop(0.7, '#3a2038'); dg.addColorStop(1, '#8a4020');
-            du.fillStyle = dg; du.fillRect(0, 0, 128, 128);
-            for (let i = 0; i < 20; i++) {
-                du.fillStyle = 'rgba(230,235,255,0.8)';
-                du.fillRect(Math.random() * 128, Math.random() * 60, 1, 1);
-            }
-            du.fillStyle = '#0c0a14';
-            du.beginPath();
-            du.moveTo(0, 128); du.lineTo(0, 100); du.lineTo(30, 92); du.lineTo(60, 100); du.lineTo(90, 88); du.lineTo(128, 98); du.lineTo(128, 128);
-            du.fill();
-        }
-        const duskTex = new THREE.CanvasTexture(dusk);
-        duskTex.colorSpace = THREE.SRGBColorSpace;
-        const winView = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.1),
-            new THREE.MeshBasicMaterial({ map: duskTex, fog: false }));
-        winView.position.set(-3.05, 1.7, 1.0);
-        winView.rotation.y = Math.PI / 2;
-        addTarget.add(winView);
-        box(0.06, 1.26, 1.04, oakMat, -3.08, 1.7, 1.0);
-        box(0.08, 1.2, 0.05, oakMat, -3.03, 1.7, 1.0);      // mullions
-        box(0.08, 0.05, 1.0, oakMat, -3.03, 1.7, 1.0);
 
         let tvNextGloop = 3;
 
         // ── Clark's braided rug by the fire ──
-        [0.36, 0.28, 0.19, 0.10].forEach((rr, i) => {
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.045, 8, 24),
+        [0.38, 0.3, 0.21, 0.11].forEach((rr, i) => {
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.048, 8, 26),
                 lm([0x8a4a28, 0x6a5438, 0x9a6838, 0x5a3a24][i], 0, 0, 0.95));
             ring.rotation.x = -Math.PI / 2;
             ring.scale.z = 0.5;
-            ring.position.set(BEDX, 0.02, BEDZ);
+            ring.position.set(BEDX, 0.022, BEDZ);
             ring.receiveShadow = true;
             addTarget.add(ring);
         });
@@ -9231,6 +9854,12 @@
                 });
             },
         });
+        // Pull a beer engine and it draws a pint, briefly
+        let tvTapPullUntil = -10;
+        addInteract(tvTaps, { theme: 'tavern', onClick: () => { tvTapPullUntil = clock.getElapsedTime() + 1.1; } });
+        // Give the chandelier a push and it swings
+        let tvChandPush = 0;
+        addInteract(tvChand, { theme: 'tavern', onClick: () => { tvChandPush += 0.5; } });
 
         // ── VIDEO STORE ──
         // Browse a rack and a box slides out like someone's considering it
@@ -10264,31 +10893,62 @@
                 // ── Tavern: firelit dark, everything breathes with the hearth ──
                 scene.background.setHex(0x0a0604);
                 scene.fog.color.setHex(0x0e0805);
-                scene.fog.density = 0.045;
+                scene.fog.density = 0.05;
 
                 const hearth = params.lampBrightness;
                 const flick2 = Math.sin(t * 11) * 0.16 + Math.sin(t * 23.7) * 0.10 + Math.sin(t * 5.3) * 0.09;
-                hemiLight.intensity = (0.55 + hearth * 0.5) * b;
-                hemiLight.color.setHex(0x8a5a34);
-                hemiLight.groundColor.setHex(0x241408);
-                fillLight.intensity = 0.28 * b;
+                hemiLight.intensity = (1.5 + hearth * 0.75) * b;
+                hemiLight.color.setHex(0x9a6a3e);
+                hemiLight.groundColor.setHex(0x2c1a0a);
+                fillLight.intensity = 0.7 * b;
                 fillLight.color.setHex(0xb06a30);
+                for (const s of tvSconces) s.intensity = (0.95 + hearth * 0.45) * b;
                 hearthLight.intensity = Math.max(0.1, (1.7 + flick2) * hearth * 2.6) * b;
+                hearthLight2.intensity = Math.max(0.05, (0.8 + flick2 * 1.4) * hearth * 1.8) * b;
 
-                // flames lick and sway
+                // flames lick and sway; logs shift and pop under them
                 for (let i = 0; i < tvFlames.length; i++) {
                     const f2 = tvFlames[i];
-                    const s4 = hearth < 0.05 ? 0.02 : 0.6 + Math.sin(t * 9.5 + i * 2.1) * 0.2 + hearth * 0.35;
+                    const s4 = hearth < 0.05 ? 0.02 : 0.55 + Math.sin(t * 9.5 + i * 2.1) * 0.22 + hearth * 0.32;
                     f2.scale.set(s4, s4 * (1 + Math.sin(t * 13 + i) * 0.15), s4);
-                    f2.position.y = f2.userData.baseY + f2.scale.y * 0.14;
+                    f2.position.y = f2.userData.baseY + f2.scale.y * 0.16;
                     f2.rotation.y = t * (1.1 + i * 0.4);
                     f2.material.opacity = hearth < 0.05 ? 0.05 : 0.65 + Math.sin(t * 17 + i) * 0.2;
                 }
-                // candles gutter independently of the fire
+                for (let i = 0; i < tvLogs.length; i++) {
+                    tvLogs[i].position.y += Math.sin(t * 0.7 + i) * 0.0002;
+                }
+                // embers ride the draught up the flue and wink out
+                const eb = tvEmbGeo.attributes.position.array;
+                for (let i = 0; i < TV_EMB; i++) {
+                    const seed = tvEmbSeed[i * 3], ox = tvEmbSeed[i * 3 + 1], oz = tvEmbSeed[i * 3 + 2];
+                    const ph = (seed + t * (0.12 + hearth * 0.08)) % 1;
+                    eb[i * 3]     = FPX2 + ox + Math.sin(t * 0.9 + i) * 0.08;
+                    eb[i * 3 + 1] = 0.4 + ph * 2.5;
+                    eb[i * 3 + 2] = FPZ2 + 0.32 + oz + Math.cos(t * 0.8 + i) * 0.06;
+                }
+                tvEmbGeo.attributes.position.needsUpdate = true;
+                tvEmbMat.opacity = Math.min(0.95, hearth * 0.9) * (0.6 + Math.sin(t * 6) * 0.2);
+                // the copper kettle sways very slightly on its crane
+                tvKettle.rotation.z = Math.sin(t * 0.6) * 0.03;
+
+                // candles gutter independently of the fire; the doorway lantern flickers slower
                 for (const c2 of candleLights) {
                     const g3 = 0.75 + Math.sin(t * 13 + c2.ph) * 0.15 + Math.sin(t * 31 + c2.ph * 2) * 0.08;
-                    c2.l.intensity = 0.5 * g3 * b;
-                    c2.f.material.emissiveIntensity = 1.6 + g3;
+                    if (c2.lantern) {
+                        c2.l.intensity = 0.7 + Math.sin(t * 3 + c2.ph) * 0.1 + Math.sin(t * 7.3 + c2.ph) * 0.06;
+                        c2.f.material.emissiveIntensity = 0.8 + Math.sin(t * 3 + c2.ph) * 0.15;
+                    } else {
+                        c2.l.intensity = 0.5 * g3 * b;
+                        c2.f.material.emissiveIntensity = 1.6 + g3;
+                    }
+                }
+                // the chandelier settles after a push, candlelight swaying with it
+                if (Math.abs(tvChandPush) > 0.001) {
+                    tvChand.rotation.z = tvChandPush * Math.sin(t * 2.4);
+                    tvChandPush *= Math.pow(0.22, dt);
+                } else {
+                    tvChand.rotation.z = 0;
                 }
 
                 // the cauldron simmers: brew pulses, bubbles climb and pop
@@ -10298,7 +10958,7 @@
                 for (let i = 0; i < BUB_N; i++) {
                     const ph = (bubSeed[i * 3 + 2] + t * 0.5) % 1;
                     bub[i * 3]     = CAX + Math.sin(bubSeed[i * 3] + t * 0.6) * bubSeed[i * 3 + 1];
-                    bub[i * 3 + 1] = 0.62 + ph * 0.16;
+                    bub[i * 3 + 1] = 0.74 + ph * 0.18;
                     bub[i * 3 + 2] = CAZ + Math.cos(bubSeed[i * 3] * 2 + t * 0.5) * bubSeed[i * 3 + 1];
                 }
                 bubPoints.geometry.attributes.position.needsUpdate = true;
@@ -10317,13 +10977,29 @@
                 // the bar cat breathes; one ear twitches now and then
                 catBody.scale.y = 0.62 + Math.sin(t * 1.6) * 0.025;
                 catHead.position.y = 0.06 + Math.sin(t * 1.6) * 0.004;
-                // rain slides down the pane
+                // rain slides down both panes
                 for (const rs of rainStreaks) {
                     const p3 = (rs.userData.ph + t * rs.userData.sp) % 1;
-                    rs.position.y = 2.18 - p3 * 0.95;
+                    rs.position.y = 2.35 - p3 * 1.1;
                     rs.position.z = rs.userData.z0;
                     rs.material.opacity = 0.15 + (1 - p3) * 0.3;
                 }
+                // pull a tap and the lever dips, then springs back
+                for (const lever of tvTaps) {
+                    const pulled = t < tvTapPullUntil;
+                    lever.rotation.x += ((pulled ? 0.55 : -0.35) - lever.rotation.x) * Math.min(1, dt * (pulled ? 9 : 4));
+                }
+                // motes drift and turn through the firelight
+                const mp = tvMoteGeo.attributes.position.array;
+                for (let i = 0; i < TV_MOTE; i++) {
+                    const s5 = tvMoteSeed[i * 3];
+                    mp[i * 3]     += Math.sin(t * 0.3 + s5) * dt * 0.06;
+                    mp[i * 3 + 1] += dt * 0.03;
+                    mp[i * 3 + 2] += Math.cos(t * 0.25 + s5) * dt * 0.05;
+                    if (mp[i * 3 + 1] > 2.9) mp[i * 3 + 1] = 0.1;
+                }
+                tvMoteGeo.attributes.position.needsUpdate = true;
+                tvMoteMat.opacity = 0.25 + hearth * 0.2;
             } else if (theme === 'video') {
                 // ── Video store: fluorescent Friday night ──
                 scene.background.setHex(0x05060e);
