@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>alandeboer.computer</title>
-    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — eleven worlds to wander, from a neon room to a storm lighthouse to a Mars colony pod. One beagle named Clark.">
+    <meta name="description" content="A tiny 3D universe where Alan is always at his desk — twelve worlds to wander, from a neon room to a storm lighthouse to a beagle pack on the hunt. One house beagle named Clark.">
     <meta name="theme-color" content="#0a0e1e">
     <meta property="og:title" content="alandeboer.computer">
-    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — eleven worlds to wander, one beagle named Clark.">
+    <meta property="og:description" content="A tiny 3D universe where Alan is always at his desk — twelve worlds to wander, one house beagle named Clark.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alandeboer.computer/">
     <meta property="og:image" content="https://alandeboer.computer/og.png">
@@ -218,6 +218,7 @@
         .world[data-world="video"]     { --wc: #ffec3d; }
         .world[data-world="tillson"]   { --wc: #ff7418; }
         .world[data-world="recall"]    { --wc: #ff5a3c; }
+        .world[data-world="hunt"]      { --wc: #e8a02a; }
 
         .ctrl-sep {
             height: 1px;
@@ -446,6 +447,7 @@
             <button class="world" data-world="video"><span class="dot"></span>video store</button>
             <button class="world" data-world="tillson"><span class="dot"></span>tillson st</button>
             <button class="world" data-world="recall"><span class="dot"></span>total recall</button>
+            <button class="world" data-world="hunt"><span class="dot"></span>the hunt</button>
         </nav>
         <button id="sound-btn" class="hidden"><span class="dot"></span>sound</button>
         <div id="mobile-bar" class="hidden">
@@ -523,6 +525,9 @@
         const recallGroup = new THREE.Group();
         recallGroup.visible = false;
         scene.add(recallGroup);
+        const huntGroup = new THREE.Group();
+        huntGroup.visible = false;
+        scene.add(huntGroup);
         scene.add(roomGroup);
         scene.add(forestGroup);
         scene.add(northPoleGroup);
@@ -2303,10 +2308,11 @@
                         'video.world': mkFile('Video Store — fluorescent-lit, Friday-night VHS energy.'),
                         'tillson.world': mkFile('Tillson St — Halloween night in Romeo, Michigan.'),
                         'recall.world': mkFile('Total Recall — a Mars colony pod, a Rekall chair, a reactor on the horizon.'),
+                        'hunt.world': mkFile('The Hunt — a pack of beagles working a rabbit trail through the Michigan woods.'),
                     }),
                     projects: mkDir({
                         'alandeboer.computer': mkDir({
-                            'README.md': mkFile('A single-file three.js site with 11 worlds and a beagle named Clark.\nBuilt in the browser, no build step, no backend.'),
+                            'README.md': mkFile('A single-file three.js site with 12 worlds and a beagle named Clark.\nBuilt in the browser, no build step, no backend.'),
                         }),
                     }),
                 }),
@@ -2339,6 +2345,7 @@
             lighthouse: 'lighthouse', apiary: 'apiary', bees: 'apiary', tavern: 'tavern',
             video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson',
             recall: 'recall', totalrecall: 'recall', mars: 'recall', rekall: 'recall',
+            hunt: 'hunt', beagles: 'hunt', rabbits: 'hunt', pack: 'hunt', chase: 'hunt',
         };
         const manPages = {
             ls: 'list directory contents', cd: 'change the working directory',
@@ -2380,7 +2387,7 @@
                     break;
                 case 'worlds':
                     termEcho('room · forest · northpole · spaceship · river', '#79c0ff');
-                    termEcho('lighthouse · apiary · tavern · video · tillson · recall', '#79c0ff');
+                    termEcho('lighthouse · apiary · tavern · video · tillson · recall · hunt', '#79c0ff');
                     termEcho('switch with: theme <name>', '#5a6373');
                     break;
                 case 'theme': {
@@ -8717,6 +8724,767 @@
         const rcBeamHot = new THREE.Color(0xff6a2a), rcBeamCold = new THREE.Color(0x9ad8ff);
         const rcSkyCol = new THREE.Color(), rcBeamCol = new THREE.Color();
 
+        addTarget = huntGroup;
+
+        // ═══════════════════════════════
+        //  THE HUNT — Michigan woods, first light. A pack of beagles works
+        //  a rabbit trail through the brush; two hunters in blaze orange
+        //  walk the line behind them. The desk sits at a tailgate camp.
+        //  Time walks dawn frost into late morning. The lantern is the
+        //  one hanging off the truck.
+        // ═══════════════════════════════
+
+        // Soft radial-gradient point-sprite, used for mist/steam/leaf particles below
+        const htDotCv = mkCanvas(64, 64);
+        {
+            const g = htDotCv.getContext('2d');
+            const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+            rg.addColorStop(0, 'rgba(255,255,255,1)');
+            rg.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+            rg.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+        }
+        const htDotTex = new THREE.CanvasTexture(htDotCv);
+
+        const HT_CLEAR = 6.4;
+        const htInClearing = (x, z) => Math.hypot(x, z) < HT_CLEAR;
+
+        // ── Autumn floor: olive duff, dirt patches, leaf flecks ──
+        const htgCv = mkCanvas(512, 512), htg = htgCv.getContext('2d');
+        htg.fillStyle = '#3a4a28'; htg.fillRect(0, 0, 512, 512);
+        ['#324222', '#44582e', '#2c3a1c', '#4a3a22', '#3e4e2a'].forEach((c2, i) => {
+            htg.fillStyle = c2;
+            for (let n = 0; n < 280; n++) {
+                htg.globalAlpha = 0.28 + Math.random() * 0.4;
+                htg.fillRect(Math.random() * 512, Math.random() * 512, 4 + Math.random() * 18, 3 + Math.random() * 12);
+            }
+        });
+        htg.globalAlpha = 1;
+        for (let i = 0; i < 90; i++) {
+            htg.fillStyle = `rgba(90,68,36,${0.18 + Math.random() * 0.28})`;
+            htg.beginPath();
+            htg.ellipse(Math.random() * 512, Math.random() * 512, 18 + Math.random() * 40, 10 + Math.random() * 22, Math.random() * 4, 0, Math.PI * 2);
+            htg.fill();
+        }
+        for (let i = 0; i < 1400; i++) {
+            htg.fillStyle = ['#b45a1c', '#c87820', '#8a3a14', '#d4a032', '#6a4a1c'][(Math.random() * 5) | 0];
+            htg.globalAlpha = 0.35 + Math.random() * 0.45;
+            htg.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1 + Math.random() * 2);
+        }
+        htg.globalAlpha = 1;
+        const htgTex = asTex(htgCv, 8, 8);
+        const htGround = new THREE.Mesh(new THREE.PlaneGeometry(84, 84),
+            new THREE.MeshStandardMaterial({ map: htgTex, roughness: 1 }));
+        htGround.rotation.x = -Math.PI / 2;
+        htGround.receiveShadow = true;
+        addTarget.add(htGround);
+
+        // ── The line the pack works: a long closed loop well outside camp ──
+        const HT_PATH = [
+            [ 8.6,  3.4], [ 14.2,  1.2], [ 19.0, -4.2], [ 18.4, -11.2],
+            [ 13.0, -17.0], [ 5.4, -19.2], [ -3.8, -18.0], [-11.6, -14.4],
+            [-17.8, -8.2], [-19.4,  0.6], [-16.4,  8.8], [ -9.6, 15.4],
+            [  0.4, 18.2], [  8.4, 15.2], [ 13.6,  9.2],
+        ];
+        const htCurve = new THREE.CatmullRomCurve3(
+            HT_PATH.map(p => new THREE.Vector3(p[0], 0, p[1])), true, 'catmullrom', 0.35);
+        const htPathLen = htCurve.getLength();
+        const htDirtMat = new THREE.MeshStandardMaterial({ color: 0x6a5330, roughness: 0.96 });
+        const htPathN = 90;
+        for (let i = 0; i < htPathN; i++) {
+            const u = i / htPathN;
+            const p = htCurve.getPointAt(u);
+            const tg = htCurve.getTangentAt(u);
+            const patch = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 1.05), htDirtMat);
+            patch.rotation.x = -Math.PI / 2;
+            patch.rotation.z = Math.atan2(tg.x, tg.z);
+            patch.position.set(p.x, 0.014, p.z);
+            patch.receiveShadow = true;
+            addTarget.add(patch);
+        }
+
+        const htPathDist = (x, z) => {
+            let best = 99;
+            for (let i = 0; i < 36; i++) {
+                const p = htCurve.getPointAt(i / 36);
+                const d = Math.hypot(p.x - x, p.z - z);
+                if (d < best) best = d;
+            }
+            return best;
+        };
+
+        // ── Bark + canopy + rock textures for the tree kit ──
+        const htBarkCv = mkCanvas(256, 256), htBark2Cv = mkCanvas(256, 256);
+        [[htBarkCv, '#382a1c', '#1c130b', '#5a4a30'], [htBark2Cv, '#463420', '#241a10', '#6a5636']].forEach(([cv2, base, dk, lt]) => {
+            const g2 = cv2.getContext('2d');
+            g2.fillStyle = base; g2.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 50; i++) {
+                let x = Math.random() * 256;
+                g2.strokeStyle = Math.random() < 0.6 ? dk : lt;
+                g2.globalAlpha = 0.22 + Math.random() * 0.4;
+                g2.lineWidth = 2.5 + Math.random() * 8;
+                g2.beginPath();
+                for (let y = -12; y <= 268; y += 13) {
+                    x += (Math.random() - 0.5) * 7;
+                    y === -12 ? g2.moveTo(x, y) : g2.lineTo(x, y);
+                }
+                g2.stroke();
+            }
+            g2.globalAlpha = 1;
+            speckle(g2, 256, 256, 1100, 0.16, lt, dk);
+            for (let i = 0; i < 5; i++) {
+                const mx = Math.random() * 256, my = Math.random() * 256, mr = 6 + Math.random() * 15;
+                const gr = g2.createRadialGradient(mx, my, 0, mx, my, mr);
+                gr.addColorStop(0, 'rgba(148,168,116,0.4)'); gr.addColorStop(1, 'rgba(148,168,116,0)');
+                g2.fillStyle = gr; g2.fillRect(mx - mr, my - mr, mr * 2, mr * 2);
+            }
+        });
+        const htBarkTex = asTex(htBarkCv, 1, 3);
+        const htBark2Tex = asTex(htBark2Cv, 1, 3);
+        const htCanopyCv = mkCanvas(256, 256), htcp = htCanopyCv.getContext('2d');
+        htcp.fillStyle = '#ffffff'; htcp.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 280; i++) {
+            htcp.globalAlpha = 0.12 + Math.random() * 0.32;
+            htcp.fillStyle = Math.random() < 0.5 ? '#000000' : '#ffffff';
+            htcp.beginPath();
+            htcp.ellipse(Math.random() * 256, Math.random() * 256, 3 + Math.random() * 9, 2 + Math.random() * 6, Math.random() * Math.PI, 0, Math.PI * 2);
+            htcp.fill();
+        }
+        htcp.globalAlpha = 1;
+        const htCanopyTex = asTex(htCanopyCv, 1, 1);
+        const htRockCv = mkCanvas(256, 256), htrk = htRockCv.getContext('2d');
+        htrk.fillStyle = '#6c6c66'; htrk.fillRect(0, 0, 256, 256);
+        speckle(htrk, 256, 256, 2200, 0.22, '#8c8c84', '#3c3c38');
+        for (let i = 0; i < 34; i++) {
+            htrk.strokeStyle = 'rgba(28,28,26,0.32)'; htrk.lineWidth = 1 + Math.random() * 2.2;
+            htrk.beginPath();
+            htrk.moveTo(Math.random() * 256, Math.random() * 256);
+            htrk.lineTo(Math.random() * 256, Math.random() * 256);
+            htrk.stroke();
+        }
+        const htRockTex = asTex(htRockCv, 1, 1);
+        const htRockMat = new THREE.MeshStandardMaterial({ map: htRockTex, roughness: 0.96 });
+
+        // ── Shared tree kit: pines + rusty oaks, lots of them ──
+        const htTrunkMat = new THREE.MeshStandardMaterial({ map: htBarkTex, roughness: 0.96 });
+        const htOakTrunkMat = new THREE.MeshStandardMaterial({ map: htBark2Tex, roughness: 0.94 });
+        const htPineMats = [0x2e4626, 0x365234, 0x243c22].map(c =>
+            new THREE.MeshStandardMaterial({ color: c, map: htCanopyTex, roughness: 0.92 }));
+        const htOakMats = [0xb45a1c, 0xc87824, 0x8a3a14, 0xd49828].map(c =>
+            new THREE.MeshStandardMaterial({ color: c, map: htCanopyTex, roughness: 0.9 }));
+        const htTrunkGeo = new THREE.CylinderGeometry(0.07, 0.11, 1, 6);
+        const htConeGeos = [
+            new THREE.ConeGeometry(0.64, 0.95, 7),
+            new THREE.ConeGeometry(0.48, 0.82, 7),
+            new THREE.ConeGeometry(0.30, 0.70, 7),
+        ];
+        const htOakCanopyGeo = new THREE.IcosahedronGeometry(0.55, 0);
+        const htPine = (x, z, s) => {
+            const tr = new THREE.Mesh(htTrunkGeo, htTrunkMat);
+            tr.position.set(x, 0.5 * s, z);
+            tr.scale.set(s, s, s);
+            tr.castShadow = tr.receiveShadow = true;
+            addTarget.add(tr);
+            const mat = htPineMats[(Math.random() * htPineMats.length) | 0];
+            [[0.95, 1.05], [0.82, 1.72], [0.70, 2.28]].forEach(([sc, y], i) => {
+                const c = new THREE.Mesh(htConeGeos[i], mat);
+                c.position.set(x, y * s, z);
+                c.scale.setScalar(s);
+                c.castShadow = c.receiveShadow = true;
+                addTarget.add(c);
+            });
+        };
+        const htOak = (x, z, s) => {
+            const tr = new THREE.Mesh(htTrunkGeo, htOakTrunkMat);
+            tr.position.set(x, 0.55 * s, z);
+            tr.scale.set(s * 0.85, s * 1.15, s * 0.85);
+            tr.castShadow = true;
+            addTarget.add(tr);
+            for (let k = 0; k < 4; k++) {
+                const c = new THREE.Mesh(htOakCanopyGeo, htOakMats[(Math.random() * htOakMats.length) | 0]);
+                c.position.set(x + (Math.random() - 0.5) * 0.55 * s, (1.35 + Math.random() * 0.55) * s, z + (Math.random() - 0.5) * 0.55 * s);
+                c.scale.set(s * (0.7 + Math.random() * 0.5), s * (0.55 + Math.random() * 0.35), s * (0.7 + Math.random() * 0.5));
+                c.castShadow = c.receiveShadow = true;
+                addTarget.add(c);
+            }
+        };
+        const htPlaceTree = (x, z, pine) => {
+            if (htInClearing(x, z) || htPathDist(x, z) < 1.55) return false;
+            const s = 0.85 + Math.random() * 1.35;
+            pine ? htPine(x, z, s) : htOak(x, z, s);
+            return true;
+        };
+        // Inner woods
+        let htTrees = 0, htGuard = 0;
+        while (htTrees < 58 && htGuard < 400) {
+            htGuard++;
+            const a = Math.random() * Math.PI * 2;
+            const r = 7.2 + Math.random() * 22;
+            if (htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, Math.random() < 0.55)) htTrees++;
+        }
+        // Horizon belt — closes the woods so the floor doesn't just end
+        for (let i = 0; i < 42; i++) {
+            const a = (i / 42) * Math.PI * 2 + Math.random() * 0.12;
+            const r = 32 + Math.random() * 6;
+            htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, Math.random() < 0.7);
+        }
+
+        // ── Thickets the pack crashes through ──
+        const htBushMat = [lm(0x2a4018), lm(0x3a4e20), lm(0x243818), lm(0x4a3a16)];
+        const htBushGeo = new THREE.IcosahedronGeometry(0.22, 0);
+        const htBushes = [];
+        for (let i = 0; i < 48; i++) {
+            const u = (i + Math.random() * 0.6) / 48;
+            const p = htCurve.getPointAt(u);
+            const tg = htCurve.getTangentAt(u);
+            const side = i % 2 ? 1 : -1;
+            const off = 1.55 + Math.random() * 1.4;
+            const bx = p.x + (-tg.z) * side * off, bz = p.z + tg.x * side * off;
+            if (htInClearing(bx, bz)) continue;
+            const bush = new THREE.Mesh(htBushGeo, htBushMat[(Math.random() * htBushMat.length) | 0]);
+            const s = 0.7 + Math.random() * 0.9;
+            bush.position.set(bx, 0.16 * s, bz);
+            bush.scale.set(s * (0.9 + Math.random() * 0.4), s * 0.65, s * (0.9 + Math.random() * 0.4));
+            bush.castShadow = bush.receiveShadow = true;
+            addTarget.add(bush);
+            htBushes.push({ m: bush, x: bx, z: bz, s });
+        }
+        // Extra brush in the mid-woods
+        for (let i = 0; i < 22; i++) {
+            const a = Math.random() * Math.PI * 2, r = 8 + Math.random() * 16;
+            const bx = Math.sin(a) * r, bz = Math.cos(a) * r;
+            if (htInClearing(bx, bz) || htPathDist(bx, bz) < 1.1) continue;
+            const bush = new THREE.Mesh(htBushGeo, htBushMat[(Math.random() * htBushMat.length) | 0]);
+            const s = 0.6 + Math.random() * 0.8;
+            bush.position.set(bx, 0.15 * s, bz);
+            bush.scale.set(s, s * 0.6, s);
+            bush.castShadow = true;
+            addTarget.add(bush);
+            htBushes.push({ m: bush, x: bx, z: bz, s });
+        }
+
+        // ── Stumps, rocks, a couple of fallen oaks ──
+        for (let i = 0; i < 9; i++) {
+            const a = Math.random() * Math.PI * 2, r = 7.5 + Math.random() * 14;
+            const x = Math.sin(a) * r, z = Math.cos(a) * r;
+            if (htInClearing(x, z) || htPathDist(x, z) < 1.2) continue;
+            const s = 0.12 + Math.random() * 0.22;
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), htRockMat);
+            rock.position.set(x, s * 0.5, z);
+            rock.rotation.set(Math.random(), Math.random(), Math.random());
+            rock.castShadow = rock.receiveShadow = true;
+            addTarget.add(rock);
+        }
+        [[11.2, -6.4, 1.1], [-13.5, 5.8, 0.7]].forEach(([lx, lz, ly]) => {
+            const log = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 2.4, 8), htOakTrunkMat);
+            log.rotation.z = Math.PI / 2; log.rotation.y = ly;
+            log.position.set(lx, 0.14, lz);
+            log.castShadow = log.receiveShadow = true;
+            addTarget.add(log);
+            // a shelf fungus or two on the bark
+            for (let f = 0; f < 2; f++) {
+                const fung = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.02, 8, 1, false, 0, Math.PI),
+                    lm(0xc8a868, 0, 0, 0.85));
+                fung.rotation.x = Math.PI / 2;
+                fung.rotation.z = Math.random() * Math.PI * 2;
+                fung.position.set(lx + (Math.random() - 0.5) * 0.8, 0.17, lz + (Math.random() - 0.5) * 0.15);
+                fung.castShadow = true;
+                addTarget.add(fung);
+            }
+        });
+
+        // Grass tufts in the clearing
+        for (let i = 0; i < 40; i++) {
+            const a = Math.random() * Math.PI * 2, r = 1.1 + Math.random() * 5.0;
+            box(0.018, 0.06 + Math.random() * 0.07, 0.018, htPineMats[(Math.random() * 3) | 0],
+                Math.sin(a) * r, 0.04, Math.cos(a) * r, (Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5);
+        }
+
+        // ── Fallen-leaf litter: flat cutout quads scattered near camp for foreground depth ──
+        const htLeafCutCv = mkCanvas(64, 64), hlc = htLeafCutCv.getContext('2d');
+        hlc.clearRect(0, 0, 64, 64);
+        hlc.fillStyle = '#c8801c';
+        hlc.beginPath();
+        hlc.moveTo(32, 4); hlc.bezierCurveTo(58, 14, 58, 48, 32, 60);
+        hlc.bezierCurveTo(6, 48, 6, 14, 32, 4);
+        hlc.fill();
+        hlc.strokeStyle = 'rgba(90,50,10,0.5)'; hlc.lineWidth = 1.4;
+        hlc.beginPath(); hlc.moveTo(32, 8); hlc.lineTo(32, 56); hlc.stroke();
+        for (let v = 1; v < 6; v++) {
+            hlc.beginPath();
+            hlc.moveTo(32, 10 + v * 7);
+            hlc.lineTo(32 + 12 - v, 16 + v * 7);
+            hlc.moveTo(32, 10 + v * 7);
+            hlc.lineTo(32 - 12 + v, 16 + v * 7);
+            hlc.stroke();
+        }
+        const htLeafCutTex = new THREE.CanvasTexture(htLeafCutCv);
+        htLeafCutTex.colorSpace = THREE.SRGBColorSpace;
+        const htLitterCols = [0xc8801c, 0xa85a18, 0xd4a028, 0x8a4a14, 0x6a3a12];
+        const htLitterMats = htLitterCols.map(c => new THREE.MeshStandardMaterial({
+            map: htLeafCutTex, color: c, roughness: 0.95, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
+        }));
+        for (let i = 0; i < 70; i++) {
+            const a = Math.random() * Math.PI * 2, r = 1.4 + Math.random() * 16;
+            const lx = Math.sin(a) * r, lz = Math.cos(a) * r;
+            if (htPathDist(lx, lz) < 0.5) continue;
+            const s = 0.09 + Math.random() * 0.1;
+            const leaf = new THREE.Mesh(new THREE.PlaneGeometry(s, s), htLitterMats[(Math.random() * htLitterMats.length) | 0]);
+            leaf.rotation.x = -Math.PI / 2;
+            leaf.rotation.z = Math.random() * Math.PI * 2;
+            leaf.position.set(lx, 0.012, lz);
+            leaf.receiveShadow = true;
+            addTarget.add(leaf);
+        }
+
+        // ── Split-rail fence on the far side of camp ──
+        const htFenceWood = woodTex('#6a5638', '#4e3e26', '#2a2012', 1);
+        const htRailMat = new THREE.MeshStandardMaterial({
+            map: asTex(htFenceWood.map, 1, 1), bumpMap: asTex(htFenceWood.bump, 1, 1, false),
+            bumpScale: 0.5, roughness: 0.95,
+        });
+        for (let i = 0; i < 7; i++) {
+            const fx = -4.6 + i * 1.45;
+            box(0.07, 0.78, 0.07, htRailMat, fx, 0.39, -5.15);
+            if (i < 6) {
+                box(1.5, 0.045, 0.05, htRailMat, fx + 0.72, 0.58, -5.15, 0, 0, 0.08);
+                box(1.5, 0.045, 0.05, htRailMat, fx + 0.72, 0.32, -5.15, 0, 0, -0.06);
+            }
+        }
+
+        // ── Tailgate camp: faded green pickup, lantern, Clark's plaid ──
+        const htTruck = new THREE.Group();
+        htTruck.position.set(-3.85, 0, 2.85);
+        htTruck.rotation.y = 0.62;
+        addTarget.add(htTruck);
+        const htAdd = (parent, w, h, d, mat, x, y, z, rx = 0, ry = 0) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, y, z); m.rotation.set(rx, ry, 0);
+            m.castShadow = m.receiveShadow = true;
+            parent.add(m);
+            return m;
+        };
+        // Faded, freckled paint: base coat + rust speckle + drip streaks along the rocker panels
+        const mkHtPaintTex = (base, dark) => {
+            const cv2 = mkCanvas(256, 256), g2 = cv2.getContext('2d');
+            g2.fillStyle = base; g2.fillRect(0, 0, 256, 256);
+            speckle(g2, 256, 256, 1000, 0.12, dark, base);
+            for (let i = 0; i < 70; i++) {
+                const rx = Math.random() * 256, ry = Math.random() * 256, rr = 1 + Math.random() * 3;
+                g2.fillStyle = `rgba(${150 + ((Math.random() * 40) | 0)},${74 + ((Math.random() * 26) | 0)},${20 + ((Math.random() * 14) | 0)},${0.22 + Math.random() * 0.32})`;
+                g2.beginPath(); g2.arc(rx, ry, rr, 0, Math.PI * 2); g2.fill();
+            }
+            for (let i = 0; i < 12; i++) {
+                const rx = Math.random() * 256, ry = 190 + Math.random() * 40;
+                g2.strokeStyle = 'rgba(130,64,20,0.28)'; g2.lineWidth = 1 + Math.random() * 2;
+                g2.beginPath(); g2.moveTo(rx, ry); g2.lineTo(rx + (Math.random() - 0.5) * 8, ry + 22 + Math.random() * 34); g2.stroke();
+            }
+            return asTex(cv2, 1, 1);
+        };
+        const htPaint = new THREE.MeshStandardMaterial({ map: mkHtPaintTex('#3c4c2a', '#28341c'), roughness: 0.68, metalness: 0.18 });
+        const htPaintDk = new THREE.MeshStandardMaterial({ map: mkHtPaintTex('#2a361c', '#1a2412'), roughness: 0.75, metalness: 0.1 });
+        const htChrome = lm(0x9aa0a4, 0, 0, 0.35, 0.85);
+        const htRubber = lm(0x1a1a1c, 0, 0, 0.9);
+        htAdd(htTruck, 1.55, 0.12, 0.72, htPaintDk, 0.05, 0.42, 0);          // frame
+        htAdd(htTruck, 0.85, 0.38, 0.78, htPaint, -0.42, 0.68, 0);           // cab
+        htAdd(htTruck, 0.78, 0.28, 0.74, lm(0x1a2830, 0x223040, 0.25, 0.35), -0.40, 0.92, 0); // glass
+        htAdd(htTruck, 1.05, 0.32, 0.76, htPaint, 0.52, 0.62, 0);            // bed walls
+        htAdd(htTruck, 0.92, 0.04, 0.68, htPaintDk, 0.52, 0.48, 0);          // bed floor
+        const htGate = htAdd(htTruck, 0.04, 0.28, 0.72, htPaint, 1.06, 0.42, 0, 0, 0);
+        htGate.rotation.z = 1.15; htGate.position.set(1.18, 0.28, 0);         // tailgate down
+        htAdd(htTruck, 0.22, 0.10, 0.78, htPaint, -0.92, 0.58, 0);            // nose
+        [[-0.55, -0.42], [-0.55, 0.42], [0.62, -0.42], [0.62, 0.42]].forEach(([wx, wz]) => {
+            const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.12, 10), htRubber);
+            wh.rotation.z = Math.PI / 2;
+            wh.position.set(wx, 0.18, wz);
+            wh.castShadow = true;
+            htTruck.add(wh);
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.13, 8), htChrome);
+            hub.rotation.z = Math.PI / 2;
+            hub.position.set(wx, 0.18, wz);
+            htTruck.add(hub);
+        });
+        // ── A pair of wooden dog boxes strapped in the bed — the pack rides in these ──
+        const htBoxWood = woodTex('#8a6a3c', '#6a4e28', '#3a2814', 1);
+        const htDogBoxMat = new THREE.MeshStandardMaterial({
+            map: asTex(htBoxWood.map, 1, 1), bumpMap: asTex(htBoxWood.bump, 1, 1, false), bumpScale: 0.35, roughness: 0.88,
+        });
+        const htWireMat = lm(0x2a2a28, 0, 0, 0.5, 0.55);
+        const htStrawMat = lm(0xd8c068, 0, 0, 0.95);
+        const mkDogBox = (dz) => {
+            const bx = new THREE.Group();
+            bx.position.set(0.60, 0.50, dz);
+            htTruck.add(bx);
+            htAdd(bx, 0.32, 0.28, 0.30, htDogBoxMat, 0, 0.14, 0);          // body
+            htAdd(bx, 0.34, 0.03, 0.32, htDogBoxMat, 0, 0.295, 0);         // lid
+            htAdd(bx, 0.02, 0.22, 0.22, htWireMat, 0.17, 0.14, 0);         // wire door
+            htAdd(bx, 0.021, 0.045, 0.20, htStrawMat, 0.171, 0.045, 0);    // straw at the door base
+            for (let h = 0; h < 3; h++) htAdd(bx, 0.32, 0.016, 0.016, lm(0x1a140a), 0, 0.09 + h * 0.06, -0.151);
+            return bx;
+        };
+        mkDogBox(-0.19); mkDogBox(0.19);
+        // ratchet straps holding the boxes down
+        [-0.19, 0.19].forEach(dz => {
+            htAdd(htTruck, 0.03, 0.02, 0.36, lm(0xd4a028, 0, 0, 0.7), 0.60, 0.66, dz, 0, 0);
+        });
+
+        // headlights + a blaze-orange cap on the dash
+        htAdd(htTruck, 0.06, 0.06, 0.10, lm(0xeee8c8, 0xffe8a0, 0.55), -0.98, 0.58, 0.26);
+        htAdd(htTruck, 0.06, 0.06, 0.10, lm(0xeee8c8, 0xffe8a0, 0.55), -0.98, 0.58, -0.26);
+        htAdd(htTruck, 0.10, 0.05, 0.10, lm(0xff6a12), -0.55, 0.90, 0.12);
+        htAdd(htTruck, 0.07, 0.06, 0.07, lm(0xff6a12), -0.55, 0.95, 0.12);
+        // cooler + thermos + percolator on the open tailgate
+        htAdd(htTruck, 0.22, 0.16, 0.28, lm(0xc8c0a4), 0.95, 0.58, -0.12);
+        const htThermos = htAdd(htTruck, 0.07, 0.16, 0.07, lm(0x6a2020), 1.08, 0.60, 0.18);
+        htAdd(htTruck, 0.05, 0.03, 0.05, lm(0xc8c0b0), 1.08, 0.69, 0.18);
+        htAdd(htTruck, 0.09, 0.13, 0.09, lm(0x9a9a96, 0, 0, 0.35, 0.75), 0.85, 0.585, -0.30);
+        htAdd(htTruck, 0.03, 0.06, 0.03, lm(0x2a2a28), 0.85, 0.685, -0.30);
+
+        // a padded gun case leaning against the tailgate
+        const htCase = htAdd(htTruck, 0.15, 0.86, 0.07, lm(0x2a3822, 0, 0, 0.85), 1.24, 0.45, -0.32);
+        htCase.rotation.z = 0.15;
+        htAdd(htTruck, 0.15, 0.04, 0.07, lm(0x18201a), 1.235, 0.02, -0.30, 0, 0);
+        for (const zip of [0.08, -0.08]) htAdd(htTruck, 0.15, 0.012, 0.008, lm(0x605840, 0, 0, 0.6), 1.24, 0.45 + zip * 4, -0.32);
+        // lantern hanging off the mirror / A-pillar
+        const htLantern = new THREE.Group();
+        htLantern.position.set(-0.72, 1.12, 0.42);
+        htTruck.add(htLantern);
+        htAdd(htLantern, 0.07, 0.10, 0.07, lm(0xc8a040, 0xffaa33, 0.7, 0.4, 0.4), 0, 0, 0);
+        htAdd(htLantern, 0.08, 0.02, 0.08, lm(0x2a2a28), 0, 0.06, 0);
+        const htLanternLight = new THREE.PointLight(0xffaa55, 0, 7, 1.6);
+        htLanternLight.position.set(0, 0, 0);
+        htLantern.add(htLanternLight);
+        // steam off the thermos
+        const HT_STEAM_N = 18;
+        const htSteamPos = new Float32Array(HT_STEAM_N * 3);
+        const htSteamSeed = [];
+        for (let i = 0; i < HT_STEAM_N; i++) htSteamSeed.push(Math.random());
+        const htSteamGeo = new THREE.BufferGeometry();
+        htSteamGeo.setAttribute('position', new THREE.BufferAttribute(htSteamPos, 3));
+        const htSteamMat = new THREE.PointsMaterial({
+            color: 0xe8e0d4, map: htDotTex, size: 0.06, transparent: true, opacity: 0.35, depthWrite: false, sizeAttenuation: true,
+        });
+        const htSteam = new THREE.Points(htSteamGeo, htSteamMat);
+        addTarget.add(htSteam);
+        const htThermosWorld = new THREE.Vector3();
+
+        // ── Folding camp chair by the fence, waiting on the hunters ──
+        const htChair = new THREE.Group();
+        htChair.position.set(-2.55, 0, 3.55);
+        htChair.rotation.y = -0.4;
+        addTarget.add(htChair);
+        const htChAdd = (w, h, d, mat, x, y, z, rx = 0, rz = 0) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            m.position.set(x, y, z); m.rotation.set(rx, 0, rz);
+            m.castShadow = m.receiveShadow = true;
+            htChair.add(m);
+            return m;
+        };
+        const htChairFrame = lm(0x3a3226, 0, 0, 0.55, 0.35);
+        const htChairFab = lm(0x7a2420, 0, 0, 0.88);
+        [[-0.18, -0.14, 0.15], [0.18, -0.14, -0.15], [-0.18, 0.14, 0.15], [0.18, 0.14, -0.15]].forEach(([lx, lz, rz]) => {
+            htChAdd(0.028, 0.52, 0.028, htChairFrame, lx, 0.26, lz, 0, rz);
+        });
+        htChAdd(0.42, 0.02, 0.32, htChairFab, 0, 0.46, 0);
+        htChAdd(0.42, 0.46, 0.02, htChairFab, 0, 0.70, -0.16, 0.14);
+        htChAdd(0.44, 0.03, 0.03, htChairFrame, 0, 0.20, 0);
+        htChAdd(0.44, 0.03, 0.03, htChairFrame, 0, 0.20, 0.16);
+
+        // Clark's buffalo-plaid blanket (same BEDX/BEDZ so the nap still works)
+        const htPlaidCv = mkCanvas(128, 128), htp = htPlaidCv.getContext('2d');
+        htp.fillStyle = '#6a1414'; htp.fillRect(0, 0, 128, 128);
+        htp.fillStyle = '#1a1a1c';
+        for (let i = 0; i < 128; i += 16) { htp.fillRect(i, 0, 6, 128); htp.fillRect(0, i, 128, 6); }
+        htp.fillStyle = '#c8c8c4';
+        for (let i = 0; i < 128; i += 16) { htp.fillRect(i + 5, 0, 1, 128); htp.fillRect(0, i + 5, 128, 1); }
+        const htPlaid = asTex(htPlaidCv, 2, 2);
+        const htBlanket = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 0.58),
+            new THREE.MeshStandardMaterial({ map: htPlaid, roughness: 0.92 }));
+        htBlanket.position.set(BEDX, 0.018, BEDZ);
+        htBlanket.rotation.y = 0.2;
+        htBlanket.receiveShadow = true;
+        addTarget.add(htBlanket);
+
+        // ── Pack beagles ──
+        const htDogWhite = lm(0xefe8da, 0, 0, 0.92);
+        const htDogTan   = lm(0xac6c36, 0, 0, 0.92);
+        const htDogTanLt = lm(0xc08a52, 0, 0, 0.92);
+        const htDogBlack = lm(0x221610, 0, 0, 0.9);
+        const htDogNose  = lm(0x131110, 0, 0, 0.55);
+        const htD = {
+            chest: new THREE.BoxGeometry(0.19, 0.175, 0.21),
+            rump:  new THREE.BoxGeometry(0.175, 0.155, 0.19),
+            flank: new THREE.BoxGeometry(0.20, 0.042, 0.27),
+            saddle:new THREE.BoxGeometry(0.196, 0.075, 0.245),
+            blaze: new THREE.BoxGeometry(0.14, 0.05, 0.05),
+            neck:  new THREE.BoxGeometry(0.125, 0.095, 0.10),
+            skull: new THREE.BoxGeometry(0.145, 0.135, 0.15),
+            face:  new THREE.BoxGeometry(0.046, 0.137, 0.152),
+            muzzle:new THREE.BoxGeometry(0.082, 0.068, 0.115),
+            jaw:   new THREE.BoxGeometry(0.06, 0.026, 0.08),
+            nose:  new THREE.BoxGeometry(0.04, 0.03, 0.028),
+            eye:   new THREE.BoxGeometry(0.021, 0.026, 0.012),
+            ear:   new THREE.BoxGeometry(0.034, 0.15, 0.072),
+            tBase: new THREE.BoxGeometry(0.03, 0.03, 0.085),
+            tMid:  new THREE.BoxGeometry(0.026, 0.026, 0.07),
+            tTip:  new THREE.BoxGeometry(0.032, 0.032, 0.05),
+            thigh: new THREE.BoxGeometry(0.055, 0.095, 0.085),
+            shin:  new THREE.BoxGeometry(0.048, 0.075, 0.052),
+            sock:  new THREE.BoxGeometry(0.04, 0.06, 0.044),
+            paw:   new THREE.BoxGeometry(0.048, 0.028, 0.062),
+            col:   new THREE.BoxGeometry(0.15, 0.036, 0.12),
+        };
+        const htMesh = (parent, geo, mat, x, y, z, rx = 0) => {
+            const m = new THREE.Mesh(geo, mat);
+            m.position.set(x, y, z); m.rotation.x = rx;
+            m.castShadow = m.receiveShadow = true;
+            parent.add(m);
+            return m;
+        };
+        const mkHuntBeagle = (collarHex, scale, lemon) => {
+            const g = new THREE.Group();
+            g.scale.setScalar(scale);
+            const saddleMat = lemon ? htDogTan : htDogBlack;
+            const body = new THREE.Group();
+            g.add(body);
+            htMesh(body, htD.chest, htDogWhite, 0, 0.165, 0.085);
+            htMesh(body, htD.rump,  htDogWhite, 0, 0.175, -0.10);
+            htMesh(body, htD.flank, htDogTan,   0, 0.215, -0.035);
+            htMesh(body, htD.saddle,saddleMat,  0, 0.252, -0.045);
+            htMesh(body, htD.blaze, htDogWhite, 0, 0.13, 0.20);
+            htMesh(body, htD.neck,  htDogTan,   0, 0.235, 0.155);
+            const collar = lm(collarHex, 0, 0, 0.7);
+            htMesh(g, htD.col, collar, 0, 0.203, 0.158);
+            const head = new THREE.Group();
+            head.position.set(0, 0.21, 0.19);
+            g.add(head);
+            htMesh(head, htD.skull, htDogTan,   0, 0.02, 0.03);
+            htMesh(head, htD.face,  htDogWhite, 0, 0.021, 0.032);
+            htMesh(head, htD.muzzle,htDogWhite, 0, -0.025, 0.148);
+            htMesh(head, htD.jaw,   htDogWhite, 0, -0.068, 0.135);
+            htMesh(head, htD.nose,  htDogNose,  0, -0.004, 0.208);
+            htMesh(head, htD.eye,   htDogBlack, -0.044, 0.042, 0.106);
+            htMesh(head, htD.eye,   htDogBlack,  0.044, 0.042, 0.106);
+            const mkEar = side => {
+                const eg = new THREE.Group();
+                eg.position.set(side * 0.083, 0.055, 0.03);
+                head.add(eg);
+                htMesh(eg, htD.ear, htDogTan, 0, -0.075, 0.008, 0.12);
+                return eg;
+            };
+            const earL = mkEar(-1), earR = mkEar(1);
+            const tail = new THREE.Group();
+            tail.position.set(0, 0.245, -0.195);
+            tail.rotation.x = -0.55;
+            g.add(tail);
+            htMesh(tail, htD.tBase, lemon ? htDogTan : htDogBlack, 0, 0, -0.035);
+            htMesh(tail, htD.tMid,  htDogTan,   0, 0, -0.10);
+            htMesh(tail, htD.tTip,  htDogWhite, 0, 0, -0.155);
+            const mkLeg = (x, z, hind) => {
+                const lg = new THREE.Group();
+                lg.position.set(x, 0.115, z);
+                g.add(lg);
+                if (hind) htMesh(lg, htD.thigh, htDogTan, 0, -0.02, -0.008);
+                htMesh(lg, htD.shin, hind ? htDogTan : htDogWhite, 0, -0.038, 0);
+                htMesh(lg, htD.sock, htDogWhite, 0, -0.095, 0);
+                htMesh(lg, htD.paw,  htDogWhite, 0, -0.128, 0.009);
+                return lg;
+            };
+            addTarget.add(g);
+            return {
+                g, body, head, earL, earR, tail,
+                legs: [mkLeg(-0.062, 0.122, false), mkLeg(0.062, 0.122, false),
+                       mkLeg(-0.060, -0.115, true),  mkLeg(0.060, -0.115, true)],
+            };
+        };
+        const HT_COLLARS = [0xc4281c, 0x1c4cc4, 0x2a8a28, 0xe0b018, 0xff6a12, 0x6a28a0, 0xf0ece4];
+        const htPack = HT_COLLARS.map((col, i) => {
+            const dog = mkHuntBeagle(col, 0.90 + (i % 3) * 0.06, i === 2 || i === 5);
+            const u0 = (i * 0.034) % 1;           // staggered along the line
+            return Object.assign(dog, {
+                u: u0,
+                mode: 'running',
+                modeUntil: 2 + i * 1.4,
+                nextSniff: 3 + i * 1.7 + Math.random() * 3,
+                burstUntil: 0,
+                speed: 1.35 + (i % 4) * 0.12,     // m/s along the trail
+                side: (i - 3) * 0.22,             // pack spread off the centerline
+            });
+        });
+
+        // ── Rabbits: freeze, hop, bolt when the pack is on them ──
+        const htRabMats = [lm(0xc8b090, 0, 0, 0.92), lm(0x8a8070, 0, 0, 0.92), lm(0xe8dcc4, 0, 0, 0.92), lm(0x6a5844, 0, 0, 0.92)];
+        const htRabWhite = lm(0xf2ece0, 0, 0, 0.9);
+        const mkRabbit = (mat) => {
+            const g = new THREE.Group();
+            const add = (w, h, d, m, x, y, z, rx = 0) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+                mesh.position.set(x, y, z); mesh.rotation.x = rx;
+                mesh.castShadow = true; g.add(mesh); return mesh;
+            };
+            add(0.09, 0.07, 0.13, mat, 0, 0.07, 0);
+            add(0.07, 0.065, 0.07, mat, 0, 0.10, 0.075);
+            const earL = add(0.018, 0.10, 0.016, mat, -0.018, 0.17, 0.07, 0.15);
+            const earR = add(0.018, 0.10, 0.016, mat,  0.018, 0.17, 0.07, 0.15);
+            add(0.03, 0.03, 0.03, htRabWhite, 0, 0.075, -0.07);
+            add(0.014, 0.014, 0.01, htDogBlack, -0.018, 0.115, 0.108);
+            add(0.014, 0.014, 0.01, htDogBlack,  0.018, 0.115, 0.108);
+            addTarget.add(g);
+            return { g, earL, earR };
+        };
+        const htRabbits = [0, 1, 2, 3].map(i => {
+            const bush = htBushes[(i * 7 + 3) % htBushes.length] || { x: 10, z: -8 };
+            return Object.assign(mkRabbit(htRabMats[i]), {
+                x: bush.x + 0.4, z: bush.z + 0.25,
+                facing: Math.random() * Math.PI * 2,
+                mode: 'freeze',
+                modeUntil: 1.5 + i * 1.2,
+                hopPh: Math.random(),
+                wp: i,
+                boltUntil: 0,
+            });
+        });
+
+        // ── Two hunters, blaze orange, shotguns, walking the line ──
+        const htOrange = lm(0xff6a10);
+        const htOrangeDk = lm(0xd4550c);
+        const htCamo = lm(0x3a3a28);
+        const htSkinH = lm(0xc49a72, 0, 0, 0.65);
+        const htBoot = lm(0x2a2014);
+        const htWoodG = lm(0x5a3a18, 0, 0, 0.7);
+        const htSteel = lm(0x4a4e52, 0, 0, 0.4, 0.8);
+        const mkHunter = (taller) => {
+            const g = new THREE.Group();
+            const sc = taller ? 1.06 : 0.96;
+            g.scale.setScalar(sc);
+            const add = (parent, w, h, d, m, x, y, z, rx = 0, rz = 0) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+                mesh.position.set(x, y, z); mesh.rotation.set(rx, 0, rz);
+                mesh.castShadow = true; parent.add(mesh); return mesh;
+            };
+            const legL = new THREE.Group(); legL.position.set(-0.08, 0.38, 0); g.add(legL);
+            const legR = new THREE.Group(); legR.position.set( 0.08, 0.38, 0); g.add(legR);
+            add(legL, 0.12, 0.40, 0.13, htCamo, 0, -0.18, 0);
+            add(legR, 0.12, 0.40, 0.13, htCamo, 0, -0.18, 0);
+            add(legL, 0.13, 0.08, 0.20, htBoot, 0, -0.40, 0.02);
+            add(legR, 0.13, 0.08, 0.20, htBoot, 0, -0.40, 0.02);
+            add(g, 0.30, 0.22, 0.18, htCamo, 0, 0.68, 0);          // shirt
+            add(g, 0.34, 0.28, 0.22, htOrange, 0, 0.86, 0);        // vest
+            add(g, 0.32, 0.04, 0.08, htOrangeDk, 0, 0.98, 0.08);   // vest stripe
+            const armL = new THREE.Group(); armL.position.set(-0.22, 0.92, 0); g.add(armL);
+            const armR = new THREE.Group(); armR.position.set( 0.22, 0.92, 0); g.add(armR);
+            add(armL, 0.09, 0.32, 0.09, htCamo, 0, -0.14, 0.04, 0.35);
+            add(armR, 0.09, 0.32, 0.09, htCamo, 0, -0.14, 0.02, 0.55);
+            add(armL, 0.07, 0.07, 0.07, htSkinH, 0, -0.30, 0.10);
+            add(armR, 0.07, 0.07, 0.07, htSkinH, 0, -0.28, 0.12);
+            const head = new THREE.Group(); head.position.set(0, 1.12, 0); g.add(head);
+            add(head, 0.16, 0.18, 0.16, htSkinH, 0, 0, 0);
+            add(head, 0.20, 0.07, 0.20, htOrange, 0, 0.12, 0);     // cap
+            add(head, 0.08, 0.025, 0.10, htOrangeDk, 0, 0.09, 0.12); // brim
+            if (!taller) add(head, 0.12, 0.04, 0.06, lm(0x4a3420), 0, -0.06, 0.08); // stubble
+            // shotgun: broken-down carry, barrel up and across the body
+            const gun = new THREE.Group();
+            gun.position.set(0.10, 0.72, 0.10);
+            gun.rotation.set(-0.15, 0.4, 0.85);
+            g.add(gun);
+            add(gun, 0.05, 0.05, 0.22, htWoodG, 0, 0, -0.16);
+            add(gun, 0.045, 0.055, 0.10, htSteel, 0, 0.01, 0.00);
+            add(gun, 0.028, 0.028, 0.42, htSteel, 0, 0.02, 0.24);
+            add(gun, 0.022, 0.022, 0.36, htSteel, 0.018, 0.00, 0.22);
+            addTarget.add(g);
+            return { g, head, armL, armR, legL, legR };
+        };
+        const htHunters = [true, false].map((taller, i) => Object.assign(mkHunter(taller), {
+            u: 0.82 - i * 0.045,          // well behind the pack at start
+            pausedUntil: 0,
+            lookUntil: 0,
+            speed: 0.34 + i * 0.03,
+        }));
+
+        // ── Dawn mist + a few falling oak leaves ──
+        const HT_MIST_N = 90;
+        const htMistPos = new Float32Array(HT_MIST_N * 3);
+        const htMistSeed = [];
+        for (let i = 0; i < HT_MIST_N; i++) {
+            const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 22;
+            htMistSeed.push(Math.sin(a) * r, 0.2 + Math.random() * 1.4, Math.cos(a) * r, Math.random());
+            htMistPos[i * 3] = htMistSeed[i * 4];
+            htMistPos[i * 3 + 1] = htMistSeed[i * 4 + 1];
+            htMistPos[i * 3 + 2] = htMistSeed[i * 4 + 2];
+        }
+        const htMistGeo = new THREE.BufferGeometry();
+        htMistGeo.setAttribute('position', new THREE.BufferAttribute(htMistPos, 3));
+        const htMistMat = new THREE.PointsMaterial({
+            color: 0xd8e0e8, map: htDotTex, size: 0.7, transparent: true, opacity: 0.12, depthWrite: false, sizeAttenuation: true,
+        });
+        const htMist = new THREE.Points(htMistGeo, htMistMat);
+        addTarget.add(htMist);
+
+        const HT_LEAF_N = 50;
+        const htLeafPos = new Float32Array(HT_LEAF_N * 3);
+        const htLeafSeed = [];
+        for (let i = 0; i < HT_LEAF_N; i++) {
+            const a = Math.random() * Math.PI * 2, r = Math.random() * 20;
+            htLeafSeed.push(Math.sin(a) * r, Math.random() * 4.5, Math.cos(a) * r, Math.random());
+            htLeafPos[i * 3] = htLeafSeed[i * 4];
+            htLeafPos[i * 3 + 1] = htLeafSeed[i * 4 + 1];
+            htLeafPos[i * 3 + 2] = htLeafSeed[i * 4 + 2];
+        }
+        const htLeafGeo = new THREE.BufferGeometry();
+        htLeafGeo.setAttribute('position', new THREE.BufferAttribute(htLeafPos, 3));
+        const htLeafMat = new THREE.PointsMaterial({ color: 0xc86820, map: htDotTex, size: 0.065, transparent: true, opacity: 0.7, depthWrite: false });
+        const htLeaves = new THREE.Points(htLeafGeo, htLeafMat);
+        addTarget.add(htLeaves);
+
+        // ── Sun shafts breaking through the canopy, thick in the dawn mist ──
+        const htShaftCv = mkCanvas(32, 128), hsf = htShaftCv.getContext('2d');
+        const htShaftVg = hsf.createLinearGradient(0, 0, 0, 128);
+        htShaftVg.addColorStop(0, 'rgba(255,238,196,0.95)');
+        htShaftVg.addColorStop(0.55, 'rgba(255,226,172,0.3)');
+        htShaftVg.addColorStop(1, 'rgba(255,226,172,0)');
+        hsf.fillStyle = htShaftVg; hsf.fillRect(0, 0, 32, 128);
+        hsf.globalCompositeOperation = 'destination-in';
+        const htShaftHg = hsf.createLinearGradient(0, 0, 32, 0);
+        htShaftHg.addColorStop(0, 'rgba(0,0,0,0)'); htShaftHg.addColorStop(0.5, 'rgba(255,255,255,1)'); htShaftHg.addColorStop(1, 'rgba(0,0,0,0)');
+        hsf.fillStyle = htShaftHg; hsf.fillRect(0, 0, 32, 128);
+        hsf.globalCompositeOperation = 'source-over';
+        const htShaftTex = new THREE.CanvasTexture(htShaftCv);
+        const htShaftGeo = new THREE.PlaneGeometry(1, 1);
+        const HT_SHAFT_DEF = [
+            [6.2, -9.4, 9.5, 1.1], [-8.4, -7.2, 8.2, 0.9], [3.0, -13.6, 10.5, 1.3],
+            [-4.2, -11.4, 8.8, 1.0], [9.6, -4.6, 7.4, 0.85], [-11.2, -3.4, 8.4, 1.0],
+        ];
+        const htShafts = HT_SHAFT_DEF.map(([sx, sz, sh, sw]) => {
+            const m = new THREE.Mesh(htShaftGeo, new THREE.MeshBasicMaterial({
+                map: htShaftTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+            }));
+            m.scale.set(sw, sh, 1);
+            m.position.set(sx, sh * 0.5, sz);
+            m.renderOrder = 2;
+            addTarget.add(m);
+            return m;
+        });
+
+        // ── Lights: low autumn sun, big shadow volume ──
+        const htSun = new THREE.DirectionalLight(0xffd8a0, 2.2);
+        htSun.castShadow = true;
+        htSun.shadow.mapSize.set(2048, 2048);
+        htSun.shadow.camera.left = -22; htSun.shadow.camera.right = 22;
+        htSun.shadow.camera.top = 22;   htSun.shadow.camera.bottom = -22;
+        htSun.shadow.camera.near = 2;   htSun.shadow.camera.far = 60;
+        htSun.shadow.bias = -0.0015;
+        htSun.shadow.camera.updateProjectionMatrix();
+        addTarget.add(htSun);
+        addTarget.add(htSun.target);
+        const htSunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20),
+            new THREE.MeshBasicMaterial({ color: 0xffe2b0, fog: false, transparent: true, opacity: 0.9 }));
+        addTarget.add(htSunDisc);
+        const htSkyDawn = new THREE.Color(0x6a7a9a), htSkyMorn = new THREE.Color(0xc07038), htSkyDay = new THREE.Color(0x8eb8d8);
+        const htSunDawn = new THREE.Color(0xff8a40), htSunDay = new THREE.Color(0xfff2d4);
+        const htGrDawn = new THREE.Color(0x1a2014), htGrDay = new THREE.Color(0x3a4a28);
+        const htSkyCol = new THREE.Color();
+        let htNextBay = 4, htNextChirp = 6;
+
         addTarget = scene; // ── shared lights ──
 
         // Hemisphere: sky color tints down from above, ground color up from below
@@ -8814,6 +9582,7 @@
             const isVideo     = th === 'video';
             const isTillson   = th === 'tillson';
             const isRecall    = th === 'recall';
+            const isHunt      = th === 'hunt';
             roomGroup.visible      = isRoom;
             forestGroup.visible    = isForest;
             northPoleGroup.visible = isNP;
@@ -8825,6 +9594,7 @@
             videoGroup.visible     = isVideo;
             tillsonGroup.visible   = isTillson;
             recallGroup.visible    = isRecall;
+            huntGroup.visible      = isHunt;
             document.getElementById('time-row').classList.toggle('hidden', isRoom || isSP || isTavern || isVideo);
             document.getElementById('color-row').classList.toggle('hidden', !isRoom);
             document.getElementById('lamp-tint-row').classList.toggle('hidden', !isRoom);
@@ -8868,16 +9638,22 @@
                 document.getElementById('time-label').textContent = 'atmosphere';
                 params.time = 0.15;
                 document.getElementById('time-slider').value = 0.15;
+            } else if (isHunt) {
+                document.getElementById('lamp-label').textContent = 'lantern';
+                document.getElementById('time-label').textContent = 'time';
+                params.time = 0.32;
+                document.getElementById('time-slider').value = 0.32;
             } else {
                 document.getElementById('lamp-label').textContent = 'lamp';
             }
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
             document.getElementById('sound-btn').classList.remove('hidden');
             // the module interior is tight — keep the camera inside its hull
-            controls.maxDistance = isSP ? 3.0 : 22;
+            controls.maxDistance = isSP ? 3.0 : isHunt ? 38 : 22;
             // Mars needs a much deeper view — the sky shell and the reactor sit
-            // far past where every other world's far plane cuts off
-            const wantFar = isRecall ? 72 : 30;
+            // far past where every other world's far plane cuts off.
+            // The hunt is a big woods; the far plane has to reach the tree belt.
+            const wantFar = isRecall ? 72 : isHunt ? 90 : 30;
             if (camera.far !== wantFar) { camera.far = wantFar; camera.updateProjectionMatrix(); }
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
@@ -9142,6 +9918,50 @@
             o.connect(g).connect(audioCtx.destination);
             o.start(st); vib.start(st);
             o.stop(st + 1.8); vib.stop(st + 1.8);
+        };
+        // a pack beagle opening on the line — shorter, pitched aroo
+        const bay = (pitch = 1) => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            const o = audioCtx.createOscillator();
+            o.type = 'sine';
+            const p = 0.85 + pitch * 0.35;
+            o.frequency.setValueAtTime(280 * p, st);
+            o.frequency.exponentialRampToValueAtTime(560 * p, st + 0.18);
+            o.frequency.setValueAtTime(560 * p, st + 0.45);
+            o.frequency.exponentialRampToValueAtTime(360 * p, st + 0.85);
+            const vib = audioCtx.createOscillator();
+            vib.frequency.value = 7.2;
+            const vibG = audioCtx.createGain();
+            vibG.gain.value = 16;
+            vib.connect(vibG).connect(o.frequency);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, st);
+            g.gain.linearRampToValueAtTime(0.042, st + 0.08);
+            g.gain.setValueAtTime(0.042, st + 0.5);
+            g.gain.exponentialRampToValueAtTime(0.001, st + 0.95);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(st); vib.start(st);
+            o.stop(st + 1.05); vib.stop(st + 1.05);
+        };
+        // two-tone hunting whistle
+        const whistle = () => {
+            if (!audioCtx) return;
+            const st = audioCtx.currentTime + 0.02;
+            [0, 0.16].forEach((off, i) => {
+                const o = audioCtx.createOscillator();
+                o.type = 'sine';
+                const f0 = i ? 1760 : 1480;
+                o.frequency.setValueAtTime(f0, st + off);
+                o.frequency.linearRampToValueAtTime(f0 * 1.06, st + off + 0.11);
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0, st + off);
+                g.gain.linearRampToValueAtTime(0.04, st + off + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.001, st + off + 0.14);
+                o.connect(g).connect(audioCtx.destination);
+                o.start(st + off);
+                o.stop(st + off + 0.16);
+            });
         };
         // an owl up in the maples: two soft breathy hoots
         const owl = () => {
@@ -10008,12 +10828,81 @@
             onClick: () => { rcRoverLookUntil = clock.getElapsedTime() + 3.5; },
         });
 
+        // ── THE HUNT ──
+        // Poke a hound and they open on the line, then tear off
+        htPack.forEach((d, i) => addInteract(d.g, {
+            theme: 'hunt',
+            onClick: () => {
+                d.mode = 'baying';
+                d.modeUntil = clock.getElapsedTime() + 1.3;
+                d.burstUntil = clock.getElapsedTime() + 2.6;
+                if (soundOn && audioCtx) bay(i / 7);
+            },
+        }));
+        // Flush a rabbit — it bolts for the next thicket
+        htRabbits.forEach(rb => addInteract(rb.g, {
+            theme: 'hunt',
+            onClick: () => {
+                rb.mode = 'bolt';
+                rb.boltUntil = clock.getElapsedTime() + 2.4;
+                rb.wp = (rb.wp + 3 + ((Math.random() * 4) | 0)) % Math.max(1, htBushes.length);
+            },
+        }));
+        // Kick a bush and anything in it comes out
+        htBushes.forEach((b, i) => addInteract(b.m, {
+            theme: 'hunt',
+            onClick: () => {
+                const start = clock.getElapsedTime();
+                const baseY = b.m.position.y;
+                addEffect(t2 => {
+                    const el = t2 - start;
+                    if (el > 0.45) { b.m.position.y = baseY; return false; }
+                    b.m.position.y = baseY + Math.sin(el * 28) * 0.04 * (1 - el / 0.45);
+                    return true;
+                });
+                const near = htRabbits.find(rb => Math.hypot(rb.x - b.x, rb.z - b.z) < 2.4);
+                if (near) {
+                    near.mode = 'bolt';
+                    near.boltUntil = clock.getElapsedTime() + 2.2;
+                    near.wp = (i + 5) % Math.max(1, htBushes.length);
+                }
+            },
+        }));
+        // Whistle the pack — hunters pause and look, hounds burst
+        htHunters.forEach(h => addInteract(h.g, {
+            theme: 'hunt',
+            onClick: () => {
+                const tn = clock.getElapsedTime();
+                h.lookUntil = tn + 2.2;
+                h.pausedUntil = tn + 1.4;
+                if (soundOn && audioCtx) whistle();
+                htPack.forEach((d, i) => {
+                    if (d.mode === 'sniffing') {
+                        d.mode = 'running';
+                        d.burstUntil = tn + 2.0 + i * 0.08;
+                    }
+                });
+            },
+        }));
+        addInteract(htTruck, {
+            theme: 'hunt',
+            onClick: () => {
+                if (params.lampBrightness > 0.03) {
+                    lampPrev = params.lampBrightness;
+                    params.lampBrightness = 0;
+                } else {
+                    params.lampBrightness = lampPrev || 1.0;
+                }
+                lampSliderEl.value = params.lampBrightness;
+            },
+        });
+
         // ?clean hides the UI chrome — for screenshots and embeds
         if (new URLSearchParams(location.search).has('clean'))
             document.getElementById('ui').style.display = 'none';
 
         // Deep-link a world via URL hash, e.g. #forest or #spaceship
-        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson', recall: 'recall', totalrecall: 'recall', mars: 'recall', room: 'room' }[location.hash.slice(1).toLowerCase()];
+        const hashTheme = { forest: 'forest', northpole: 'northPole', spaceship: 'spaceship', river: 'river', lighthouse: 'lighthouse', apiary: 'apiary', tavern: 'tavern', video: 'video', videostore: 'video', tillson: 'tillson', halloween: 'tillson', recall: 'recall', totalrecall: 'recall', mars: 'recall', hunt: 'hunt', beagles: 'hunt', rabbits: 'hunt', pack: 'hunt', room: 'room' }[location.hash.slice(1).toLowerCase()];
         if (hashTheme && hashTheme !== 'room') setTheme(hashTheme);
 
         document.getElementById('brightness-slider').addEventListener('input', e => {
@@ -11357,6 +12246,241 @@
                     : 1 + Math.sin(t * 23) * 0.06 + (Math.random() < 0.015 ? -0.55 : 0);
                 rcSignMat.emissiveIntensity = Math.max(0, signLv) * 1.25;
                 rcSignLight.intensity = Math.max(0, signLv) * 1.3;
+            } else if (theme === 'hunt') {
+                // ── The hunt: frost dawn → sunrise gold → late morning ──
+                const td = params.time;
+                if (td < 0.35) htSkyCol.copy(htSkyDawn).lerp(htSkyMorn, td / 0.35);
+                else htSkyCol.copy(htSkyMorn).lerp(htSkyDay, (td - 0.35) / 0.65);
+                scene.background.copy(htSkyCol);
+                scene.fog.color.copy(htSkyCol).multiplyScalar(0.92);
+                scene.fog.density = 0.011 + (1 - td) * 0.016;
+
+                hemiLight.intensity = (1.3 + td * 2.0) * b;
+                hemiLight.color.copy(htSkyCol);
+                hemiLight.groundColor.copy(htGrDawn).lerp(htGrDay, td);
+                fillLight.intensity = 0.55 * b;
+                fillLight.color.copy(htSkyCol);
+
+                const el = 0.08 + td * 1.15;
+                const sy = Math.sin(el), sc = Math.cos(el);
+                htSun.position.set(-sc * 18, sy * 16 + 0.4, -8);
+                htSun.intensity = (0.8 + td * 2.6) * b;
+                htSun.color.copy(htSunDawn).lerp(htSunDay, Math.min(1, td * 1.4));
+                htSunDisc.position.set(-sc * 22, sy * 18 + 0.5, -10);
+                htSunDisc.material.opacity = 0.55 + td * 0.4;
+                htSunDisc.lookAt(camera.position);
+
+                // Shafts of light through the canopy — thickest in the dawn mist, gone by mid-morning
+                const shaftBase = Math.max(0, 0.6 - td * 0.62);
+                htShafts.forEach((m, i) => {
+                    const ang = Math.atan2(camera.position.x - m.position.x, camera.position.z - m.position.z);
+                    m.rotation.y = ang;
+                    m.material.opacity = shaftBase * (0.65 + 0.35 * Math.sin(t * 0.13 + i * 2.1));
+                });
+
+                // Lantern on the truck + steam off the thermos
+                const lb = params.lampBrightness;
+                const flick = Math.sin(t * 9.2) * 0.08 + Math.sin(t * 17) * 0.05;
+                htLanternLight.intensity = Math.max(0, (0.9 + flick) * lb * 2.4);
+                htThermos.getWorldPosition(htThermosWorld);
+                htSteamMat.opacity = Math.min(0.45, 0.08 + lb * 0.28);
+                const smp = htSteamGeo.attributes.position.array;
+                for (let i = 0; i < HT_STEAM_N; i++) {
+                    const ph = (htSteamSeed[i] + t * 0.35) % 1;
+                    smp[i * 3]     = htThermosWorld.x + Math.sin(t * 0.8 + i) * 0.03 * ph;
+                    smp[i * 3 + 1] = htThermosWorld.y + 0.1 + ph * 0.38;
+                    smp[i * 3 + 2] = htThermosWorld.z + Math.cos(t * 0.7 + i) * 0.03 * ph;
+                }
+                htSteamGeo.attributes.position.needsUpdate = true;
+
+                // Pack heading as a circular mean, so hunters can follow the line
+                let su = 0, sv = 0;
+                for (const d of htPack) {
+                    su += Math.sin(d.u * Math.PI * 2);
+                    sv += Math.cos(d.u * Math.PI * 2);
+                }
+                const packU = (Math.atan2(su, sv) / (Math.PI * 2) + 1) % 1;
+
+                for (const d of htPack) {
+                    if (d.mode === 'running') {
+                        if (t > d.nextSniff) {
+                            d.mode = 'sniffing';
+                            d.modeUntil = t + 1.35 + Math.random() * 1.55;
+                        }
+                    } else if (d.mode === 'sniffing') {
+                        if (t > d.modeUntil) {
+                            if (Math.random() < 0.58) {
+                                d.mode = 'baying';
+                                d.modeUntil = t + 1.05 + Math.random() * 0.45;
+                                if (soundOn && audioCtx) bay(Math.random());
+                            } else {
+                                d.mode = 'running';
+                                d.burstUntil = t + 1.5;
+                                d.nextSniff = t + 4.2 + Math.random() * 6.5;
+                            }
+                        }
+                    } else if (d.mode === 'baying' && t > d.modeUntil) {
+                        d.mode = 'running';
+                        d.burstUntil = t + 1.85;
+                        d.nextSniff = t + 5 + Math.random() * 6;
+                    }
+
+                    const burst = t < d.burstUntil;
+                    if (d.mode === 'running') {
+                        d.u = (d.u + (d.speed * (burst ? 1.75 : 1) / htPathLen) * dt + 1) % 1;
+                    }
+                    const p = htCurve.getPointAt(Math.max(0, Math.min(0.9999, d.u)));
+                    const tg = htCurve.getTangentAt(Math.max(0, Math.min(0.9999, d.u)));
+                    d.g.position.x = p.x + (-tg.z) * d.side;
+                    d.g.position.z = p.z + tg.x * d.side;
+                    d.g.rotation.y = Math.atan2(tg.x, tg.z);
+
+                    const hk = Math.min(1, dt * 6);
+                    if (d.mode === 'running') {
+                        const hz = burst ? 16.5 : 13.2;
+                        const sw = Math.sin(t * hz + d.u * 18) * 0.62;
+                        d.legs[0].rotation.x = sw;
+                        d.legs[3].rotation.x = sw;
+                        d.legs[1].rotation.x = -sw;
+                        d.legs[2].rotation.x = -sw;
+                        d.g.position.y = Math.abs(Math.sin(t * hz)) * 0.02;
+                        d.tail.rotation.y = Math.sin(t * (hz + 4)) * 0.48;
+                        d.earL.rotation.x = Math.sin(t * hz) * 0.22;
+                        d.earR.rotation.x = Math.sin(t * hz + 0.55) * 0.22;
+                        d.head.rotation.x += (Math.sin(t * hz * 2) * 0.05 - d.head.rotation.x) * hk;
+                        d.head.rotation.y += (0 - d.head.rotation.y) * hk;
+                    } else if (d.mode === 'sniffing') {
+                        // Nose slammed to the dirt, working the line hard —
+                        // head yaws, front paws scrabble, tail still flags
+                        d.head.rotation.x += ((1.08 + Math.sin(t * 16.5) * 0.16) - d.head.rotation.x) * hk;
+                        d.head.rotation.y += (Math.sin(t * 8.8) * 0.52 - d.head.rotation.y) * hk;
+                        d.g.position.y += (0 - d.g.position.y) * hk;
+                        d.body.position.y = -0.025 + Math.sin(t * 16.5) * 0.01;
+                        d.tail.rotation.y = Math.sin(t * 15) * 0.42;
+                        d.earL.rotation.x = Math.sin(t * 16.5) * 0.14;
+                        d.earR.rotation.x = Math.sin(t * 16.5 + 0.4) * 0.14;
+                        d.legs[0].rotation.x = 0.15 + Math.sin(t * 19) * 0.38;
+                        d.legs[1].rotation.x = 0.15 + Math.sin(t * 19 + 1.3) * 0.38;
+                        d.legs[2].rotation.x += (0.12 - d.legs[2].rotation.x) * hk;
+                        d.legs[3].rotation.x += (0.12 - d.legs[3].rotation.x) * hk;
+                    } else {
+                        d.legs.forEach(lg => lg.rotation.x += (0 - lg.rotation.x) * hk);
+                        d.head.rotation.x += ((-0.64 + Math.sin(t * 11) * 0.03) - d.head.rotation.x) * hk;
+                        d.head.rotation.y += (0 - d.head.rotation.y) * hk;
+                        d.g.position.y += (0 - d.g.position.y) * hk;
+                        d.tail.rotation.y = Math.sin(t * 3.1) * 0.16;
+                        d.earL.rotation.x += (-0.26 - d.earL.rotation.x) * hk;
+                        d.earR.rotation.x += (-0.26 - d.earR.rotation.x) * hk;
+                    }
+                    if (d.mode !== 'sniffing') d.body.position.y += (0 - d.body.position.y) * hk;
+                }
+
+                if (soundOn && audioCtx && t > htNextBay) {
+                    htNextBay = t + 5.5 + Math.random() * 8;
+                    const runners = htPack.filter(d => d.mode === 'running');
+                    if (runners.length) {
+                        const d = runners[(Math.random() * runners.length) | 0];
+                        d.mode = 'baying';
+                        d.modeUntil = t + 1.15;
+                        bay(Math.random());
+                    }
+                }
+
+                htHunters.forEach((h, i) => {
+                    const targetU = (packU - 0.145 - i * 0.042 + 1) % 1;
+                    let du = targetU - h.u;
+                    while (du > 0.5) du -= 1;
+                    while (du < -0.5) du += 1;
+                    const paused = t < h.pausedUntil;
+                    if (!paused) {
+                        const follow = THREE.MathUtils.clamp(0.28 + du * 1.8, 0.12, 0.55);
+                        h.u = (h.u + (follow / htPathLen) * dt + 1) % 1;
+                    }
+                    const hu = Math.max(0, Math.min(0.9999, h.u));
+                    const p = htCurve.getPointAt(hu);
+                    const tg = htCurve.getTangentAt(hu);
+                    const side = i === 0 ? 0.58 : -0.72;
+                    h.g.position.x = p.x + (-tg.z) * side;
+                    h.g.position.z = p.z + tg.x * side;
+                    h.g.rotation.y = Math.atan2(tg.x, tg.z);
+                    const walk = !paused;
+                    const hz = 3.15;
+                    const sw = walk ? Math.sin(t * hz + i) * 0.38 : 0;
+                    const lk = Math.min(1, dt * 6);
+                    h.legL.rotation.x += (sw - h.legL.rotation.x) * lk;
+                    h.legR.rotation.x += (-sw - h.legR.rotation.x) * lk;
+                    h.armL.rotation.x = walk ? -sw * 0.45 : 0;
+                    h.g.position.y = walk ? Math.abs(Math.sin(t * hz * 2 + i)) * 0.015 : 0;
+                    h.head.rotation.y = t < h.lookUntil ? Math.sin(t * 2.2) * 0.38 : Math.sin(t * 0.18 + i) * 0.08;
+                    if (!paused && Math.random() < dt * 0.07) h.pausedUntil = t + 1.5 + Math.random() * 1.2;
+                });
+
+                htRabbits.forEach(rb => {
+                    let nearest = 99;
+                    for (const d of htPack) {
+                        const dist = Math.hypot(d.g.position.x - rb.x, d.g.position.z - rb.z);
+                        if (dist < nearest) nearest = dist;
+                    }
+                    if (rb.mode !== 'bolt' && nearest < 3.3) {
+                        rb.mode = 'bolt';
+                        rb.boltUntil = t + 2.5;
+                        rb.wp = (rb.wp + 4) % Math.max(1, htBushes.length);
+                    }
+                    if (rb.mode === 'freeze' && t > rb.modeUntil) {
+                        rb.mode = 'hop';
+                        rb.modeUntil = t + 1.3 + Math.random() * 1.3;
+                        rb.wp = (rb.wp + 1) % Math.max(1, htBushes.length);
+                    } else if (rb.mode === 'hop' && t > rb.modeUntil) {
+                        rb.mode = 'freeze';
+                        rb.modeUntil = t + 2.4 + Math.random() * 3.2;
+                    } else if (rb.mode === 'bolt' && t > rb.boltUntil) {
+                        rb.mode = 'freeze';
+                        rb.modeUntil = t + 3 + Math.random() * 2.2;
+                    }
+                    const target = htBushes[rb.wp] || htBushes[0];
+                    if (target && (rb.mode === 'hop' || rb.mode === 'bolt')) {
+                        const dx = target.x - rb.x, dz = target.z - rb.z;
+                        const dist = Math.hypot(dx, dz) || 1;
+                        const spd = rb.mode === 'bolt' ? 4.4 : 1.45;
+                        rb.hopPh += dt * (rb.mode === 'bolt' ? 8.2 : 5.1);
+                        const hop = rb.hopPh % 1;
+                        const air = hop < 0.5;
+                        const lift = air ? Math.sin((hop / 0.5) * Math.PI) * (rb.mode === 'bolt' ? 0.22 : 0.12) : 0;
+                        if (air) { rb.x += (dx / dist) * spd * dt; rb.z += (dz / dist) * spd * dt; }
+                        rb.facing = Math.atan2(dx, dz);
+                        rb.g.position.set(rb.x, lift, rb.z);
+                        rb.g.rotation.y = rb.facing;
+                        rb.earL.rotation.x = 0.15 + lift * 2.1;
+                        rb.earR.rotation.x = 0.15 + lift * 2.1;
+                    } else {
+                        rb.g.position.set(rb.x, 0, rb.z);
+                        rb.g.rotation.y = rb.facing;
+                        rb.earL.rotation.x = 0.1;
+                        rb.earR.rotation.x = 0.1;
+                    }
+                });
+
+                htMistMat.opacity = (1 - td) * 0.17;
+                const mp = htMistGeo.attributes.position.array;
+                for (let i = 0; i < HT_MIST_N; i++) {
+                    mp[i * 3]     = htMistSeed[i * 4]     + Math.sin(t * 0.08 + htMistSeed[i * 4 + 3] * 8) * 0.85;
+                    mp[i * 3 + 1] = htMistSeed[i * 4 + 1] + Math.sin(t * 0.15 + i) * 0.12;
+                    mp[i * 3 + 2] = htMistSeed[i * 4 + 2] + Math.cos(t * 0.07 + htMistSeed[i * 4 + 3] * 6) * 0.85;
+                }
+                htMistGeo.attributes.position.needsUpdate = true;
+                const lp = htLeafGeo.attributes.position.array;
+                for (let i = 0; i < HT_LEAF_N; i++) {
+                    const seed = htLeafSeed[i * 4 + 3];
+                    lp[i * 3]     = htLeafSeed[i * 4]     + Math.sin(t * 0.5 + seed * 9) * 0.42;
+                    lp[i * 3 + 1] = ((htLeafSeed[i * 4 + 1] - t * 0.32) % 4.6 + 4.6) % 4.6;
+                    lp[i * 3 + 2] = htLeafSeed[i * 4 + 2] + Math.cos(t * 0.4 + seed * 7) * 0.42;
+                }
+                htLeafGeo.attributes.position.needsUpdate = true;
+
+                if (soundOn && audioCtx && td > 0.35 && t > htNextChirp) {
+                    htNextChirp = t + 4 + Math.random() * 7;
+                    chirp();
+                }
             }
 
             // Spillway rush fades in only while the river is on screen
@@ -11373,6 +12497,7 @@
                     ? (theme === 'lighthouse' ? (0.06 + params.time * 0.30) * gust
                         : theme === 'tillson' ? 0.055 * gust
                         : theme === 'forest' ? 0.03 * gust
+                        : theme === 'hunt' ? 0.04 * gust
                         : theme === 'northPole' ? 0.075 * gust
                         : theme === 'recall' ? (0.11 - params.time * 0.08) * gust : 0)
                     : 0;
