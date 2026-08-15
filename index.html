@@ -3294,7 +3294,19 @@
         // ═══════════════════════════════
         addTarget = northPoleGroup;
 
-        // ── Snowy tundra ground ──
+        // Soft radial-gradient point-sprite — used for snowfall, stars, and glitter below
+        const npDotCv = mkCanvas(64, 64);
+        {
+            const g = npDotCv.getContext('2d');
+            const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+            rg.addColorStop(0, 'rgba(255,255,255,1)');
+            rg.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+            rg.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+        }
+        const npDotTex = new THREE.CanvasTexture(npDotCv);
+
+        // ── Snowy tundra ground: wind-carved sastrugi ridges, glinting under the aurora ──
         const npgCanvas = document.createElement('canvas');
         npgCanvas.width = 256; npgCanvas.height = 256;
         const npgc = npgCanvas.getContext('2d');
@@ -3318,63 +3330,195 @@
         npgTex.repeat.set(5, 5);
         npgTex.colorSpace = THREE.SRGBColorSpace;
         npgTex.anisotropy = MAX_ANISO;
+        // gentle wind-carved undulation, displaced per-vertex like the drifts outside
+        const npgGeo = new THREE.PlaneGeometry(24, 24, 90, 90);
+        const npgP = npgGeo.attributes.position;
+        const npgColor = new Float32Array(npgP.count * 3);
+        const npShadow = new THREE.Color(0x9ab0d0), npLit = new THREE.Color(1, 1, 1);
+        for (let i = 0; i < npgP.count; i++) {
+            const gx = npgP.getX(i), gy = npgP.getY(i);
+            const ridge = Math.sin(gx * 1.4 + Math.sin(gy * 0.7) * 1.5) * 0.045
+                + Math.sin(gx * 0.35 - gy * 0.5) * 0.06
+                + Math.sin(gy * 2.6 + gx * 0.3) * 0.018;
+            npgP.setZ(i, ridge);
+            const shade = THREE.MathUtils.clamp(0.5 + ridge * 4, 0, 1);
+            const c = npShadow.clone().lerp(npLit, shade);
+            npgColor[i * 3] = c.r; npgColor[i * 3 + 1] = c.g; npgColor[i * 3 + 2] = c.b;
+        }
+        npgGeo.computeVertexNormals();
+        npgGeo.setAttribute('color', new THREE.BufferAttribute(npgColor, 3));
         // Slightly glossy so moonlight and aurora glint off the snowpack
-        const npGround = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
-            new THREE.MeshStandardMaterial({ map: npgTex, roughness: 0.55, metalness: 0.05 }));
+        const npGround = new THREE.Mesh(npgGeo,
+            new THREE.MeshStandardMaterial({ map: npgTex, roughness: 0.5, metalness: 0.05, vertexColors: true }));
         npGround.rotation.x = -Math.PI / 2;
         npGround.receiveShadow = true;
         addTarget.add(npGround);
 
+        // Glitter: tiny sparkle points scattered across the snow, twinkling under the aurora
+        const NP_GLITTER_N = 140;
+        const npGlitterPos = new Float32Array(NP_GLITTER_N * 3);
+        const npGlitterSeed = [];
+        for (let i = 0; i < NP_GLITTER_N; i++) {
+            const a = Math.random() * Math.PI * 2, r = Math.random() * 11.5;
+            npGlitterPos[i * 3] = Math.sin(a) * r;
+            npGlitterPos[i * 3 + 1] = 0.01;
+            npGlitterPos[i * 3 + 2] = Math.cos(a) * r;
+            npGlitterSeed.push(Math.random());
+        }
+        const npGlitterGeo = new THREE.BufferGeometry();
+        npGlitterGeo.setAttribute('position', new THREE.BufferAttribute(npGlitterPos, 3));
+        const npGlitterMat = new THREE.PointsMaterial({
+            color: 0xdcecff, map: npDotTex, size: 0.05, transparent: true, opacity: 0.6, depthWrite: false, fog: false,
+        });
+        const npGlitter = new THREE.Points(npGlitterGeo, npGlitterMat);
+        addTarget.add(npGlitter);
+
+        // A trail of paw prints leads from the dome toward the igloo
+        const npPawMat = lm(0x8ea0bc, 0, 0, 0.85);
+        const NP_PAW_PATH = [[1.1, 0.9], [0.55, 0.15], [-0.15, -0.55], [-0.9, -1.05], [-1.65, -1.45], [-2.25, -1.85]];
+        NP_PAW_PATH.forEach(([px, pz], i) => {
+            [-1, 1].forEach(side => {
+                const paw = new THREE.Mesh(new THREE.CircleGeometry(0.035, 8),
+                    npPawMat);
+                paw.rotation.x = -Math.PI / 2;
+                paw.position.set(px + side * 0.055, 0.011, pz + side * 0.03);
+                addTarget.add(paw);
+            });
+        });
+
         // ── Snow-laden spruce trees ──
-        const npSnowCapMat = lm(0xcee4f8);
-        const npTrunkMat   = lm(0x2a1c10);
-        const npFoliageMat = lm(0x1a2a18);
-        const spruce = (x, z, s) => {
-            const trk = new THREE.Mesh(new THREE.CylinderGeometry(0.045*s, 0.085*s, 0.85*s, 6), npTrunkMat);
+        const npSnowCapMat = new THREE.MeshStandardMaterial({ color: 0xd8ecff, roughness: 0.5, metalness: 0.04 });
+        const npBarkCv = mkCanvas(128, 256), npbk = npBarkCv.getContext('2d');
+        npbk.fillStyle = '#241a10'; npbk.fillRect(0, 0, 128, 256);
+        for (let i = 0; i < 30; i++) {
+            let x = Math.random() * 128;
+            npbk.strokeStyle = Math.random() < 0.5 ? '#180f08' : '#382718';
+            npbk.globalAlpha = 0.3 + Math.random() * 0.4;
+            npbk.lineWidth = 2 + Math.random() * 5;
+            npbk.beginPath();
+            for (let y = -10; y <= 266; y += 14) {
+                x += (Math.random() - 0.5) * 5;
+                y === -10 ? npbk.moveTo(x, y) : npbk.lineTo(x, y);
+            }
+            npbk.stroke();
+        }
+        npbk.globalAlpha = 1;
+        speckle(npbk, 128, 256, 500, 0.14, '#3a2a18', '#120b06');
+        const npTrunkMat = new THREE.MeshStandardMaterial({ map: asTex(npBarkCv, 1, 3), roughness: 0.95 });
+        const npFoliageMats = [0x18280f, 0x1e3016, 0x142208].map(c =>
+            new THREE.MeshStandardMaterial({ color: c, roughness: 0.92 }));
+        const spruce = (x, z, s, lean) => {
+            const trk = new THREE.Mesh(new THREE.CylinderGeometry(0.045*s, 0.085*s, 0.85*s, 7), npTrunkMat);
             trk.position.set(x, 0.425*s, z);
+            trk.rotation.z = lean * 0.06;
             trk.castShadow = true;
             addTarget.add(trk);
-            [[0.52, 0.72, 1.05], [0.38, 0.62, 1.62], [0.24, 0.52, 2.18], [0.12, 0.38, 2.60]].forEach(([r, h, y]) => {
-                const dark = new THREE.Mesh(new THREE.ConeGeometry(r*s, h*s, 7), npFoliageMat);
-                dark.position.set(x, y*s, z);
+            const fmat = npFoliageMats[(Math.random() * npFoliageMats.length) | 0];
+            [[0.52, 0.72, 1.05], [0.38, 0.62, 1.62], [0.24, 0.52, 2.18], [0.12, 0.38, 2.60]].forEach(([r, h, y], ti) => {
+                const dark = new THREE.Mesh(new THREE.ConeGeometry(r*s, h*s, 7), fmat);
+                dark.position.set(x + lean * ti * 0.02 * s, y*s, z);
+                dark.rotation.y = Math.random() * Math.PI;
                 dark.castShadow = dark.receiveShadow = true;
                 addTarget.add(dark);
-                const snow = new THREE.Mesh(new THREE.ConeGeometry(r*s*0.80, h*s*0.28, 7), npSnowCapMat);
-                snow.position.set(x, y*s + h*s*0.38, z);
+                // snow only settles on the windward, upward-facing side — offset it a touch off-center
+                const snow = new THREE.Mesh(new THREE.ConeGeometry(r*s*0.80, h*s*0.30, 7), npSnowCapMat);
+                snow.position.set(x + lean * ti * 0.02 * s + 0.03 * s, y*s + h*s*0.36, z - 0.02 * s);
                 snow.castShadow = true;
                 addTarget.add(snow);
+                // the odd icicle off a lower bough
+                if (ti < 2 && Math.random() < 0.5) {
+                    const ic = new THREE.Mesh(new THREE.ConeGeometry(0.014*s, 0.10*s + Math.random()*0.08*s, 5),
+                        new THREE.MeshPhysicalMaterial({ color: 0xdcecff, roughness: 0.15, transmission: 0.55, thickness: 0.3 }));
+                    ic.rotation.x = Math.PI;
+                    ic.position.set(x + (Math.random()-0.5)*r*s*0.7, y*s - h*s*0.30, z + (Math.random()-0.5)*r*s*0.7);
+                    addTarget.add(ic);
+                }
             });
+            // a fallen pinecone or two at the base
+            if (Math.random() < 0.6) {
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(0.03*s, 0.07*s, 6), lm(0x4a3418, 0, 0, 0.85));
+                cone.rotation.z = Math.PI / 2 + (Math.random()-0.5);
+                cone.position.set(x + (Math.random()-0.5)*0.3*s, 0.015, z + (Math.random()-0.5)*0.3*s);
+                addTarget.add(cone);
+            }
         };
         for (let i = 0; i < 28; i++) {
             const a = (i / 28)*Math.PI*2 + Math.random()*0.32;
             const r = 5.2 + Math.random()*2.8;
-            spruce(Math.sin(a)*r, Math.cos(a)*r, 0.80 + Math.random()*1.15);
+            spruce(Math.sin(a)*r, Math.cos(a)*r, 0.80 + Math.random()*1.15, (Math.random()-0.5)*2);
         }
 
-        // ── Igloo ──
-        const npIglooMat    = lm(0xcad8ee);
-        const npIglooRimMat = lm(0xb2c6df);
-        const npIglooGeo    = new THREE.SphereGeometry(0.88, 12, 8, 0, Math.PI*2, 0, Math.PI*0.54);
+        // ── Igloo: spiral-coursed snow blocks, a lit doorway, a shoveled path ──
+        const npBlockCv = mkCanvas(256, 256), nbc = npBlockCv.getContext('2d');
+        nbc.fillStyle = '#cfe0f2'; nbc.fillRect(0, 0, 256, 256);
+        for (let row = 0; row < 9; row++) {
+            const rowY = row * 29, off = (row % 2) * 20;
+            nbc.strokeStyle = 'rgba(120,150,190,0.4)'; nbc.lineWidth = 2;
+            nbc.beginPath(); nbc.moveTo(0, rowY); nbc.lineTo(256, rowY); nbc.stroke();
+            for (let c = -1; c < 8; c++) {
+                nbc.beginPath(); nbc.moveTo(c * 34 + off, rowY); nbc.lineTo(c * 34 + off, rowY + 29); nbc.stroke();
+                nbc.fillStyle = `rgba(255,255,255,${0.03 + Math.random() * 0.08})`;
+                nbc.fillRect(c * 34 + off + 2, rowY + 2, 30, 25);
+            }
+        }
+        speckle(nbc, 256, 256, 1600, 0.12, '#e8f2ff', '#a8c0d8');
+        const npIglooTex = asTex(npBlockCv, 3, 1.4);
+        const npIglooMat    = new THREE.MeshStandardMaterial({ map: npIglooTex, roughness: 0.55, metalness: 0.04 });
+        const npIglooRimMat = new THREE.MeshStandardMaterial({ map: asTex(npBlockCv, 2, 0.6), roughness: 0.55 });
+        const npIglooGeo    = new THREE.SphereGeometry(0.88, 16, 10, 0, Math.PI*2, 0, Math.PI*0.54);
         const npIgloo = new THREE.Mesh(npIglooGeo, npIglooMat);
         npIgloo.position.set(-2.9, 0.0, -2.2);
         npIgloo.castShadow = npIgloo.receiveShadow = true;
         addTarget.add(npIgloo);
-        const npIglooBase = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.06, 12), npIglooRimMat);
+        const npIglooBase = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.06, 16), npIglooRimMat);
         npIglooBase.position.set(-2.9, 0.03, -2.2);
         addTarget.add(npIglooBase);
-        const npTunnelMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.52, 8), npIglooRimMat);
+        const npTunnelMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.52, 10), npIglooRimMat);
         npTunnelMesh.rotation.z = Math.PI / 2;
         npTunnelMesh.rotation.y = -0.68;
         npTunnelMesh.position.set(-2.9 + 0.88, 0.33, -2.2 + 0.60);
         addTarget.add(npTunnelMesh);
-        const npHole = new THREE.Mesh(new THREE.CircleGeometry(0.21, 8), lm(0x040610));
+        const npHole = new THREE.Mesh(new THREE.CircleGeometry(0.21, 10), lm(0x100a06, 0xff8838, 0.5));
         npHole.position.set(-2.9 + 1.16, 0.33, -2.2 + 0.79);
         npHole.rotation.y = 0.88;
         addTarget.add(npHole);
+        // a low, steady hearth glow from inside — the click interaction flares brighter on top of this
+        const npIglooGlow = new THREE.PointLight(0xff9a4c, 0.35, 1.6);
+        npIglooGlow.position.set(-2.9 + 1.05, 0.30, -2.2 + 0.70);
+        addTarget.add(npIglooGlow);
+        // icicles fringing the tunnel mouth
+        const npIcicleMat = new THREE.MeshPhysicalMaterial({ color: 0xdcecff, roughness: 0.12, transmission: 0.55, thickness: 0.3 });
+        for (let i = 0; i < 5; i++) {
+            const u = i / 4;
+            const ic = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09 + Math.random() * 0.06, 5), npIcicleMat);
+            ic.rotation.x = Math.PI;
+            ic.position.set(-2.9 + 1.02 + u * 0.28, 0.50, -2.2 + 0.52 + u * 0.42);
+            addTarget.add(ic);
+        }
+        // shoveled snow bank beside the entrance, with a stubby wooden shovel leaning on it
+        const npShovelPile = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 5, 0, Math.PI*2, 0, Math.PI*0.5), npSnowCapMat);
+        npShovelPile.scale.y = 0.55;
+        npShovelPile.position.set(-2.9 + 1.55, 0.02, -2.2 + 0.55);
+        addTarget.add(npShovelPile);
+        const npShovelHandle = box(0.02, 0.55, 0.02, lm(0x5a3c22, 0, 0, 0.85), -2.9 + 1.62, 0.30, -2.2 + 0.42, 0, 0, 0.35);
+        box(0.10, 0.02, 0.13, lm(0x8a8e92, 0, 0, 0.5, 0.4), -2.9 + 1.70, 0.05, -2.2 + 0.35, 0.3, 0, 0.35);
 
-        // ── Ice boulders and snowdrifts ──
-        const npIceMat   = lm(0xaac4e0);
-        const npDriftMat = lm(0xcce0f8);
+        // ── Ice boulders (translucent, internally cracked) and wind-carved snowdrifts ──
+        const npIceCv = mkCanvas(128, 128), nic = npIceCv.getContext('2d');
+        nic.fillStyle = '#bcdcf0'; nic.fillRect(0, 0, 128, 128);
+        for (let i = 0; i < 16; i++) {
+            nic.strokeStyle = 'rgba(230,248,255,0.55)'; nic.lineWidth = 1 + Math.random();
+            nic.beginPath();
+            let x = Math.random() * 128, y = Math.random() * 128;
+            nic.moveTo(x, y);
+            for (let s2 = 0; s2 < 4; s2++) { x += (Math.random()-0.5) * 40; y += (Math.random()-0.5) * 40; nic.lineTo(x, y); }
+            nic.stroke();
+        }
+        speckle(nic, 128, 128, 500, 0.14, '#e8f8ff', '#7ba4c8');
+        const npIceMat = new THREE.MeshPhysicalMaterial({
+            map: asTex(npIceCv, 1, 1), color: 0xcfe6f6, roughness: 0.25, transmission: 0.35, thickness: 0.6, metalness: 0,
+        });
+        const npDriftMat = new THREE.MeshStandardMaterial({ map: npgTex, vertexColors: false, roughness: 0.5, metalness: 0.04 });
         for (let i = 0; i < 10; i++) {
             const a = Math.random()*Math.PI*2, r = 2.6 + Math.random()*3.8;
             const s = 0.11 + Math.random()*0.24;
@@ -3387,9 +3531,10 @@
             snCap.position.set(Math.sin(a)*r, s*0.88, Math.cos(a)*r);
             addTarget.add(snCap);
         }
-        [[1.9, -1.4, 0.65], [-1.5, -2.4, 0.50], [3.0, 0.6, 0.58], [-0.8, 3.2, 0.52]].forEach(([x, z, s]) => {
-            const drift = new THREE.Mesh(new THREE.SphereGeometry(s, 8, 5, 0, Math.PI*2, 0, Math.PI*0.46), npDriftMat);
-            drift.scale.y = 0.35;
+        [[1.9, -1.4, 0.65], [-1.5, -2.4, 0.50], [3.0, 0.6, 0.58], [-0.8, 3.2, 0.52], [2.6, 2.4, 0.4], [-3.2, 1.0, 0.44]].forEach(([x, z, s]) => {
+            const drift = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 6, 0, Math.PI*2, 0, Math.PI*0.46), npDriftMat);
+            drift.scale.y = 0.32;
+            drift.rotation.y = Math.random() * Math.PI * 2;
             drift.position.set(x, 0.02, z);
             drift.receiveShadow = true;
             addTarget.add(drift);
@@ -3448,6 +3593,39 @@
         npDomeCapRing.position.set(0, NP_DOME_R - 0.01, NP_DOME_CZ);
         addTarget.add(npDomeCapRing);
 
+        // Frost creeping up from the base rim, in feathery crystal fronds
+        const npFrostCv = mkCanvas(512, 128), nfr = npFrostCv.getContext('2d');
+        nfr.clearRect(0, 0, 512, 128);
+        for (let i = 0; i < 46; i++) {
+            const fx = (i / 46) * 512, h = 20 + Math.random() * 90;
+            nfr.strokeStyle = `rgba(220,240,255,${0.35 + Math.random() * 0.4})`;
+            nfr.lineWidth = 1 + Math.random();
+            nfr.beginPath(); nfr.moveTo(fx, 128); nfr.lineTo(fx, 128 - h); nfr.stroke();
+            for (let b = 1; b < 5; b++) {
+                const by = 128 - (h * b) / 5;
+                nfr.beginPath(); nfr.moveTo(fx, by); nfr.lineTo(fx - 6 - Math.random()*4, by - 8 - Math.random()*5); nfr.stroke();
+                nfr.beginPath(); nfr.moveTo(fx, by); nfr.lineTo(fx + 6 + Math.random()*4, by - 8 - Math.random()*5); nfr.stroke();
+            }
+        }
+        const npFrostTex = asTex(npFrostCv, 3, 1);
+        const npFrostBand = new THREE.Mesh(
+            new THREE.SphereGeometry(NP_DOME_R + 0.006, 48, 6, 0, Math.PI*2, Math.PI*0.5 - 0.16, 0.16),
+            new THREE.MeshBasicMaterial({ map: npFrostTex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+        npFrostBand.position.set(0, 0, NP_DOME_CZ);
+        addTarget.add(npFrostBand);
+
+        // Thin brass meridian ribs, like a snow-globe's structural frame
+        const npRibMat = lm(0x8a7448, 0, 0, 0.4, 0.65);
+        for (let i = 0; i < 8; i++) {
+            const rib = new THREE.Mesh(new THREE.TorusGeometry(NP_DOME_R, 0.010, 5, 40, Math.PI), npRibMat);
+            rib.rotation.y = (i / 8) * Math.PI;
+            rib.position.set(0, 0, NP_DOME_CZ);
+            addTarget.add(rib);
+        }
+        // A small brass plaque set into the base ring, facing outward toward the viewer
+        const npPlaque = box(0.20, 0.10, 0.012, npRibMat, 0, 0.06, NP_DOME_CZ + NP_DOME_R - 0.01);
+        box(0.17, 0.07, 0.006, lm(0x3a3226, 0, 0, 0.6), 0, 0.06, NP_DOME_CZ + NP_DOME_R - 0.017);
+
         // ── Dog's snowy mat (same BEDX/BEDZ so nap state machine still works) ──
         const npBed = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.065, 9), lm(0x7a8eaa));
         npBed.position.set(BEDX, 0.032, BEDZ);
@@ -3460,10 +3638,22 @@
 
         // ── Lantern post (shares lamp slider, relabeled "lantern") ──
         const LNPX = 1.75, LNPZ = 1.7;
-        const npLanternPost = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.030, 1.10, 6), lm(0x18181e));
+        const npPostMat = lm(0x18181e, 0, 0, 0.5, 0.55);
+        const npLanternPost = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.030, 1.10, 8), npPostMat);
         npLanternPost.position.set(LNPX, 0.55, LNPZ);
         addTarget.add(npLanternPost);
+        // scroll bracket + finial cap dress up what was a bare pole
+        box(0.10, 0.02, 0.02, npPostMat, LNPX, 1.05, LNPZ, 0, 0, 0.5);
+        box(0.02, 0.16, 0.02, npPostMat, LNPX, 1.28, LNPZ);
+        const npFinial = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 8), npPostMat);
+        npFinial.position.set(LNPX, 1.42, LNPZ);
+        addTarget.add(npFinial);
         box(0.13, 0.15, 0.13, lm(0x141418), LNPX, 1.17, LNPZ);
+        // small panes on the lamp head
+        [0, 1, 2, 3].forEach(i => {
+            const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+            box(0.001, 0.13, 0.13, npPostMat, LNPX + Math.sin(a) * 0.065, 1.17, LNPZ + Math.cos(a) * 0.065, 0, a);
+        });
         const npLanternGlowMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.08),
             new THREE.MeshBasicMaterial({ color: 0xfff0a8, fog: false }));
         npLanternGlowMesh.position.set(LNPX, 1.17, LNPZ);
@@ -3471,6 +3661,92 @@
         const npLanternLight = new THREE.PointLight(0xffe090, 0, 9, 2.0);
         npLanternLight.position.set(LNPX, 1.26, LNPZ);
         addTarget.add(npLanternLight);
+        // a couple of icicles and a snow cap on the crossbar
+        box(0.11, 0.03, 0.11, npSnowCapMat, LNPX, 1.245, LNPZ);
+        [-0.045, 0.045].forEach(dx => {
+            const ic = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.05 + Math.random()*0.03, 5), npIcicleMat);
+            ic.rotation.x = Math.PI;
+            ic.position.set(LNPX + dx, 1.09, LNPZ);
+            addTarget.add(ic);
+        });
+        // a melt-ring of packed, darker snow at the post's foot
+        const npMeltRing = new THREE.Mesh(new THREE.CircleGeometry(0.24, 14), lm(0xa8bcd6, 0, 0, 0.6));
+        npMeltRing.rotation.x = -Math.PI / 2;
+        npMeltRing.position.set(LNPX, 0.011, LNPZ);
+        addTarget.add(npMeltRing);
+
+        // ── "NORTH POLE" signpost with whimsical mileage markers ──
+        const NPSX = -1.7, NPSZ = 2.6;
+        const npSignPostMat = lm(0x4a3420, 0, 0, 0.9);
+        const npSignPost = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.036, 1.5, 7), npSignPostMat);
+        npSignPost.position.set(NPSX, 0.75, NPSZ);
+        npSignPost.rotation.z = 0.03;
+        npSignPost.castShadow = true;
+        addTarget.add(npSignPost);
+        const npBoardCv = (label) => {
+            const cv = mkCanvas(256, 64), c2 = cv.getContext('2d');
+            c2.fillStyle = '#d8c8a0'; c2.fillRect(0, 0, 256, 64);
+            speckle(c2, 256, 64, 200, 0.1, '#e8dcc0', '#b0a078');
+            c2.strokeStyle = '#5a4a2e'; c2.lineWidth = 4; c2.strokeRect(3, 3, 250, 58);
+            c2.fillStyle = '#2c2418';
+            c2.font = 'bold 30px Georgia, serif';
+            c2.textAlign = 'center'; c2.textBaseline = 'middle';
+            c2.fillText(label, 128, 34);
+            return asTex(cv, 1, 1, true);
+        };
+        [
+            ['NORTH POLE', 1.34, 0, -0.05],
+            ['WORKSHOP → 2ft', 1.08, 0.28, 0.10],
+            ['← 3,417mi TO SUMMER', 0.85, -0.30, -0.06],
+            ['CLARK’S NAP ↓ 0.2mi', 0.62, 0.22, 0.07],
+        ].forEach(([label, y, ry, tilt]) => {
+            const board = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.15, 0.02),
+                new THREE.MeshStandardMaterial({ map: npBoardCv(label), roughness: 0.85 }));
+            board.position.set(NPSX, y, NPSZ);
+            board.rotation.y = ry;
+            board.rotation.z = tilt;
+            board.castShadow = true;
+            addTarget.add(board);
+        });
+        box(0.09, 0.06, 0.09, npSnowCapMat, NPSX, 1.55, NPSZ);   // snow cap on the post
+
+        // ── A small snowman keeping watch near the tree line ──
+        const NPMX = 4.0, NPMZ = -1.6;
+        const npSnowmanMat = new THREE.MeshStandardMaterial({ color: 0xe8f2ff, roughness: 0.55, metalness: 0.03 });
+        const npCoal = lm(0x100c0a, 0, 0, 0.5);
+        [[0.26, 0.24], [0.18, 0.58], [0.12, 0.84]].forEach(([r, y]) => {
+            const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), npSnowmanMat);
+            ball.position.set(NPMX, y, NPMZ);
+            ball.castShadow = ball.receiveShadow = true;
+            addTarget.add(ball);
+        });
+        [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), npCoal);
+            eye.position.set(NPMX + side * 0.045, 0.87, NPMZ + 0.10);
+            addTarget.add(eye);
+        });
+        for (let i = 0; i < 3; i++) {
+            const btn = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5), npCoal);
+            btn.position.set(NPMX, 0.60 + i * 0.10, NPMZ + 0.17);
+            addTarget.add(btn);
+        }
+        const npCarrot = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.11, 6), lm(0xd86a1c, 0, 0, 0.8));
+        npCarrot.rotation.x = Math.PI / 2;
+        npCarrot.position.set(NPMX, 0.84, NPMZ + 0.12);
+        addTarget.add(npCarrot);
+        [-1, 1].forEach(side => {   // twig arms
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.32, 5), lm(0x3a2814, 0, 0, 0.9));
+            arm.position.set(NPMX + side * 0.24, 0.62, NPMZ);
+            arm.rotation.z = side * 0.9;
+            addTarget.add(arm);
+        });
+        const npHatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.012, 12), lm(0x1c1c22));
+        npHatBrim.position.set(NPMX, 0.955, NPMZ);
+        addTarget.add(npHatBrim);
+        const npHatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.10, 0.12, 12), lm(0x1c1c22));
+        npHatTop.position.set(NPMX, 1.02, NPMZ);
+        addTarget.add(npHatTop);
+        box(0.13, 0.02, 0.13, lm(0xb02020), NPMX, 0.965, NPMZ);  // hatband
 
         // ── Aurora borealis — realistic vertical curtain ribbons ──
         const auroraRibbons = [];
@@ -3573,13 +3849,43 @@
         }
         const npStGeo = new THREE.BufferGeometry();
         npStGeo.setAttribute('position', new THREE.BufferAttribute(npStPos, 3));
-        const npStarMat = new THREE.PointsMaterial({ color: 0xe4eeff, size: 0.055, transparent: true, opacity: 0.88, fog: false });
+        const npStarMat = new THREE.PointsMaterial({ color: 0xe4eeff, map: npDotTex, size: 0.09, transparent: true, opacity: 0.88, depthWrite: false, fog: false });
         const npStarPoints = new THREE.Points(npStGeo, npStarMat);
         addTarget.add(npStarPoints);
+        // a handful of brighter stars that twinkle harder
+        const NP_BRIGHT_N = 26;
+        const npBrightPos = new Float32Array(NP_BRIGHT_N * 3);
+        const npBrightSeed = [];
+        for (let i = 0; i < NP_BRIGHT_N; i++) {
+            const az = Math.random()*Math.PI*2, el = Math.random()*Math.PI*0.5 + 0.05;
+            npBrightPos[i*3] = Math.cos(el)*Math.sin(az)*13.5;
+            npBrightPos[i*3+1] = Math.sin(el)*13.5;
+            npBrightPos[i*3+2] = Math.cos(el)*Math.cos(az)*13.5;
+            npBrightSeed.push(Math.random()*10);
+        }
+        const npBrightGeo = new THREE.BufferGeometry();
+        npBrightGeo.setAttribute('position', new THREE.BufferAttribute(npBrightPos, 3));
+        const npBrightMat = new THREE.PointsMaterial({ color: 0xffffff, map: npDotTex, size: 0.16, transparent: true, opacity: 1, depthWrite: false, fog: false });
+        const npBrightStars = new THREE.Points(npBrightGeo, npBrightMat);
+        addTarget.add(npBrightStars);
 
-        // ── Permanent moon disc ──
-        const npMoonDisc = new THREE.Mesh(new THREE.CircleGeometry(0.70, 20),
-            new THREE.MeshBasicMaterial({ color: 0xeef4ff, transparent: true, opacity: 0.96, fog: false }));
+        // ── Permanent moon disc: soft halo + a mottled cratered face ──
+        const npMoonCv = mkCanvas(256, 256), nmc = npMoonCv.getContext('2d');
+        nmc.fillStyle = '#eef4ff'; nmc.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 26; i++) {
+            const mx3 = Math.random()*256, my3 = Math.random()*256, mr3 = 6 + Math.random()*22;
+            const gr3 = nmc.createRadialGradient(mx3 - mr3*0.3, my3 - mr3*0.3, 0, mx3, my3, mr3);
+            gr3.addColorStop(0, 'rgba(180,200,220,0.5)'); gr3.addColorStop(1, 'rgba(180,200,220,0)');
+            nmc.fillStyle = gr3; nmc.fillRect(mx3-mr3, my3-mr3, mr3*2, mr3*2);
+        }
+        const npMoonTex = new THREE.CanvasTexture(npMoonCv);
+        npMoonTex.colorSpace = THREE.SRGBColorSpace;
+        const npMoonHalo = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24),
+            new THREE.MeshBasicMaterial({ color: 0xaaccee, map: npDotTex, transparent: true, opacity: 0.35, fog: false, depthWrite: false }));
+        npMoonHalo.position.set(6.0, 7.6, -8.5);
+        addTarget.add(npMoonHalo);
+        const npMoonDisc = new THREE.Mesh(new THREE.CircleGeometry(0.70, 24),
+            new THREE.MeshBasicMaterial({ map: npMoonTex, transparent: true, opacity: 0.96, fog: false }));
         npMoonDisc.position.set(6.0, 7.6, -8.5);
         addTarget.add(npMoonDisc);
 
@@ -3597,9 +3903,17 @@
         }
         const snowfallGeo = new THREE.BufferGeometry();
         snowfallGeo.setAttribute('position', new THREE.BufferAttribute(snowfallPos, 3));
-        const snowfallMat = new THREE.PointsMaterial({ color: 0xeef4ff, size: 0.048, transparent: true, opacity: 0.78, fog: false });
+        const snowfallMat = new THREE.PointsMaterial({ color: 0xeef4ff, map: npDotTex, size: 0.065, transparent: true, opacity: 0.78, depthWrite: false, fog: false });
         const snowfallPoints = new THREE.Points(snowfallGeo, snowfallMat);
         addTarget.add(snowfallPoints);
+
+        // ── A rare shooting star streaking across the polar sky ──
+        const npShootGeo = new THREE.PlaneGeometry(0.9, 0.02);
+        const npShootMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+        const npShootStar = new THREE.Mesh(npShootGeo, npShootMat);
+        npShootStar.position.set(0, 9, -6);
+        addTarget.add(npShootStar);
+        let npNextShoot = 6 + Math.random() * 14, npShootUntil = -1, npShootFrom = new THREE.Vector3(), npShootTo = new THREE.Vector3();
 
         // ── North pole moonlight ──
         const npMoonLight = new THREE.DirectionalLight(0x88aae0, 1.8);
@@ -11670,7 +11984,29 @@
 
                 // Moon always faces camera
                 npMoonDisc.lookAt(camera.position);
+                npMoonHalo.lookAt(camera.position);
                 npMoonLight.intensity = 1.8 * b;
+
+                // Bright stars and ground glitter twinkle independently
+                npBrightMat.opacity = 0.6 + Math.sin(t * 3.1) * 0.25 + Math.sin(t * 7.7) * 0.15;
+                npGlitterMat.opacity = 0.35 + Math.sin(t * 2.2 + 1) * 0.2 + Math.max(0, Math.sin(t * 5.3)) * 0.2;
+
+                // A shooting star streaks across the sky every so often
+                if (t > npNextShoot) {
+                    npNextShoot = t + 9 + Math.random() * 22;
+                    npShootUntil = t + 0.7 + Math.random() * 0.3;
+                    const az2 = Math.random() * Math.PI * 2, spread = 2.5 + Math.random() * 3;
+                    npShootFrom.set(Math.sin(az2) * 12, 6 + Math.random() * 5, Math.cos(az2) * 12);
+                    npShootTo.copy(npShootFrom).add(new THREE.Vector3(Math.cos(az2) * spread, -1.4 - Math.random(), -Math.sin(az2) * spread));
+                }
+                if (t < npShootUntil) {
+                    const k2 = 1 - Math.max(0, npShootUntil - t) / 1.0;
+                    npShootStar.position.lerpVectors(npShootFrom, npShootTo, Math.min(1, k2 * 1.6));
+                    npShootStar.lookAt(camera.position);
+                    npShootMat.opacity = Math.sin(Math.min(1, k2 * 1.6) * Math.PI) * 0.9;
+                } else {
+                    npShootMat.opacity = 0;
+                }
 
                 // Lantern — gentle slow flicker
                 const nplb = params.lampBrightness;
