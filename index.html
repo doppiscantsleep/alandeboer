@@ -10002,12 +10002,15 @@
 
         // ── Autumn floor: olive duff, dirt patches, leaf flecks ──
         const htgCv = mkCanvas(512, 512), htg = htgCv.getContext('2d');
-        htg.fillStyle = '#3a4a28'; htg.fillRect(0, 0, 512, 512);
-        ['#324222', '#44582e', '#2c3a1c', '#4a3a22', '#3e4e2a'].forEach((c2, i) => {
+        htg.fillStyle = '#40533b'; htg.fillRect(0, 0, 512, 512);
+        ['#354935', '#586445', '#303f33', '#5a4d38', '#486047'].forEach((c2, i) => {
             htg.fillStyle = c2;
             for (let n = 0; n < 280; n++) {
-                htg.globalAlpha = 0.28 + Math.random() * 0.4;
-                htg.fillRect(Math.random() * 512, Math.random() * 512, 4 + Math.random() * 18, 3 + Math.random() * 12);
+                htg.globalAlpha = 0.16 + Math.random() * 0.25;
+                htg.beginPath();
+                htg.ellipse(Math.random() * 512, Math.random() * 512,
+                    2 + Math.random() * 9, 1 + Math.random() * 6, Math.random() * Math.PI, 0, Math.PI * 2);
+                htg.fill();
             }
         });
         htg.globalAlpha = 1;
@@ -10017,9 +10020,9 @@
             htg.ellipse(Math.random() * 512, Math.random() * 512, 18 + Math.random() * 40, 10 + Math.random() * 22, Math.random() * 4, 0, Math.PI * 2);
             htg.fill();
         }
-        for (let i = 0; i < 1400; i++) {
-            htg.fillStyle = ['#b45a1c', '#c87820', '#8a3a14', '#d4a032', '#6a4a1c'][(Math.random() * 5) | 0];
-            htg.globalAlpha = 0.35 + Math.random() * 0.45;
+        for (let i = 0; i < 900; i++) {
+            htg.fillStyle = ['#a46135', '#b88544', '#764a32', '#c0a063', '#596044'][(Math.random() * 5) | 0];
+            htg.globalAlpha = 0.25 + Math.random() * 0.35;
             htg.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1 + Math.random() * 2);
         }
         htg.globalAlpha = 1;
@@ -10032,27 +10035,51 @@
 
         // ── The line the pack works: a long closed loop well outside camp ──
         const HT_PATH = [
-            [ 8.6,  3.4], [ 14.2,  1.2], [ 19.0, -4.2], [ 18.4, -11.2],
-            [ 13.0, -17.0], [ 5.4, -19.2], [ -3.8, -18.0], [-11.6, -14.4],
-            [-17.8, -8.2], [-19.4,  0.6], [-16.4,  8.8], [ -9.6, 15.4],
-            [  0.4, 18.2], [  8.4, 15.2], [ 13.6,  9.2],
+            [ 6.7,  4.5], [ 4.0,  7.3], [ 0.3,  8.4], [-4.2,  7.6],
+            [-8.7,  4.3], [-11.7, -0.8], [-10.6, -7.5], [-5.4, -11.2],
+            [ 1.0, -12.5], [ 7.6, -10.7], [11.6, -5.7], [11.4,  0.5],
         ];
         const htCurve = new THREE.CatmullRomCurve3(
             HT_PATH.map(p => new THREE.Vector3(p[0], 0, p[1])), true, 'catmullrom', 0.35);
         const htPathLen = htCurve.getLength();
-        const htDirtMat = new THREE.MeshStandardMaterial({ color: 0x6a5330, roughness: 0.96 });
-        const htPathN = 90;
-        for (let i = 0; i < htPathN; i++) {
-            const u = i / htPathN;
-            const p = htCurve.getPointAt(u);
-            const tg = htCurve.getTangentAt(u);
-            const patch = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 1.05), htDirtMat);
-            patch.rotation.x = -Math.PI / 2;
-            patch.rotation.z = Math.atan2(tg.x, tg.z);
-            patch.position.set(p.x, 0.014, p.z);
-            patch.receiveShadow = true;
-            addTarget.add(patch);
+        const htTrailCv = mkCanvas(256, 256), htTrailPaint = htTrailCv.getContext('2d');
+        htTrailPaint.fillStyle = '#8a7350'; htTrailPaint.fillRect(0, 0, 256, 256);
+        speckle(htTrailPaint, 256, 256, 3400, 0.28, '#b9a276', '#4e4736');
+        for (let i = 0; i < 160; i++) {
+            htTrailPaint.fillStyle = i % 3 ? 'rgba(50,48,39,0.20)' : 'rgba(220,203,159,0.22)';
+            htTrailPaint.beginPath();
+            htTrailPaint.ellipse(Math.random() * 256, Math.random() * 256,
+                1 + Math.random() * 4, 0.5 + Math.random() * 2, Math.random() * 3, 0, Math.PI * 2);
+            htTrailPaint.fill();
         }
+        const htTrailTex = asTex(htTrailCv, 1, 1);
+        const htPathN = 160, htPathPos = [], htPathUV = [], htPathCol = [], htPathIdx = [];
+        const htEdgeCol = new THREE.Color(0x857257), htMidCol = new THREE.Color(0xc1aa81);
+        for (let i = 0; i <= htPathN; i++) {
+            const u = i / htPathN, p = htCurve.getPointAt(u % 1), tg = htCurve.getTangentAt(u % 1);
+            const width = 0.85 + Math.sin(u * Math.PI * 16) * 0.08;
+            [-1, 0, 1].forEach((side, k) => {
+                htPathPos.push(p.x - tg.z * side * width, 0.021, p.z + tg.x * side * width);
+                htPathUV.push(k / 2, u * 18);
+                const col = k === 1 ? htMidCol : htEdgeCol;
+                htPathCol.push(col.r, col.g, col.b);
+            });
+            if (i < htPathN) for (let k = 0; k < 2; k++) {
+                const a = i * 3 + k, b = a + 3;
+                htPathIdx.push(a, b, a + 1, a + 1, b, b + 1);
+            }
+        }
+        const htTrailGeo = new THREE.BufferGeometry();
+        htTrailGeo.setAttribute('position', new THREE.Float32BufferAttribute(htPathPos, 3));
+        htTrailGeo.setAttribute('uv', new THREE.Float32BufferAttribute(htPathUV, 2));
+        htTrailGeo.setAttribute('color', new THREE.Float32BufferAttribute(htPathCol, 3));
+        htTrailGeo.setIndex(htPathIdx);
+        htTrailGeo.computeVertexNormals();
+        const htTrail = new THREE.Mesh(htTrailGeo, new THREE.MeshStandardMaterial({
+            map: htTrailTex, vertexColors: true, roughness: 0.98, side: THREE.DoubleSide,
+        }));
+        htTrail.receiveShadow = true;
+        addTarget.add(htTrail);
 
         const htPathDist = (x, z) => {
             let best = 99;
@@ -10063,6 +10090,45 @@
             }
             return best;
         };
+
+        const htTrailDummy = new THREE.Object3D();
+        const htPawMarks = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 8),
+            new THREE.MeshBasicMaterial({ color: 0x4c4134, transparent: true, opacity: 0.55,
+                side: THREE.DoubleSide, depthWrite: false }), 52 * 4);
+        for (let i = 0; i < 52; i++) {
+            const p = htCurve.getPointAt((i + 0.5) / 52), tg = htCurve.getTangentAt((i + 0.5) / 52);
+            const nx = -tg.z, nz = tg.x, side = i % 2 ? -0.22 : 0.22;
+            [[0, 0, 0.075, 0.052], [-0.06, 0.11, 0.024, 0.025],
+                [0, 0.13, 0.025, 0.026], [0.06, 0.11, 0.024, 0.025]].forEach(([across, along, w, h], j) => {
+                htTrailDummy.position.set(p.x + nx * (side + across) + tg.x * along,
+                    0.027, p.z + nz * (side + across) + tg.z * along);
+                htTrailDummy.rotation.set(-Math.PI / 2, 0, Math.atan2(tg.x, tg.z));
+                htTrailDummy.scale.set(w, h, 1);
+                htTrailDummy.updateMatrix();
+                htPawMarks.setMatrixAt(i * 4 + j, htTrailDummy.matrix);
+            });
+        }
+        htPawMarks.instanceMatrix.needsUpdate = true;
+        addTarget.add(htPawMarks);
+
+        const htEdgeGrass = new THREE.InstancedMesh(new THREE.ConeGeometry(0.045, 0.29, 3),
+            lm(0xffffff, 0, 0, 1), 340);
+        const htGrassCols = [0x50623d, 0x718052, 0x7a764a, 0x9a8756];
+        for (let i = 0; i < 340; i++) {
+            const u = (i + Math.random() * 0.8) / 340;
+            const p = htCurve.getPointAt(u), tg = htCurve.getTangentAt(u);
+            const side = i % 2 ? 1 : -1, off = side * (1.05 + Math.random() * 1.5);
+            const h = 0.17 + Math.random() * 0.26;
+            htTrailDummy.position.set(p.x - tg.z * off, h * 0.5, p.z + tg.x * off);
+            htTrailDummy.rotation.set((Math.random() - 0.5) * 0.2, Math.random() * Math.PI, (Math.random() - 0.5) * 0.35);
+            htTrailDummy.scale.set(0.7 + Math.random(), h / 0.29, 0.7 + Math.random());
+            htTrailDummy.updateMatrix();
+            htEdgeGrass.setMatrixAt(i, htTrailDummy.matrix);
+            htEdgeGrass.setColorAt(i, new THREE.Color(htGrassCols[i % htGrassCols.length]));
+        }
+        htEdgeGrass.instanceMatrix.needsUpdate = true;
+        if (htEdgeGrass.instanceColor) htEdgeGrass.instanceColor.needsUpdate = true;
+        addTarget.add(htEdgeGrass);
 
         // ── Bark + canopy + rock textures for the tree kit ──
         const htBarkCv = mkCanvas(256, 256), htBark2Cv = mkCanvas(256, 256);
@@ -10123,6 +10189,8 @@
             new THREE.MeshStandardMaterial({ color: c, map: htCanopyTex, roughness: 0.92 }));
         const htOakMats = [0xb45a1c, 0xc87824, 0x8a3a14, 0xd49828].map(c =>
             new THREE.MeshStandardMaterial({ color: c, map: htCanopyTex, roughness: 0.9 }));
+        let htTreeSeed = 0x41f3a27;
+        const htTreeRand = () => ((htTreeSeed = (1664525 * htTreeSeed + 1013904223) >>> 0) / 4294967296);
         const htTrunkGeo = new THREE.CylinderGeometry(0.07, 0.11, 1, 6);
         const htConeGeos = [
             new THREE.ConeGeometry(0.64, 0.95, 7),
@@ -10136,7 +10204,7 @@
             tr.scale.set(s, s, s);
             tr.castShadow = tr.receiveShadow = true;
             addTarget.add(tr);
-            const mat = htPineMats[(Math.random() * htPineMats.length) | 0];
+            const mat = htPineMats[(htTreeRand() * htPineMats.length) | 0];
             [[0.95, 1.05], [0.82, 1.72], [0.70, 2.28]].forEach(([sc, y], i) => {
                 const c = new THREE.Mesh(htConeGeos[i], mat);
                 c.position.set(x, y * s, z);
@@ -10152,16 +10220,17 @@
             tr.castShadow = true;
             addTarget.add(tr);
             for (let k = 0; k < 4; k++) {
-                const c = new THREE.Mesh(htOakCanopyGeo, htOakMats[(Math.random() * htOakMats.length) | 0]);
-                c.position.set(x + (Math.random() - 0.5) * 0.55 * s, (1.35 + Math.random() * 0.55) * s, z + (Math.random() - 0.5) * 0.55 * s);
-                c.scale.set(s * (0.7 + Math.random() * 0.5), s * (0.55 + Math.random() * 0.35), s * (0.7 + Math.random() * 0.5));
+                const c = new THREE.Mesh(htOakCanopyGeo, htOakMats[(htTreeRand() * htOakMats.length) | 0]);
+                c.position.set(x + (htTreeRand() - 0.5) * 0.55 * s, (1.35 + htTreeRand() * 0.55) * s, z + (htTreeRand() - 0.5) * 0.55 * s);
+                c.scale.set(s * (0.7 + htTreeRand() * 0.5), s * (0.55 + htTreeRand() * 0.35), s * (0.7 + htTreeRand() * 0.5));
                 c.castShadow = c.receiveShadow = true;
                 addTarget.add(c);
             }
         };
         const htPlaceTree = (x, z, pine) => {
-            if (htInClearing(x, z) || htPathDist(x, z) < 1.55) return false;
-            const s = 0.85 + Math.random() * 1.35;
+            if (htInClearing(x, z) || htPathDist(x, z) < 1.55 ||
+                (z > 6 && z < 21 && x > -5 && x < 15)) return false;
+            const s = 0.85 + htTreeRand() * 1.35;
             pine ? htPine(x, z, s) : htOak(x, z, s);
             return true;
         };
@@ -10169,16 +10238,56 @@
         let htTrees = 0, htGuard = 0;
         while (htTrees < 58 && htGuard < 400) {
             htGuard++;
-            const a = Math.random() * Math.PI * 2;
-            const r = 7.2 + Math.random() * 22;
-            if (htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, Math.random() < 0.55)) htTrees++;
+            const a = htTreeRand() * Math.PI * 2;
+            const r = 7.2 + htTreeRand() * 22;
+            if (htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, htTreeRand() < 0.55)) htTrees++;
         }
         // Horizon belt — closes the woods so the floor doesn't just end
         for (let i = 0; i < 42; i++) {
-            const a = (i / 42) * Math.PI * 2 + Math.random() * 0.12;
-            const r = 32 + Math.random() * 6;
-            htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, Math.random() < 0.7);
+            const a = (i / 42) * Math.PI * 2 + htTreeRand() * 0.12;
+            const r = 32 + htTreeRand() * 6;
+            htPlaceTree(Math.sin(a) * r, Math.cos(a) * r, htTreeRand() < 0.7);
         }
+
+        const htBirchBark = lm(0xd7d6c5, 0, 0, 0.95);
+        const htBirchMark = lm(0x515950, 0, 0, 1);
+        const htBirchLeaves = [lm(0xbdad60), lm(0xc59148), lm(0x8c9a62)];
+        const htBirch = (x, z, s) => {
+            const g = new THREE.Group();
+            g.position.set(x, 0, z);
+            g.scale.setScalar(s);
+            addTarget.add(g);
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.095, 2.7, 7), htBirchBark);
+            trunk.position.y = 1.35;
+            trunk.castShadow = trunk.receiveShadow = true;
+            g.add(trunk);
+            for (let i = 0; i < 8; i++) {
+                const mark = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.023, 0.012), htBirchMark);
+                mark.position.set((i % 2 ? -1 : 1) * 0.017, 0.38 + i * 0.28, 0.083 - i * 0.003);
+                mark.rotation.z = (i % 3 - 1) * 0.16;
+                g.add(mark);
+            }
+            for (let i = 0; i < 4; i++) {
+                const a = i * Math.PI * 0.5 + 0.3;
+                const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.045, 1.05, 5), htBirchBark);
+                branch.position.set(Math.cos(a) * 0.33, 2.05 + (i % 2) * 0.25, Math.sin(a) * 0.33);
+                branch.rotation.set(Math.sin(a) * 0.85, 0, -Math.cos(a) * 0.85);
+                branch.castShadow = true;
+                g.add(branch);
+                for (let j = 0; j < 2; j++) {
+                    const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), htBirchLeaves[(i + j) % 3]);
+                    leaf.position.set(Math.cos(a) * (0.55 + j * 0.25), 2.45 + (i % 2) * 0.22 + j * 0.2,
+                        Math.sin(a) * (0.55 + j * 0.25));
+                    leaf.scale.set(1.2, 0.55, 0.85);
+                    leaf.castShadow = true;
+                    g.add(leaf);
+                }
+            }
+        };
+        [[-7.0, -8.0, 1.2], [-2.8, -9.6, 1.05], [3.5, -9.2, 1.3],
+            [7.5, -12.5, 1.1], [-13.8, 6.0, 1.25]].forEach(([x, z, s]) => {
+            if (!htInClearing(x, z) && htPathDist(x, z) > 1.7) htBirch(x, z, s);
+        });
 
         // ── Thickets the pack crashes through ──
         const htBushMat = [lm(0x2a4018), lm(0x3a4e20), lm(0x243818), lm(0x4a3a16)];
@@ -10254,12 +10363,12 @@
         // ── Fallen-leaf litter: flat cutout quads scattered near camp for foreground depth ──
         const htLeafCutCv = mkCanvas(64, 64), hlc = htLeafCutCv.getContext('2d');
         hlc.clearRect(0, 0, 64, 64);
-        hlc.fillStyle = '#c8801c';
+        hlc.fillStyle = '#f4eee0';
         hlc.beginPath();
         hlc.moveTo(32, 4); hlc.bezierCurveTo(58, 14, 58, 48, 32, 60);
         hlc.bezierCurveTo(6, 48, 6, 14, 32, 4);
         hlc.fill();
-        hlc.strokeStyle = 'rgba(90,50,10,0.5)'; hlc.lineWidth = 1.4;
+        hlc.strokeStyle = 'rgba(85,76,58,0.52)'; hlc.lineWidth = 1.4;
         hlc.beginPath(); hlc.moveTo(32, 8); hlc.lineTo(32, 56); hlc.stroke();
         for (let v = 1; v < 6; v++) {
             hlc.beginPath();
@@ -10271,22 +10380,35 @@
         }
         const htLeafCutTex = new THREE.CanvasTexture(htLeafCutCv);
         htLeafCutTex.colorSpace = THREE.SRGBColorSpace;
-        const htLitterCols = [0xc8801c, 0xa85a18, 0xd4a028, 0x8a4a14, 0x6a3a12];
-        const htLitterMats = htLitterCols.map(c => new THREE.MeshStandardMaterial({
-            map: htLeafCutTex, color: c, roughness: 0.95, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
-        }));
-        for (let i = 0; i < 70; i++) {
-            const a = Math.random() * Math.PI * 2, r = 1.4 + Math.random() * 16;
-            const lx = Math.sin(a) * r, lz = Math.cos(a) * r;
-            if (htPathDist(lx, lz) < 0.5) continue;
-            const s = 0.09 + Math.random() * 0.1;
-            const leaf = new THREE.Mesh(new THREE.PlaneGeometry(s, s), htLitterMats[(Math.random() * htLitterMats.length) | 0]);
-            leaf.rotation.x = -Math.PI / 2;
-            leaf.rotation.z = Math.random() * Math.PI * 2;
-            leaf.position.set(lx, 0.012, lz);
-            leaf.receiveShadow = true;
-            addTarget.add(leaf);
+        const htLitterCols = [0xb17537, 0x995a35, 0xc19b56, 0x725b38, 0x827d4d];
+        const htLitter = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshStandardMaterial({ map: htLeafCutTex, color: 0xffffff, roughness: 1,
+                transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, depthWrite: false }), 640);
+        let htLitterCount = 0;
+        for (let i = 0; i < 640; i++) {
+            let lx, lz;
+            if (i < 360) {
+                const p = htCurve.getPointAt((i + Math.random()) / 360);
+                const tg = htCurve.getTangentAt((i + Math.random()) / 360);
+                const off = (i % 2 ? 1 : -1) * (0.85 + Math.random() * 2.8);
+                lx = p.x - tg.z * off; lz = p.z + tg.x * off;
+            } else {
+                const a = Math.random() * Math.PI * 2, r = 1.2 + Math.random() * 18;
+                lx = Math.sin(a) * r; lz = Math.cos(a) * r;
+                if (htPathDist(lx, lz) < 0.7) continue;
+            }
+            const s = 0.08 + Math.random() * 0.13;
+            htTrailDummy.position.set(lx, 0.029 + Math.random() * 0.004, lz);
+            htTrailDummy.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+            htTrailDummy.scale.set(s, s * (0.8 + Math.random() * 0.5), 1);
+            htTrailDummy.updateMatrix();
+            htLitter.setMatrixAt(htLitterCount, htTrailDummy.matrix);
+            htLitter.setColorAt(htLitterCount++, new THREE.Color(htLitterCols[i % htLitterCols.length]));
         }
+        htLitter.count = htLitterCount;
+        htLitter.instanceMatrix.needsUpdate = true;
+        if (htLitter.instanceColor) htLitter.instanceColor.needsUpdate = true;
+        addTarget.add(htLitter);
 
         // ── Split-rail fence on the far side of camp ──
         const htFenceWood = woodTex('#6a5638', '#4e3e26', '#2a2012', 1);
@@ -10302,6 +10424,11 @@
                 box(1.5, 0.045, 0.05, htRailMat, fx + 0.72, 0.32, -5.15, 0, 0, -0.06);
             }
         }
+        box(0.95, 0.29, 0.06, htRailMat, -3.65, 0.95, -5.14);
+        const htCampLabel = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.22),
+            new THREE.MeshBasicMaterial({ map: signCv('HUNT CAMP', 384, 112, '#ede8d8', '#435843', 48), fog: false }));
+        htCampLabel.position.set(-3.65, 0.95, -5.095);
+        addTarget.add(htCampLabel);
 
         // ── Tailgate camp: faded green pickup, lantern, Clark's plaid ──
         const htTruck = new THREE.Group();
@@ -10344,14 +10471,22 @@
         const htGate = htAdd(htTruck, 0.04, 0.28, 0.72, htPaint, 1.06, 0.42, 0, 0, 0);
         htGate.rotation.z = 1.15; htGate.position.set(1.18, 0.28, 0);         // tailgate down
         htAdd(htTruck, 0.22, 0.10, 0.78, htPaint, -0.92, 0.58, 0);            // nose
+        [-1, 1].forEach(side => {
+            htAdd(htTruck, 1.4, 0.035, 0.018, htChrome, 0.1, 0.52, side * 0.39);
+            htAdd(htTruck, 0.085, 0.1, 0.028, lm(0x942c22, 0xe4482c, 0.55), 1.05, 0.65, side * 0.35);
+            htAdd(htTruck, 0.11, 0.055, 0.11, htChrome, -0.77, 0.96, side * 0.46);
+        });
+        htAdd(htTruck, 0.03, 0.22, 0.54, htChrome, -1.045, 0.59, 0);
+        htAdd(htTruck, 0.10, 0.045, 0.80, htChrome, -1.08, 0.38, 0);
+        htAdd(htTruck, 0.025, 0.20, 0.70, htPaintDk, -0.1, 0.94, 0);
         [[-0.55, -0.42], [-0.55, 0.42], [0.62, -0.42], [0.62, 0.42]].forEach(([wx, wz]) => {
             const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.12, 10), htRubber);
-            wh.rotation.z = Math.PI / 2;
+            wh.rotation.x = Math.PI / 2;
             wh.position.set(wx, 0.18, wz);
             wh.castShadow = true;
             htTruck.add(wh);
             const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.13, 8), htChrome);
-            hub.rotation.z = Math.PI / 2;
+            hub.rotation.x = Math.PI / 2;
             hub.position.set(wx, 0.18, wz);
             htTruck.add(hub);
         });
@@ -10550,8 +10685,8 @@
         };
         const HT_COLLARS = [0xc4281c, 0x1c4cc4, 0x2a8a28, 0xe0b018, 0xff6a12, 0x6a28a0, 0xf0ece4];
         const htPack = HT_COLLARS.map((col, i) => {
-            const dog = mkHuntBeagle(col, 0.90 + (i % 3) * 0.06, i === 2 || i === 5);
-            const u0 = (i * 0.034) % 1;           // staggered along the line
+            const dog = mkHuntBeagle(col, 1.35 + (i % 3) * 0.07, i === 2 || i === 5);
+            const u0 = (i * 0.026) % 1;           // staggered along the near side of the line
             return Object.assign(dog, {
                 u: u0,
                 mode: 'running',
@@ -10646,7 +10781,7 @@
             return { g, head, armL, armR, legL, legR };
         };
         const htHunters = [true, false].map((taller, i) => Object.assign(mkHunter(taller), {
-            u: 0.82 - i * 0.045,          // well behind the pack at start
+            u: 0.34 - i * 0.045,
             pausedUntil: 0,
             lookUntil: 0,
             speed: 0.34 + i * 0.03,
@@ -10666,7 +10801,7 @@
         const htMistGeo = new THREE.BufferGeometry();
         htMistGeo.setAttribute('position', new THREE.BufferAttribute(htMistPos, 3));
         const htMistMat = new THREE.PointsMaterial({
-            color: 0xd8e0e8, map: htDotTex, size: 0.7, transparent: true, opacity: 0.12, depthWrite: false, sizeAttenuation: true,
+            color: 0xe4edf0, map: htDotTex, size: 0.42, transparent: true, opacity: 0.075, depthWrite: false, sizeAttenuation: true,
         });
         const htMist = new THREE.Points(htMistGeo, htMistMat);
         addTarget.add(htMist);
@@ -10702,8 +10837,8 @@
         const htShaftTex = new THREE.CanvasTexture(htShaftCv);
         const htShaftGeo = new THREE.PlaneGeometry(1, 1);
         const HT_SHAFT_DEF = [
-            [6.2, -9.4, 9.5, 1.1], [-8.4, -7.2, 8.2, 0.9], [3.0, -13.6, 10.5, 1.3],
-            [-4.2, -11.4, 8.8, 1.0], [9.6, -4.6, 7.4, 0.85], [-11.2, -3.4, 8.4, 1.0],
+            [6.2, -9.4, 9.5, 0.62], [-8.4, -7.2, 8.2, 0.55], [3.0, -13.6, 10.5, 0.72],
+            [-4.2, -11.4, 8.8, 0.6], [9.6, -4.6, 7.4, 0.5], [-11.2, -3.4, 8.4, 0.6],
         ];
         const htShafts = HT_SHAFT_DEF.map(([sx, sz, sh, sw]) => {
             const m = new THREE.Mesh(htShaftGeo, new THREE.MeshBasicMaterial({
@@ -10730,10 +10865,19 @@
         const htSunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20),
             new THREE.MeshBasicMaterial({ color: 0xffe2b0, fog: false, transparent: true, opacity: 0.9 }));
         addTarget.add(htSunDisc);
-        const htSkyDawn = new THREE.Color(0x6a7a9a), htSkyMorn = new THREE.Color(0xc07038), htSkyDay = new THREE.Color(0x8eb8d8);
+        const htSkyDawn = new THREE.Color(0x687f9a), htSkyMorn = new THREE.Color(0xb6a1a2), htSkyDay = new THREE.Color(0x9fc5d8);
         const htSunDawn = new THREE.Color(0xff8a40), htSunDay = new THREE.Color(0xfff2d4);
-        const htGrDawn = new THREE.Color(0x1a2014), htGrDay = new THREE.Color(0x3a4a28);
+        const htGrDawn = new THREE.Color(0x27352d), htGrDay = new THREE.Color(0x445a3c);
         const htSkyCol = new THREE.Color();
+        const htSkyTop = new THREE.Color(), htSkyHorizon = new THREE.Color();
+        const htSkyCv = mkCanvas(16, 512), htSkyPaint = htSkyCv.getContext('2d');
+        const htSkyTex = new THREE.CanvasTexture(htSkyCv);
+        htSkyTex.colorSpace = THREE.SRGBColorSpace;
+        const htSkyDome = new THREE.Mesh(new THREE.SphereGeometry(78, 32, 20),
+            new THREE.MeshBasicMaterial({ map: htSkyTex, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }));
+        htSkyDome.renderOrder = -10;
+        addTarget.add(htSkyDome);
+        let htSkyLastTime = -1;
         let htNextBay = 4, htNextChirp = 6;
 
         addTarget = beachGroup;
@@ -11839,7 +11983,14 @@
         const worldBtns = document.querySelectorAll('#worlds .world');
         const rvSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const tlSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const htSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const tlFraming = () => window.innerWidth / window.innerHeight < 0.8 ? 1.45 : 1;
+        const htOpeningCamera = () => {
+            const portrait = camera.aspect < 0.8;
+            controls.target.set(0, 1, portrait ? 3.7 : 5);
+            camera.position.set(portrait ? 3.4 : 5.3, portrait ? 8.0 : 5.8, portrait ? 19.0 : 11.6);
+            controls.update();
+        };
         const setTheme = th => {
             controls.minPolarAngle = th === 'room' ? 0.25 : 0;
             controls.maxPolarAngle = th === 'room' ? 1.48 : Math.PI*0.8;
@@ -11852,6 +12003,10 @@
             if (th !== 'tillson' && tlSavedCamera.active) {
                 camera.position.copy(tlSavedCamera.position); controls.target.copy(tlSavedCamera.target);
                 tlSavedCamera.active = false; controls.update();
+            }
+            if (th !== 'hunt' && htSavedCamera.active) {
+                camera.position.copy(htSavedCamera.position); controls.target.copy(htSavedCamera.target);
+                htSavedCamera.active = false; controls.update();
             }
             if (th === 'river' && theme !== 'river') {
                 rvSavedCamera.position.copy(camera.position); rvSavedCamera.target.copy(controls.target); rvSavedCamera.active = true;
@@ -11868,6 +12023,11 @@
                 const distance = tlFraming();
                 camera.position.set(8.2 * distance, 1.25 + 4.5 * distance, -2.4 + 13.4 * distance);
                 controls.update();
+            }
+            if (th === 'hunt' && theme !== 'hunt') {
+                htSavedCamera.position.copy(camera.position); htSavedCamera.target.copy(controls.target); htSavedCamera.active = true;
+                controls.maxDistance = 38;
+                htOpeningCamera();
             }
             if (th === 'room' && theme !== 'room') {
                 controls.maxDistance=22;
@@ -13476,6 +13636,7 @@
             const previousRiverFrame = camera.aspect < 0.8 ? 1.55 : 1;
             const previousRoomFrame = camera.aspect < 0.8 ? 1.95 : 1;
             const previousTillsonFrame = camera.aspect < 0.8 ? 1.45 : 1;
+            const previousHuntPortrait = camera.aspect < 0.8;
             camera.aspect = window.innerWidth / window.innerHeight;
             if (theme === 'river' && !monZoom && !lapZoom) {
                 const nextRiverFrame = camera.aspect < 0.8 ? 1.55 : 1;
@@ -13483,6 +13644,7 @@
             }
             if(theme==='room' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(rmFraming()/previousRoomFrame).add(controls.target);
             if(theme==='tillson' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(tlFraming()/previousTillsonFrame).add(controls.target);
+            if(theme==='hunt' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) htOpeningCamera();
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
@@ -14862,15 +15024,27 @@
                 const td = params.time;
                 if (td < 0.35) htSkyCol.copy(htSkyDawn).lerp(htSkyMorn, td / 0.35);
                 else htSkyCol.copy(htSkyMorn).lerp(htSkyDay, (td - 0.35) / 0.65);
+                if (Math.abs(td - htSkyLastTime) > 0.005) {
+                    htSkyTop.copy(htSkyDawn).lerp(htSkyDay, td * 0.7);
+                    htSkyHorizon.setHex(0xdba983).lerp(new THREE.Color(0xe7dcc6), td);
+                    const skyGradient = htSkyPaint.createLinearGradient(0, 0, 0, 512);
+                    skyGradient.addColorStop(0, htSkyTop.getStyle());
+                    skyGradient.addColorStop(0.54, htSkyCol.getStyle());
+                    skyGradient.addColorStop(1, htSkyHorizon.getStyle());
+                    htSkyPaint.fillStyle = skyGradient; htSkyPaint.fillRect(0, 0, 16, 512);
+                    htSkyTex.needsUpdate = true;
+                    htSkyLastTime = td;
+                }
+                htSkyDome.position.copy(camera.position);
                 scene.background.copy(htSkyCol);
                 scene.fog.color.copy(htSkyCol).multiplyScalar(0.92);
-                scene.fog.density = 0.011 + (1 - td) * 0.016;
+                scene.fog.density = 0.008 + (1 - td) * 0.008;
 
                 hemiLight.intensity = (1.3 + td * 2.0) * b;
-                hemiLight.color.copy(htSkyCol);
+                hemiLight.color.setHex(0xb6c9d2).lerp(new THREE.Color(0xe1d6c2), td);
                 hemiLight.groundColor.copy(htGrDawn).lerp(htGrDay, td);
                 fillLight.intensity = 0.55 * b;
-                fillLight.color.copy(htSkyCol);
+                fillLight.color.setHex(0x9eb6c5);
 
                 const el = 0.08 + td * 1.15;
                 const sy = Math.sin(el), sc = Math.cos(el);
@@ -14882,7 +15056,7 @@
                 htSunDisc.lookAt(camera.position);
 
                 // Shafts of light through the canopy — thickest in the dawn mist, gone by mid-morning
-                const shaftBase = Math.max(0, 0.6 - td * 0.62);
+                const shaftBase = Math.max(0, 0.3 - td * 0.32);
                 htShafts.forEach((m, i) => {
                     const ang = Math.atan2(camera.position.x - m.position.x, camera.position.z - m.position.z);
                     m.rotation.y = ang;
