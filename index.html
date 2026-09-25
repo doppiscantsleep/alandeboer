@@ -8180,7 +8180,7 @@
             road:   new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92 }),
             walk:   lm(0x8e8b84, 0, 0, 0.95),
             curbC:  lm(0x9a978f, 0, 0, 0.95),
-            lawn:   lm(0x2c4426, 0, 0, 1.0),
+            lawn:   lm(0x3d5033, 0, 0, 1.0),
             trim:   lm(0xf0ece2, 0, 0, 0.85),
             roof:   new THREE.MeshStandardMaterial({ map: shingleTex, color: 0x3a3138, roughness: 0.95 }),
             brick:  lm(0x7a4438, 0, 0, 0.95),
@@ -8196,6 +8196,9 @@
             pump:   lm(0xe07818, 0, 0, 0.75),
             stem:   lm(0x4a5a2a, 0, 0, 0.9),
             bark:   lm(0x3a2e26, 0, 0, 0.98),
+            copper: lm(0x8b6548, 0, 0, 0.72),
+            hedge:  lm(0x354b34, 0, 0, 1.0),
+            mulch:  lm(0x544133, 0, 0, 1.0),
         };
 
         // flicker registries, driven in the animate loop
@@ -8204,29 +8207,30 @@
         const tlOrange = [];   // orange string lights
 
         // ── Ground: lawn, road, curbs, sidewalks, center line ──
-        const tlGround = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), tlM.lawn);
+        const tlGround = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), tlM.lawn);
         tlGround.rotation.x = -Math.PI / 2;
         tlGround.receiveShadow = true;
         addTarget.add(tlGround);
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(TL.half * 2, 46),
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(TL.half * 2, 90),
             new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92 }));
         road.rotation.x = -Math.PI / 2;
         road.position.y = 0.01;
         road.receiveShadow = true;
         addTarget.add(road);
-        for (let dz = -21; dz < 21; dz += 3.2) {   // dashed center line
+        for (let dz = -43; dz < 44; dz += 3.2) {   // dashed center line
             box(0.14, 0.005, 1.7, lm(0xc8c090, 0, 0, 0.9), 0, 0.018, dz);
         }
         [-1, 1].forEach(sd => {
-            box(0.22, 0.16, 46, tlM.curbC, sd * (TL.half + 0.11), 0.08, 0);          // curb
-            const walk = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 46), tlM.walk);
+            box(0.22, 0.16, 90, tlM.curbC, sd * (TL.half + 0.11), 0.08, 0);          // curb
+            const walk = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 90), tlM.walk);
             walk.rotation.x = -Math.PI / 2;
             walk.position.set(sd * (TL.curb - 0.05), 0.155, 0);
             walk.receiveShadow = true;
             addTarget.add(walk);
-            for (let dz = -21; dz < 22; dz += 1.6) {   // sidewalk joints
+            for (let dz = -43; dz < 44; dz += 1.6) {   // sidewalk joints
                 box(0.95, 0.004, 0.03, lm(0x76736c, 0, 0, 0.95), sd * (TL.curb - 0.05), 0.158, dz);
             }
+            box(0.055, 0.008, 90, lm(0xc9c4aa), sd * (TL.half - 0.28), 0.018, 0);
         });
 
         // ── Decoration kit ──
@@ -8411,6 +8415,7 @@
             addTarget.add(g);
             const W = cfg.w, D = 4.2, H = cfg.stories * 1.5;
             const sideMat = new THREE.MeshStandardMaterial({ map: sidingTex, color: cfg.siding, roughness: 0.9 });
+            const shutterMat = lm(cfg.door, 0, 0, 0.88);
             const hb = (w, h, d, m, px, py, pz, rx = 0, ry = 0, rz = 0) => {
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
                 mesh.position.set(px, py, pz);
@@ -8427,6 +8432,8 @@
             const slope = Math.hypot(W / 2, cfg.roofH);
             [-1, 1].forEach(sd2 => {
                 hb(slope, 0.11, D + 0.5, tlM.roof, sd2 * W / 4, H + cfg.roofH / 2, 0, 0, 0, -sd2 * rp);
+                hb(slope, 0.085, 0.09, tlM.trim, sd2 * W / 4, H + cfg.roofH / 2,
+                    D / 2 + 0.28, 0, 0, -sd2 * rp);
             });
             [-1, 1].forEach(sd2 => {
                 const tri = new THREE.Shape();
@@ -8439,17 +8446,29 @@
             // porch: deck, posts, rail, shed roof
             const pD = 1.5;
             hb(W - 0.3, 0.14, pD, tlM.porch, 0, 0.4, D / 2 + pD / 2);
+            hb(W - 0.3, 0.25, 0.13, tlM.brick, 0, 0.2, D / 2 + pD - 0.04);
             for (let i = 0; i < 4; i++) {
                 const px2 = -W / 2 + 0.3 + i * ((W - 0.6) / 3);
                 hb(0.11, 1.85, 0.11, tlM.trim, px2, 1.4, D / 2 + pD - 0.12);
+                hb(0.2, 0.18, 0.2, tlM.stone, px2, 0.51, D / 2 + pD - 0.12);
             }
             hb(W - 0.3, 0.1, pD + 0.24, tlM.roof, 0, 2.36, D / 2 + pD / 2, -0.12, 0, 0);
-            hb(W - 0.5, 0.07, 0.06, tlM.trim, 0, 0.86, D / 2 + pD - 0.12);
-            for (let i = 0; i < 9; i++)
-                hb(0.035, 0.42, 0.035, tlM.trim, -W / 2 + 0.4 + i * ((W - 0.8) / 8), 0.65, D / 2 + pD - 0.12);
+            [-1, 1].forEach(sd2 => {
+                hb(W / 2 - 0.62, 0.07, 0.06, tlM.trim, sd2 * (W / 4 + 0.31), 0.86, D / 2 + pD - 0.12);
+                for (let j = 0; j < 5; j++)
+                    hb(0.035, 0.42, 0.035, tlM.trim,
+                        sd2 * (0.68 + j * (W / 2 - 0.98) / 4), 0.65, D / 2 + pD - 0.12);
+            });
             [0, 1, 2].forEach(i => hb(1.0, 0.08, 0.3, tlM.stone, 0, 0.32 - i * 0.12, D / 2 + pD + 0.16 + i * 0.28));
             // door + porch light
             hb(0.72, 1.24, 0.09, lm(cfg.door, 0, 0, 0.7), 0, 1.09, D / 2 + 0.02);
+            [0.65, 0.93, 1.46].forEach(y => hb(0.52, 0.04, 0.02, tlM.trim, 0, y, D / 2 + 0.08));
+            [-1, 1].forEach(sd2 => hb(0.055, 1.25, 0.1, tlM.trim, sd2 * 0.39, 1.09, D / 2 + 0.02));
+            const wreath = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.035, 5, 13), tlM.hedge);
+            wreath.position.set(0, 1.27, D / 2 + 0.095);
+            g.add(wreath);
+            [-1, 0, 1].forEach(j => hb(0.035, 0.035, 0.025, tlM.pump,
+                -0.08 + j * 0.045, 1.17 + (j % 2) * 0.025, D / 2 + 0.12));
             hb(0.08, 0.08, 0.05, lm(0xd8c088, 0, 0, 0.5), 0.24, 1.05, D / 2 + 0.07);
             const pl = lm(0x443320, 0xffc070, 1.6);
             hb(0.12, 0.16, 0.12, pl, 0.62, 1.7, D / 2 + 0.06);
@@ -8462,10 +8481,18 @@
             };
             const winAt = (wx, wy, front) => {
                 const m = winMat();
-                hb(0.62, 0.86, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.01 : -D / 2 - 0.01);
-                hb(0.5, 0.74, 0.05, m, wx, wy, front ? D / 2 + 0.04 : -D / 2 - 0.04);
-                hb(0.05, 0.74, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.06 : -D / 2 - 0.06);
-                hb(0.5, 0.05, 0.06, tlM.trim, wx, wy, front ? D / 2 + 0.06 : -D / 2 - 0.06);
+                const wz = front ? D / 2 : -D / 2;
+                const sd3 = front ? 1 : -1;
+                hb(0.62, 0.86, 0.06, tlM.trim, wx, wy, wz + sd3 * 0.01);
+                hb(0.5, 0.74, 0.05, m, wx, wy, wz + sd3 * 0.04);
+                hb(0.05, 0.74, 0.06, tlM.trim, wx, wy, wz + sd3 * 0.08);
+                hb(0.5, 0.05, 0.06, tlM.trim, wx, wy, wz + sd3 * 0.09);
+                hb(0.7, 0.07, 0.15, tlM.trim, wx, wy - 0.46, wz + sd3 * 0.13);
+                if (front) [-1, 1].forEach(s4 => {
+                    hb(0.14, 0.79, 0.04, shutterMat, wx + s4 * 0.4, wy, wz + 0.09);
+                    for (let k = 0; k < 4; k++)
+                        hb(0.12, 0.018, 0.015, tlM.dark, wx + s4 * 0.4, wy - 0.23 + k * 0.15, wz + 0.12);
+                });
             };
             winAt(-W / 2 + 0.75, 1.15, true);
             winAt(W / 2 - 0.75, 1.15, true);
@@ -8478,6 +8505,7 @@
             });
             // chimney + optional dormer
             hb(0.5, cfg.roofH + 1.1, 0.5, tlM.brick, W / 2 - 0.7, H + (cfg.roofH + 1.1) / 2 - 0.2, -0.9);
+            hb(0.61, 0.08, 0.61, tlM.stone, W / 2 - 0.7, H + cfg.roofH * 0.5 + 0.38, -0.9);
             if (cfg.dormer) {
                 hb(0.9, 0.7, 0.9, sideMat, 0, H + cfg.roofH * 0.42, D / 2 - 0.75);
                 hb(1.05, 0.09, 1.0, tlM.roof, 0, H + cfg.roofH * 0.42 + 0.38, D / 2 - 0.75);
@@ -8493,6 +8521,21 @@
                 g.add(bulb);
                 tlOrange.push({ m: om, ph: i * 0.6 });
             }
+            [-1, 1].forEach(sd2 => {
+                hb(0.24, 0.22, 0.24, tlM.copper, sd2 * (W / 2 - 0.52), 0.57, D / 2 + 0.8);
+                for (let j = 0; j < 4; j++) {
+                    const flower = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0),
+                        lm(j % 2 ? 0xc47731 : 0xe3ae4a));
+                    flower.position.set(sd2 * (W / 2 - 0.52) + (j % 2 ? 0.08 : -0.08),
+                        0.77 + (j % 3) * 0.035, D / 2 + 0.8 + (j > 1 ? 0.07 : -0.07));
+                    g.add(flower);
+                }
+            });
+            const number = 108 + Math.round((z + TL.span * 2) / TL.span) * 12 + (side > 0 ? 1 : 0);
+            const plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.14),
+                new THREE.MeshBasicMaterial({ map: signCv(String(number), 192, 76, '#f4e4c9', '#25403b', 43), fog: false }));
+            plaque.position.set(-0.55, 1.72, D / 2 + 0.055);
+            g.add(plaque);
             return { g, W, D, pD };
         };
 
@@ -8508,6 +8551,16 @@
         const tlSway = [];      // inflatables that breathe
         const tlHang = [];      // ghosts hanging from trees
         const tlCauldrons = [];
+        const tlLeaves = [];
+        const tlLeafColors = [0x9c552c, 0xc58336, 0xd5a850, 0x813f32, 0x806d36];
+        const tlAddLeaf = (x, z, size) => tlLeaves.push([x, z, size,
+            tlLeafColors[(Math.random() * tlLeafColors.length) | 0], Math.random() * Math.PI * 2]);
+        const tlCrown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0),
+            lm(0xffffff, 0, 0, 1), 8 * 42);
+        tlCrown.castShadow = true;
+        const tlDummy = new THREE.Object3D();
+        let tlCrownCount = 0;
+        addTarget.add(tlCrown);
 
         [-1, 1].forEach((side, si) => {
             for (let i = 0; i < 5; i++) {
@@ -8539,9 +8592,27 @@
                         br.castShadow = true;
                         addTarget.add(br);
                     }
+                    if (i < 3) {
+                        const count = 32;
+                        for (let j = 0; j < count; j++) {
+                            const a = j * 2.39996, r = 0.22 + Math.sqrt(j / count) * 0.85;
+                            tlDummy.position.set(tx2 + Math.cos(a) * r, 3.35 + Math.sin(j * 2.1) * 0.48,
+                                tz2 + Math.sin(a) * r);
+                            tlDummy.rotation.set(j * 0.37, a, j * 0.59);
+                            const s = 0.19 + Math.random() * 0.22;
+                            tlDummy.scale.set(s * 1.15, s * 0.7, s);
+                            tlDummy.updateMatrix();
+                            tlCrown.setMatrixAt(tlCrownCount, tlDummy.matrix);
+                            tlCrown.setColorAt(tlCrownCount++, new THREE.Color(tlLeafColors[(j + i + si * 2) % tlLeafColors.length]));
+                        }
+                    }
+                    for (let j = 0; j < 75; j++) {
+                        const a = Math.random() * Math.PI * 2, r = 0.3 + Math.random() * 2.1;
+                        tlAddLeaf(tx2 + Math.cos(a) * r, tz2 + Math.sin(a) * r, 0.6 + Math.random());
+                    }
                     if (Math.random() < 0.6) {   // a ghost swinging from a branch
                         const gh = tlGhost(tx2 + 0.6, 2.5, tz2 + 0.4, 0.24);
-                        tlHang.push({ g: gh, y0: 2.5, ph: Math.random() * 9 });
+                        tlHang.push({ g: gh, y0: 2.5, ph: Math.random() * 9, facing: side * Math.PI / 2 });
                     }
                 }
                 // mailbox + a pumpkin or two on the steps
@@ -8627,6 +8698,7 @@
                 } else {   // inflatable
                     const big = new THREE.Group();
                     big.position.set(yx(2.6), 0, z);
+                    big.rotation.y = Math.atan2(8.2 - big.position.x, 11 - big.position.z);
                     addTarget.add(big);
                     const kind = i % 2;
                     if (kind === 0) {   // giant ghost
@@ -8638,14 +8710,16 @@
                         bd.position.y = 0.72;
                         bd.castShadow = true;
                         big.add(bd);
-                        [[-0.32], [0.32]].forEach(([ex]) => {
-                            const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 6), tlM.dark);
-                            e2.position.set(ex, 1.62, -0.82);
-                            big.add(e2);
+                        [-1, 1].forEach(face => {
+                            [-0.32, 0.32].forEach(ex => {
+                                const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 7, 6), tlM.dark);
+                                e2.position.set(ex, 1.62, face * 0.82);
+                                big.add(e2);
+                            });
+                            const mo2 = new THREE.Mesh(new THREE.SphereGeometry(0.19, 7, 6), tlM.dark);
+                            mo2.position.set(0, 1.24, face * 0.86);
+                            big.add(mo2);
                         });
-                        const mo2 = new THREE.Mesh(new THREE.SphereGeometry(0.19, 7, 6), tlM.dark);
-                        mo2.position.set(0, 1.24, -0.86);
-                        big.add(mo2);
                     } else {           // giant jack-o'-lantern
                         const bb3 = new THREE.Mesh(new THREE.SphereGeometry(1.15, 14, 11), tlM.pump);
                         bb3.scale.y = 0.8;
@@ -8655,17 +8729,27 @@
                         const stm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.4, 7), tlM.stem);
                         stm.position.y = 2.0;
                         big.add(stm);
-                        const fm2 = lm(0x3a1400, 0xffb838, 1.9);
-                        tlFlames.push({ m: fm2, ph: Math.random() * 9, base: 1.8 });
-                        [[-0.42], [0.42]].forEach(([ex]) => {
-                            const e3 = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.34, 3), fm2);
-                            e3.position.set(ex, 1.28, -1.0);
-                            e3.rotation.x = -Math.PI / 2;
-                            big.add(e3);
+                        const faceMat = new THREE.MeshBasicMaterial({ color: 0x2d1b15, side: THREE.DoubleSide });
+                        const eyeShape = new THREE.Shape();
+                        eyeShape.moveTo(-0.19, -0.15); eyeShape.lineTo(0.19, -0.15);
+                        eyeShape.lineTo(0.03, 0.16); eyeShape.closePath();
+                        const grin = new THREE.Shape();
+                        grin.moveTo(-0.52, 0.05); grin.lineTo(-0.37, -0.15);
+                        grin.lineTo(-0.21, -0.12); grin.lineTo(-0.1, -0.24);
+                        grin.lineTo(0.03, -0.16); grin.lineTo(0.17, -0.24);
+                        grin.lineTo(0.29, -0.11); grin.lineTo(0.43, -0.14);
+                        grin.lineTo(0.54, 0.05); grin.lineTo(0.21, -0.02);
+                        grin.lineTo(0.0, 0.015); grin.lineTo(-0.22, -0.02); grin.closePath();
+                        [-1, 1].forEach(face => {
+                            [-0.4, 0.4].forEach(ex => {
+                                const eye = new THREE.Mesh(new THREE.ShapeGeometry(eyeShape), faceMat);
+                                eye.position.set(ex, 1.28, face * 1.18);
+                                big.add(eye);
+                            });
+                            const mouth = new THREE.Mesh(new THREE.ShapeGeometry(grin), faceMat);
+                            mouth.position.set(0, 0.77, face * 1.18);
+                            big.add(mouth);
                         });
-                        const gm = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.18, 0.06), fm2);
-                        gm.position.set(0, 0.78, -1.05);
-                        big.add(gm);
                     }
                     tlSway.push({ g: big, y0: 0, ph: Math.random() * 9, amp: 0.05, rot: true });
                     for (let k = 0; k < 4; k++)
@@ -8673,10 +8757,35 @@
                 }
             }
         });
+        [-1, 1].forEach((side, si) => {
+            [-19.8, -26.4].forEach((z, i) => tlHouse(side, z, tlPalette[(i + si + 1) % tlPalette.length]));
+        });
+
+        tlCrown.count = tlCrownCount;
+        tlCrown.instanceMatrix.needsUpdate = true;
+        if (tlCrown.instanceColor) tlCrown.instanceColor.needsUpdate = true;
+        for (let i = 0; i < 440; i++) {
+            const x = (Math.random() - 0.5) * 17;
+            tlAddLeaf(x, (Math.random() - 0.5) * 38, 0.45 + Math.random() * 0.8);
+        }
+        const tlLeafMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.15, 0.075),
+            new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, roughness: 1 }), tlLeaves.length);
+        tlLeaves.forEach(([x, z, size, col, angle], i) => {
+            tlDummy.position.set(x, 0.025 + Math.random() * 0.014, z);
+            tlDummy.rotation.set(-Math.PI / 2, 0, angle);
+            tlDummy.scale.setScalar(size);
+            tlDummy.updateMatrix();
+            tlLeafMesh.setMatrixAt(i, tlDummy.matrix);
+            tlLeafMesh.setColorAt(i, new THREE.Color(col));
+        });
+        tlLeafMesh.instanceMatrix.needsUpdate = true;
+        if (tlLeafMesh.instanceColor) tlLeafMesh.instanceColor.needsUpdate = true;
+        tlLeafMesh.receiveShadow = true;
+        addTarget.add(tlLeafMesh);
 
         // ── Street lamps ──
         const tlLampLights = [];
-        [-14, 0, 14].forEach((lz, i) => {
+        [-28, -14, 0, 14].forEach((lz, i) => {
             const sd3 = i % 2 ? 1 : -1;
             const lx2 = sd3 * (TL.curb + 0.3);
             box(0.13, 4.4, 0.13, tlM.dark, lx2, 2.2, lz);
@@ -8692,6 +8801,38 @@
             addTarget.add(sl);
             tlLampLights.push(sl);
         });
+
+        // Strings of bulbs span the road between the porches.
+        [-8, 3.5, 14].forEach((z, row) => {
+            const pts = [];
+            for (let i = 0; i <= 18; i++) {
+                const x = -4.55 + i * 9.1 / 18;
+                pts.push([x, 5.05 - Math.sin(i / 18 * Math.PI) * 0.58, z]);
+                if (i === 0 || i === 18) continue;
+                const color = [0xff8b38, 0xffd17a, 0x9d6ba9][(i + row) % 3];
+                const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.09, 6), tlM.dark);
+                socket.position.set(x, pts[i][1] - 0.04, z);
+                addTarget.add(socket);
+                const glowMat = lm(color, color, 1.8);
+                const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 7, 6), glowMat);
+                bulb.position.set(x, pts[i][1] - 0.13, z);
+                addTarget.add(bulb);
+                tlOrange.push({ m: glowMat, ph: i * 0.45 + row });
+            }
+            cable(pts, 0.014);
+        });
+
+        // Municipal street blade at the near curb, readable from the opening view.
+        const tlSignX = -3.55, tlSignZ = 5.5;
+        box(0.065, 3.3, 0.065, tlM.copper, tlSignX, 1.65, tlSignZ);
+        const tlStreetBlade = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.3),
+            new THREE.MeshBasicMaterial({ map: signCv('TILLSON ST', 512, 112, '#eef6ed', '#24574d', 61), side: THREE.DoubleSide, fog: false }));
+        tlStreetBlade.position.set(tlSignX + 0.62, 3.02, tlSignZ);
+        addTarget.add(tlStreetBlade);
+        const tlTownBlade = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.18),
+            new THREE.MeshBasicMaterial({ map: signCv('ROMEO', 320, 76, '#f6e3bf', '#4a283c', 46), side: THREE.DoubleSide, fog: false }));
+        tlTownBlade.position.set(tlSignX + 0.35, 2.76, tlSignZ);
+        addTarget.add(tlTownBlade);
 
         // ── Trick-or-treaters working the street ──
         const tlKids = [];
@@ -8802,12 +8943,31 @@
         tlMoonLight.position.set(-14, 20, -18);
         addTarget.add(tlMoonLight);
         addTarget.add(tlMoonLight.target);
-        const tlMoon = new THREE.Mesh(new THREE.CircleGeometry(1.5, 26),
+        const tlHouseLightL = new THREE.DirectionalLight(0xf3bc88, 0);
+        tlHouseLightL.position.set(8, 10, 4);
+        addTarget.add(tlHouseLightL);
+        const tlHouseLightR = new THREE.DirectionalLight(0xe0b8a3, 0);
+        tlHouseLightR.position.set(-8, 9, 3);
+        addTarget.add(tlHouseLightR);
+        const tlMoon = new THREE.Mesh(new THREE.CircleGeometry(1.15, 32),
             new THREE.MeshBasicMaterial({ color: 0xf0e8c8, fog: false }));
-        tlMoon.position.set(-16, 15, -26);
+        tlMoon.position.set(-17, 6.6, -22);
         addTarget.add(tlMoon);
-        const tlSkyDeep = new THREE.Color(0x0a0a16);
-        const tlSkyDusk = new THREE.Color(0x2e2440);
+        const tlHaloCv = mkCanvas(128, 128);
+        {
+            const g = tlHaloCv.getContext('2d');
+            const glow = g.createRadialGradient(64, 64, 16, 64, 64, 64);
+            glow.addColorStop(0, 'rgba(245,226,190,0.27)');
+            glow.addColorStop(1, 'rgba(245,226,190,0)');
+            g.fillStyle = glow; g.fillRect(0, 0, 128, 128);
+        }
+        const tlMoonHalo = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 6.2),
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(tlHaloCv), transparent: true,
+                depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+        tlMoonHalo.position.set(-17, 6.6, -22.1);
+        addTarget.add(tlMoonHalo);
+        const tlSkyDeep = new THREE.Color(0x191b2e);
+        const tlSkyDusk = new THREE.Color(0x634253);
         const tlSkyCol  = new THREE.Color();
         let tlNextOwl = 6;
 
@@ -11678,11 +11838,21 @@
         // ── Scenery toggle ──
         const worldBtns = document.querySelectorAll('#worlds .world');
         const rvSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const tlSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const tlFraming = () => window.innerWidth / window.innerHeight < 0.8 ? 1.45 : 1;
         const setTheme = th => {
             controls.minPolarAngle = th === 'room' ? 0.25 : 0;
             controls.maxPolarAngle = th === 'room' ? 1.48 : Math.PI*0.8;
             controls.minAzimuthAngle = th === 'room' ? -0.15 : -Infinity;
             controls.maxAzimuthAngle = th === 'room' ? 1.35 : Infinity;
+            if (th !== 'river' && rvSavedCamera.active) {
+                camera.position.copy(rvSavedCamera.position); controls.target.copy(rvSavedCamera.target);
+                rvSavedCamera.active = false; controls.update();
+            }
+            if (th !== 'tillson' && tlSavedCamera.active) {
+                camera.position.copy(tlSavedCamera.position); controls.target.copy(tlSavedCamera.target);
+                tlSavedCamera.active = false; controls.update();
+            }
             if (th === 'river' && theme !== 'river') {
                 rvSavedCamera.position.copy(camera.position); rvSavedCamera.target.copy(controls.target); rvSavedCamera.active = true;
                 controls.maxDistance = 38;
@@ -11690,9 +11860,14 @@
                 const distance = camera.aspect < 0.8 ? 1.55 : 1;
                 camera.position.set(controls.target.x + 7.8 * distance, 1 + 6.7 * distance, controls.target.z + 12.8 * distance);
                 controls.update();
-            } else if (th !== 'river' && rvSavedCamera.active) {
-                camera.position.copy(rvSavedCamera.position); controls.target.copy(rvSavedCamera.target);
-                rvSavedCamera.active = false; controls.update();
+            }
+            if (th === 'tillson' && theme !== 'tillson') {
+                tlSavedCamera.position.copy(camera.position); tlSavedCamera.target.copy(controls.target); tlSavedCamera.active = true;
+                controls.maxDistance = 50;
+                controls.target.set(0, 1.25, -2.4);
+                const distance = tlFraming();
+                camera.position.set(8.2 * distance, 1.25 + 4.5 * distance, -2.4 + 13.4 * distance);
+                controls.update();
             }
             if (th === 'room' && theme !== 'room') {
                 controls.maxDistance=22;
@@ -11786,12 +11961,12 @@
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
             document.getElementById('sound-btn').classList.remove('hidden');
             // the module interior is tight — keep the camera inside its hull
-            controls.maxDistance = isSP ? 3.0 : (isHunt || isBeach || isRiver) ? 38 : 22;
+            controls.maxDistance = isSP ? 3.0 : isTillson ? 50 : (isHunt || isBeach || isRiver) ? 38 : 22;
             // Mars needs a much deeper view — the sky shell and the reactor sit
             // far past where every other world's far plane cuts off.
             // The hunt is a big woods; the far plane has to reach the tree belt.
             // The beach needs the lagoon and the island on the horizon.
-            const wantFar = isRecall ? 72 : (isHunt || isBeach || isRiver) ? 90 : 30;
+            const wantFar = isRecall ? 72 : (isHunt || isBeach || isRiver || isTillson) ? 90 : 30;
             if (camera.far !== wantFar) { camera.far = wantFar; camera.updateProjectionMatrix(); }
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
@@ -13300,12 +13475,14 @@
         window.addEventListener('resize', () => {
             const previousRiverFrame = camera.aspect < 0.8 ? 1.55 : 1;
             const previousRoomFrame = camera.aspect < 0.8 ? 1.95 : 1;
+            const previousTillsonFrame = camera.aspect < 0.8 ? 1.45 : 1;
             camera.aspect = window.innerWidth / window.innerHeight;
             if (theme === 'river' && !monZoom && !lapZoom) {
                 const nextRiverFrame = camera.aspect < 0.8 ? 1.55 : 1;
                 camera.position.sub(controls.target).multiplyScalar(nextRiverFrame / previousRiverFrame).add(controls.target);
             }
             if(theme==='room' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(rmFraming()/previousRoomFrame).add(controls.target);
+            if(theme==='tillson' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(tlFraming()/previousTillsonFrame).add(controls.target);
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
@@ -14436,13 +14613,15 @@
                 tlSkyCol.copy(tlSkyDeep).lerp(tlSkyDusk, td);
                 scene.background.copy(tlSkyCol);
                 scene.fog.color.copy(tlSkyCol).multiplyScalar(1.05);
-                scene.fog.density = 0.020 - td * 0.006;
-                hemiLight.intensity = (0.8 + td * 1.0) * b;
-                hemiLight.color.copy(tlSkyCol).lerp(new THREE.Color(0x6a7ab0), 0.5);
-                hemiLight.groundColor.setHex(0x161a20);
-                fillLight.intensity = (0.25 + td * 0.3) * b;
-                fillLight.color.setHex(0x8a9ac8);
-                tlMoonLight.intensity = (1.9 - td * 0.5) * b;
+                scene.fog.density = 0.013 - td * 0.003;
+                hemiLight.intensity = (1.1 + td * 1.1) * b;
+                hemiLight.color.setHex(0xabb4c2);
+                hemiLight.groundColor.setHex(0x30362f);
+                fillLight.intensity = (0.45 + td * 0.4) * b;
+                fillLight.color.setHex(0xa5b2c9);
+                tlMoonLight.intensity = (1.65 - td * 0.4) * b;
+                tlHouseLightL.intensity = (0.9 + td * 0.4) * b;
+                tlHouseLightR.intensity = (0.68 + td * 0.3) * b;
                 tlMoon.material.opacity = 1;
 
                 // decorations slider drives every glowing prop
@@ -14477,7 +14656,7 @@
                 for (const hg3 of tlHang) {
                     hg3.g.position.y = hg3.y0 + Math.sin(t * 1.2 + hg3.ph) * 0.14;
                     hg3.g.rotation.z = Math.sin(t * 0.8 + hg3.ph) * 0.2;
-                    hg3.g.rotation.y = Math.sin(t * 0.5 + hg3.ph) * 0.5;
+                    hg3.g.rotation.y = hg3.facing + Math.sin(t * 0.5 + hg3.ph) * 0.5;
                 }
                 // fog rolls slowly down the street
                 const fp2 = tlFog.geometry.attributes.position.array;
@@ -15356,7 +15535,7 @@
                 theme === 'lighthouse' ? 0.45 :
                 theme === 'tavern' ? 0.5 :
                 theme === 'video' ? 0.35 :
-                theme === 'tillson' ? 0.6 :
+                theme === 'tillson' ? 0.42 :
                 theme === 'recall' ? 0.5 :
                 theme === 'beach' ? 0.10 + Math.max(0, params.time - 0.62) * 0.45 + Math.max(0, 0.28 - params.time) * 0.35 :
                 0.08 + (1 - params.time) * 0.3;
