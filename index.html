@@ -12162,7 +12162,7 @@
         };
         const setTheme = th => {
             controls.minPolarAngle = th === 'room' ? 0.25 : 0;
-            controls.maxPolarAngle = th === 'room' ? 1.48 : Math.PI*0.8;
+            controls.maxPolarAngle = th === 'room' ? 1.48 : th === 'recall' ? 1.43 : Math.PI*0.8;
             controls.minAzimuthAngle = th === 'room' ? -0.15 : -Infinity;
             controls.maxAzimuthAngle = th === 'room' ? 1.35 : Infinity;
             if (th !== 'river' && rvSavedCamera.active) {
