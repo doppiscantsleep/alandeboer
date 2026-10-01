@@ -8974,17 +8974,17 @@
         addTarget = recallGroup;
 
         // ═══════════════════════════════
-        //  TOTAL RECALL — a colony pod on the Martian plain, a Rekall memory
-        //  chair inside it, and the alien reactor out past the mesas. Two
+        //  TOTAL RECALL — a cutaway Rekall clinic, Johnny Cab, Venusville
+        //  storefronts and the excavated alien machine from the 1990 film. Two
         //  sliders drive the whole world: "atmosphere" walks the planet from a
         //  red dust storm to the first blue sky, and "reactor" spins up the
         //  machine that is doing it.
         // ═══════════════════════════════
 
-        const RC_R = 3.15, RC_CZ = 0.35;      // pod dome radius / center offset
+        const RC_R = 3.15, RC_CZ = 0.35;      // clinic deck radius / center offset
         const RC_PAD = 5.6;                   // graded-flat colony pad radius
         const RC_SKY_R = 33;                  // sky dome — rides with the camera
-        const RC_PYR = { x: -15.5, z: -8.5, h: 8.8 };
+        const RC_PYR = { x: -9.5, z: -12.5, h: 8.8 };
 
         // ── Terrain: cratered, wind-rippled regolith, graded flat under the colony ──
         const rcCraters = [
@@ -9278,7 +9278,7 @@
         }
         const rcDotTex = new THREE.CanvasTexture(rcDotCv);
 
-        // ── The pod: grated deck, hazard curb, geodesic frame, dusty glass ──
+        // ── Cutaway clinic foundation: grated deck and hazard curb ──
         const rcGrateCv = mkCanvas(128, 128);
         {
             const g = rcGrateCv.getContext('2d');
@@ -9307,74 +9307,12 @@
         rcCurbCap.position.set(0, 0.30, RC_CZ);
         rcCurbCap.castShadow = true;
         addTarget.add(rcCurbCap);
-        // Glass: clean at the crown, caked with blown dust toward the base
-        const rcGlassCv = mkCanvas(512, 256);
-        {
-            const g = rcGlassCv.getContext('2d');
-            g.fillStyle = '#eef2f6'; g.fillRect(0, 0, 512, 256);
-            for (let i = 0; i < 220; i++) {
-                const y = 256 - Math.pow(Math.random(), 1.7) * 256;   // v≈0 is the dome base
-                g.fillStyle = ['#d8a074', '#c08a5c', '#e0b48c'][(Math.random() * 3) | 0];
-                g.globalAlpha = 0.05 + Math.random() * 0.18;
-                g.beginPath();
-                g.ellipse(Math.random() * 512, y, 8 + Math.random() * 46, 3 + Math.random() * 16, Math.random(), 0, Math.PI * 2);
-                g.fill();
-            }
-            for (let i = 0; i < 60; i++) {
-                g.strokeStyle = '#c08a5c';
-                g.globalAlpha = 0.05 + Math.random() * 0.10;
-                g.lineWidth = 1 + Math.random() * 3;
-                const x0 = Math.random() * 512;
-                g.beginPath(); g.moveTo(x0, 256);
-                g.lineTo(x0 + (Math.random() - 0.5) * 30, 256 - Math.random() * 150);
-                g.stroke();
-            }
-            g.globalAlpha = 1;
-        }
-        const rcDomeGeo = new THREE.SphereGeometry(RC_R, 44, 26, 0, Math.PI * 2, 0, Math.PI * 0.5);
-        const rcGlassMat = new THREE.MeshLambertMaterial({
-            map: asTex(rcGlassCv, 3, 1), color: 0xd9a97e, transparent: true, opacity: 0.20,
-            side: THREE.FrontSide, depthWrite: false, emissive: 0x2a1408, emissiveIntensity: 0.10,
-        });
-        const rcDome = new THREE.Mesh(rcDomeGeo, rcGlassMat);
-        rcDome.position.set(0, 0, RC_CZ);
-        rcDome.renderOrder = 3;
-        addTarget.add(rcDome);
-        const rcGlassInnerMat = new THREE.MeshLambertMaterial({
-            color: 0xe8c0a0, transparent: true, opacity: 0.07, side: THREE.BackSide,
-            depthWrite: false, emissive: 0x201008, emissiveIntensity: 0.06,
-        });
-        const rcDomeInner = new THREE.Mesh(rcDomeGeo, rcGlassInnerMat);
-        rcDomeInner.position.set(0, 0, RC_CZ);
-        rcDomeInner.renderOrder = 2;
-        addTarget.add(rcDomeInner);
-        const rcStrutMat = lm(0xccd2dc, 0, 0, 0.5, 0.3);
-        [0.16, 0.42, 0.66, 0.85].forEach(s => {          // latitude rings
-            const y = RC_R * s;
-            const rr = Math.sqrt(Math.max(0.001, RC_R * RC_R - y * y));
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.016, 6, 44), rcStrutMat);
-            ring.rotation.x = Math.PI / 2;
-            ring.position.set(0, y, RC_CZ);
-            ring.castShadow = true;
-            addTarget.add(ring);
-        });
-        for (let i = 0; i < 10; i++) {                    // meridian arcs
-            const arc = new THREE.Mesh(new THREE.TorusGeometry(RC_R, 0.016, 6, 26, Math.PI / 2), rcStrutMat);
-            arc.rotation.y = (i / 10) * Math.PI * 2;
-            arc.position.set(0, 0, RC_CZ);
-            arc.castShadow = true;
-            addTarget.add(arc);
-        }
-        const rcApex = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.21, 0.12, 12), rcSteelDk);
-        rcApex.position.set(0, RC_R - 0.03, RC_CZ);
-        rcApex.castShadow = true;
-        addTarget.add(rcApex);
         const rcPodLedMat = lm(0x1a2028, 0x9ec4e8, 0.75);
         const rcPodLed = new THREE.Mesh(new THREE.TorusGeometry(RC_R - 0.11, 0.022, 6, 48), rcPodLedMat);
         rcPodLed.rotation.x = Math.PI / 2;
         rcPodLed.position.set(0, 0.31, RC_CZ);
         addTarget.add(rcPodLed);
-        const rcPodLight = new THREE.PointLight(0xffeccc, 2.6, 9);
+        const rcPodLight = new THREE.PointLight(0xc9ffde, 3.6, 9);
         rcPodLight.position.set(0, 2.15, RC_CZ);
         addTarget.add(rcPodLight);
         const rcPodLight2 = new THREE.PointLight(0xd8dce0, 0.5, 5);
@@ -9565,9 +9503,9 @@
         box(0.05, 1.95, 0.05, rcSteel, 5.18, 0.97, 3.42);
         box(0.26, 0.06, 0.26, rcSteelDk, 5.18, 0.03, 3.42);
 
-        // Six-wheeled rover, parked by the airlock
+        // Six-wheeled rover, parked beside the excavation approach
         const rcRover = new THREE.Group();
-        rcRover.position.set(-4.7, 0, 4.3);
+        rcRover.position.set(-6.8, rcH(-6.8, -2.1), -2.1);
         rcRover.rotation.y = 0.9;
         addTarget.add(rcRover);
         const rovAdd = m => { m.castShadow = true; m.receiveShadow = true; rcRover.add(m); return m; };
@@ -9662,68 +9600,7 @@
             map: asTex(rcBasaltCv, 3, 1), roughness: 0.94, metalness: 0.08,
         });
         const rcSeamMat = lm(0x140a05, 0xff5a22, 0.4);
-        // Stepped ziggurat: every course is straight-sided and narrower than the
-        // one under it, so the terraces read as terraces rather than a cone
-        const rcPyrSteps = 7, RC_PYR_RB = 6.9;
-        for (let i = 0; i < rcPyrSteps; i++) {
-            const r = RC_PYR_RB * (1 - (i / rcPyrSteps) * 0.84);
-            const sh = RC_PYR.h / rcPyrSteps;
-            const s = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.97, r, sh, 4), rcPyrStone);
-            s.position.y = sh * i + sh / 2;
-            s.rotation.y = Math.PI / 4;
-            s.castShadow = s.receiveShadow = true;
-            rcPyrG.add(s);
-            // a lit groove recessed into the riser, not a band wrapped around it
-            const seam = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r * 0.9, 0.08, 4), rcSeamMat);
-            seam.position.y = sh * i + sh - 0.16;
-            seam.rotation.y = Math.PI / 4;
-            rcPyrG.add(seam);
-        }
-        for (let i = 0; i < 4; i++) {          // squat corner buttresses
-            const a = i * Math.PI / 2;
-            const bh = RC_PYR.h * 0.3;
-            const bt = new THREE.Mesh(new THREE.BoxGeometry(1.5, bh, 1.5), rcPyrStone);
-            bt.position.set(Math.cos(a) * RC_PYR_RB * 0.62, bh / 2, Math.sin(a) * RC_PYR_RB * 0.62);
-            bt.rotation.y = a;
-            bt.castShadow = bt.receiveShadow = true;
-            rcPyrG.add(bt);
-        }
-        // Crown: four leaning slabs cradling the core
-        const rcTopR = RC_PYR_RB * (1 - ((rcPyrSteps - 1) / rcPyrSteps) * 0.84);
-        for (let i = 0; i < 4; i++) {
-            const a = Math.PI / 4 + i * Math.PI / 2;
-            const sl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 2.3, 0.9), rcPyrStone);
-            sl.position.set(Math.cos(a) * rcTopR * 0.8, RC_PYR.h + 0.9, Math.sin(a) * rcTopR * 0.8);
-            sl.rotation.y = -a;
-            sl.rotation.z = Math.cos(a) * 0.26;
-            sl.rotation.x = -Math.sin(a) * 0.26;
-            sl.castShadow = true;
-            rcPyrG.add(sl);
-        }
-        const rcCollar = new THREE.Mesh(new THREE.CylinderGeometry(rcTopR * 0.72, rcTopR * 0.82, 0.22, 4), rcSeamMat);
-        rcCollar.rotation.y = Math.PI / 4;
-        rcCollar.position.y = RC_PYR.h + 0.12;
-        rcPyrG.add(rcCollar);
         const rcCoreMat = lm(0x2a1008, 0xff7030, 0.5);
-        const rcPyrCore = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), rcCoreMat);
-        rcPyrCore.position.y = RC_PYR.h + 1.15;
-        rcPyrG.add(rcPyrCore);
-        const rcBeamMat = new THREE.MeshBasicMaterial({
-            color: 0xff6a2a, transparent: true, opacity: 0.1, fog: false, depthWrite: false, side: THREE.DoubleSide,
-        });
-        const rcBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 1.4, 11, 14, 1, true), rcBeamMat);
-        rcBeam.position.y = RC_PYR.h + 6.4;
-        rcPyrG.add(rcBeam);
-        const rcBeamGlowMat = new THREE.MeshBasicMaterial({
-            color: 0xff8a4a, transparent: true, opacity: 0.06, fog: false, depthWrite: false, side: THREE.DoubleSide,
-        });
-        const rcBeamHalo = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 3.1, 11.5, 14, 1, true), rcBeamGlowMat);
-        rcBeamHalo.position.y = RC_PYR.h + 6.4;
-        rcPyrG.add(rcBeamHalo);
-        const rcBeamCap = new THREE.Mesh(new THREE.SphereGeometry(3.4, 18, 12), rcBeamGlowMat);
-        rcBeamCap.position.y = RC_PYR.h + 11.8;
-        rcBeamCap.scale.set(1, 0.42, 1);
-        rcPyrG.add(rcBeamCap);
         const rcReactorLight = new THREE.PointLight(0xff5a2a, 1.0, 40);
         rcReactorLight.position.set(RC_PYR.x, rcH(RC_PYR.x, RC_PYR.z) + RC_PYR.h, RC_PYR.z);
         addTarget.add(rcReactorLight);
@@ -9804,16 +9681,15 @@
             map: rcSignFaceTex, emissiveMap: rcSignFaceTex, emissive: 0xffffff,
             emissiveIntensity: 1.2, roughness: 0.55,
         });
-        const rcSignFace = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.31), rcSignMat);
-        rcSignFace.position.set(-1.62, 2.06, 1.26);
-        rcSignFace.rotation.y = 0.62;
+        const rcSignFace = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 0.68), rcSignMat);
+        rcSignFace.position.set(0.25, 2.72, -2.40);
         addTarget.add(rcSignFace);
-        const rcSignBox = box(1.34, 0.41, 0.1, rcSteelDk, -1.66, 2.06, 1.20, 0, 0.62, 0);
+        const rcSignBox = box(2.85, 0.82, 0.16, rcSteelDk, 0.25, 2.72, -2.51);
         rcSignBox.castShadow = true;
-        box(0.05, 1.05, 0.05, rcSteel, -1.66, 2.58, 1.20);
-        box(0.44, 0.05, 0.05, rcSteel, -1.66, 3.06, 1.20, 0, 0.62, 0);
+        box(0.05, 0.4, 0.05, rcSteel, -0.65, 3.22, -2.5);
+        box(0.05, 0.4, 0.05, rcSteel, 1.15, 3.22, -2.5);
         const rcSignLight = new THREE.PointLight(0xff3a4a, 1.2, 3.6);
-        rcSignLight.position.set(-1.5, 2.0, 1.42);
+        rcSignLight.position.set(0.25, 2.7, -1.9);
         addTarget.add(rcSignLight);
 
         // Equipment rack: blinking gear, a status screen, cable bundle
@@ -9875,12 +9751,13 @@
 
         // ── The Rekall chair ──
         const rcChairG = new THREE.Group();
-        rcChairG.position.set(2.05, 0, 1.18);
-        rcChairG.rotation.y = -2.0;
+        rcChairG.position.set(2.0, 0, 1.05);
+        rcChairG.rotation.y = -0.42;
+        rcChairG.scale.setScalar(1.3);
         addTarget.add(rcChairG);
         const chAdd = m => { m.castShadow = true; m.receiveShadow = true; rcChairG.add(m); return m; };
-        const rcUph   = lm(0x9c3138, 0, 0, 0.72, 0.05);
-        const rcUphDk = lm(0x6e1c24, 0, 0, 0.80, 0.05);
+        const rcUph   = lm(0x799a99, 0, 0, 0.72, 0.05);
+        const rcUphDk = lm(0x334a4b, 0, 0, 0.80, 0.05);
         chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.07, 20), rcSteelDk)).position.y = 0.035;
         chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.38, 12), rcSteel)).position.y = 0.25;
         chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.09, 0.56), rcSteelDk)).position.y = 0.47;
@@ -9952,6 +9829,293 @@
         addTarget.add(rcConLight);
         cable([[2.62, 0.95, -0.42], [2.72, 0.6, 0.2], [2.6, 0.3, 0.85], [2.45, 1.05, 1.3]], 0.016);
 
+        // 1990 production-design vocabulary: tiled clinic, analog instruments,
+        // exposed services and the neon storefronts of the mining colony.
+        const rcTileCv = mkCanvas(512, 512);
+        {
+            const g = rcTileCv.getContext('2d');
+            g.fillStyle = '#788e8c'; g.fillRect(0, 0, 512, 512);
+            for (let y = 0; y < 512; y += 64) for (let x = 0; x < 512; x += 128) {
+                g.fillStyle = ['#bdcbc6', '#b1c2bf', '#c3cfca'][(x / 128 + y / 64) % 3];
+                g.fillRect(x + 2, y + 2, 124, 60);
+                g.fillStyle = '#dce4da'; g.fillRect(x + 3, y + 3, 123, 2);
+                g.fillStyle = '#829a95'; g.fillRect(x + 3, y + 59, 123, 3);
+            }
+            speckle(g, 512, 512, 2200, 0.16, '#ffffff', '#526d69');
+        }
+        const rcTile = new THREE.MeshStandardMaterial({ map: asTex(rcTileCv, 2, 1), roughness: 0.48 });
+        const rcEnamel = lm(0xaec3bb, 0, 0, 0.44, 0.25);
+        const rcBurgundy = lm(0x491d29, 0, 0, 0.65, 0.18);
+        const rcTubeWhite = lm(0xcce6dc, 0xc0ffe5, 2.1);
+        const rcTubePink = lm(0xe94b79, 0xff245c, 2.1);
+        const rcTubeCyan = lm(0x82c8c2, 0x2fffd8, 1.8);
+        // Low front edges and an open roof preserve sightlines to the desk.
+        box(6.3, 0.12, 5.8, rcSteelDk, 0, -0.07, 0.1);
+        box(6.3, 3.2, 0.18, rcTile, 0, 1.6, -2.7);
+        box(0.18, 2.65, 2.0, rcTile, -3.12, 1.325, -1.8);
+        box(6.4, 0.2, 0.42, rcBurgundy, 0, 3.27, -2.6);
+        box(6.4, 0.22, 0.24, rcBurgundy, 0, 0.22, -2.57);
+        box(6.4, 0.075, 0.24, rcSteel, 0, 1.12, -2.57);
+        for (const x of [-2.9, -1.9, -0.9, 1.4, 2.85]) {
+            box(0.065, 2.7, 0.09, rcEnamel, x, 1.5, -2.57);
+            for (const y of [0.35, 1.18, 2.35]) box(0.10, 0.10, 0.035, rcSteelDk, x, y, -2.51);
+        }
+        for (const x of [-2.25, 2.25]) {
+            box(1.15, 0.11, 0.24, rcSteelDk, x, 2.92, -2.3);
+            box(1.02, 0.035, 0.12, rcTubeWhite, x, 2.85, -2.27);
+        }
+        for (let i = 0; i < 3; i++) {
+            cable([[-3.28, 0.2, -1.6], [-3.28, 2.8 + i * 0.12, -2.3], [-2.8, 3.5 + i * 0.12, -2.8], [2.9, 3.5 + i * 0.12, -2.8], [3.4, 0.2, -3.4]], 0.045);
+        }
+        // Canvas labels are diegetic signage, with restrained bloom for legibility.
+        const rcPlacard = (title, sub, w, h, x, y, z, ink = '#d4f4e5', bg = '#142c2d') => {
+            const cv = mkCanvas(768, 256), g = cv.getContext('2d');
+            g.fillStyle = bg; g.fillRect(0, 0, 768, 256);
+            g.strokeStyle = ink; g.lineWidth = 3; g.strokeRect(12, 12, 744, 232);
+            g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.font = 'bold 68px Arial'; g.fillText(title, 384, 101, 704);
+            g.font = '24px monospace'; g.fillText(sub, 384, 188, 704);
+            const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+            const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.45, roughness: 0.6 });
+            box(w + 0.1, h + 0.1, 0.08, rcSteelDk, x, y, z - 0.045);
+            const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+            face.position.set(x, y, z); addTarget.add(face); return face;
+        };
+        rcPlacard('REKALL, INC.', 'MEMORY IMPLANTATION / SUITE 04', 1.35, 0.45, -2.1, 2.3, -2.55);
+        rcPlacard('MARS', 'BLUE SKY ON MARS / VACATION PACKAGE', 1.2, 0.48, 2.15, 2.38, -2.55, '#ffddb0', '#713242');
+        rcPlacard('TOTAL RECALL', '2084 / VENUSVILLE / MARS COLONY', 2.3, 0.55, 0.1, 0.48, 3.2, '#eef0db', '#273c3b');
+        // A travel-agency lightbox: the two moons above a red Martian canyon.
+        const rcTravelCv = mkCanvas(256, 384);
+        {
+            const g = rcTravelCv.getContext('2d');
+            const sky = g.createLinearGradient(0, 0, 0, 384);
+            sky.addColorStop(0, '#233a4d'); sky.addColorStop(0.6, '#e48b78'); sky.addColorStop(1, '#b43833');
+            g.fillStyle = sky; g.fillRect(0, 0, 256, 384);
+            g.fillStyle = '#f6c8ae'; g.beginPath(); g.arc(170, 100, 35, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#b5ccc7'; g.beginPath(); g.arc(105, 61, 12, 0, Math.PI * 2); g.fill();
+            for (let layer = 0; layer < 4; layer++) {
+                g.fillStyle = ['#b45558', '#974550', '#673a49', '#302b3e'][layer];
+                g.beginPath(); g.moveTo(0, 384);
+                for (let x = 0; x <= 256; x += 16) g.lineTo(x, 180 + layer * 37 + Math.sin(x * 0.045 + layer) * 28);
+                g.lineTo(256, 384); g.fill();
+            }
+            g.fillStyle = '#ffecd0'; g.textAlign = 'center'; g.font = 'bold 36px Arial'; g.fillText('MARS', 128, 44);
+            g.font = '12px monospace'; g.fillText('A MEMORY OF A LIFETIME', 128, 354);
+        }
+        const rcTravelTex = new THREE.CanvasTexture(rcTravelCv); rcTravelTex.colorSpace = THREE.SRGBColorSpace;
+        box(0.82, 1.2, 0.06, rcBurgundy, -1.14, 1.9, -2.54);
+        const rcTravel = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 1.08), new THREE.MeshBasicMaterial({ map: rcTravelTex }));
+        rcTravel.position.set(-1.14, 1.9, -2.5); addTarget.add(rcTravel);
+        // CRT diagnostics, patch bays, drawers and ventilation louvers.
+        box(1.08, 0.85, 0.48, rcEnamel, 0.6, 0.45, -2.16);
+        for (let i = 0; i < 3; i++) {
+            box(0.95, 0.2, 0.035, rcPaint, 0.6, 0.2 + i * 0.25, -1.9);
+            box(0.3, 0.025, 0.055, rcSteelDk, 0.6, 0.25 + i * 0.25, -1.86);
+        }
+        for (let i = 0; i < 2; i++) {
+            box(0.5, 0.43, 0.36, rcEnamel, 0.32 + i * 0.57, 1.15, -2.14);
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.39, 0.29), new THREE.MeshBasicMaterial({ map: rcConTex }));
+            screen.position.set(0.32 + i * 0.57, 1.17, -1.951); addTarget.add(screen);
+            for (let k = 0; k < 3; k++) box(0.035, 0.025, 0.025, rcTubeCyan, 0.17 + i * 0.57 + k * 0.1, 0.97, -1.95);
+        }
+        for (let i = 0; i < 10; i++) box(0.42, 0.025, 0.08, rcSteelDk, 2.25, 1.42 + i * 0.065, -2.54);
+        // Chair upholstery seams, restraint straps, hydraulics and electrode cups.
+        for (let i = 0; i < 6; i++) {
+            const stitch = chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.008, 0.012), rcUphDk));
+            stitch.position.set(0, 0.64 + i * 0.095, -0.12 - i * 0.041); stitch.rotation.x = 0.42;
+        }
+        for (const side of [-1, 1]) {
+            chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.025, 0.10), rcSteelDk)).position.set(side * 0.32, 0.78, 0.13);
+            chAdd(new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.014, 0.07), rcSteel)).position.set(side * 0.32, 0.80, 0.13);
+            const piston = chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.48, 12), rcSteel));
+            piston.position.set(side * 0.22, 0.3, 0.23); piston.rotation.x = -0.5;
+            const cup = chAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.07, 0.07, 20), rcPaint));
+            cup.rotation.z = Math.PI / 2; cup.position.set(side * 0.22, 1.25, -0.42);
+        }
+        // Articulated surgical lamp and its machined reflector.
+        box(0.08, 1.9, 0.08, rcSteel, 2.85, 0.95, -0.3);
+        box(0.65, 0.07, 0.08, rcSteel, 2.56, 1.92, -0.3, 0, 0, -0.22);
+        const rcSurgical = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.29, 0.13, 24), rcPaint);
+        rcSurgical.position.set(2.25, 1.95, -0.3); addTarget.add(rcSurgical);
+        const rcSurgicalLens = new THREE.Mesh(new THREE.CircleGeometry(0.25, 24), rcTubeWhite);
+        rcSurgicalLens.rotation.x = Math.PI / 2; rcSurgicalLens.position.set(2.25, 1.879, -0.3); addTarget.add(rcSurgicalLens);
+
+        // Venusville: a layered street set, with service gantries and ribbed facades.
+        const rcColonyG = new THREE.Group();
+        recallGroup.add(rcColonyG); addTarget = rcColonyG;
+        const rcConcreteCv = mkCanvas(256, 512);
+        {
+            const g = rcConcreteCv.getContext('2d');
+            g.fillStyle = '#8a8880'; g.fillRect(0, 0, 256, 512);
+            for (let i = 0; i < 100; i++) {
+                const x = Math.random() * 256, y = Math.random() * 512;
+                g.fillStyle = 'rgba(34,44,41,0.16)'; g.fillRect(x, y, 1 + Math.random() * 5, 20 + Math.random() * 180);
+            }
+            g.strokeStyle = '#575e58'; g.lineWidth = 2;
+            for (let y = 0; y < 512; y += 128) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
+            speckle(g, 256, 512, 2300, 0.2, '#d7d5be', '#3c4946');
+        }
+        const rcColonyConcrete = new THREE.MeshStandardMaterial({ map: asTex(rcConcreteCv, 2, 1), roughness: 0.91, color: 0xa3ada5 });
+        const rcColonyTrim = lm(0x3d514e, 0, 0, 0.66, 0.38);
+        const rcWindows = [lm(0x476760, 0x8fe9c9, 0.6), lm(0x74544b, 0xffba76, 0.7), rcSteelDk];
+        [[4.6, -8.6, 3.3, 4.4], [8.0, -10, 3.2, 6], [11.4, -12, 3.2, 4.8], [14, -13, 2.4, 7.2]].forEach(([x, z, w, h], b) => {
+            const base = rcH(x, z);
+            box(w, h, 3.2, rcColonyConcrete, x, base + h / 2, z);
+            box(w + 0.2, 0.18, 3.4, rcSteelDk, x, base + h, z);
+            for (let floor = 0; floor < Math.floor(h); floor++) {
+                box(w + 0.12, 0.12, 0.16, rcColonyTrim, x, base + floor + 0.22, z + 1.68);
+                for (let win = 0; win < 3; win++) {
+                    const wx = x - w * 0.31 + win * w * 0.31, wy = base + floor + 0.64;
+                    box(0.64, 0.55, 0.08, rcSteelDk, wx, wy, z + 1.63);
+                    box(0.48, 0.38, 0.025, rcWindows[(floor + win + b) % 3], wx, wy, z + 1.681);
+                    box(0.025, 0.4, 0.04, rcSteel, wx, wy, z + 1.704);
+                }
+            }
+            for (const side of [-1, 1]) box(0.16, h + 0.15, 0.24, rcColonyTrim, x + side * (w / 2 - 0.18), base + h / 2, z + 1.72);
+            box(0.68, 0.65, 0.7, rcSteel, x + 0.5, base + h + 0.33, z);
+            for (let vent = 0; vent < 5; vent++) box(0.52, 0.03, 0.04, rcSteelDk, x + 0.5, base + h + 0.15 + vent * 0.09, z + 0.37);
+            cable([[x - 0.8, base + h, z], [x - 0.8, base + h + 0.8, z], [x - 0.2, base + h + 0.8, z]], 0.09);
+        });
+        rcPlacard('VENUSVILLE', 'MARS FEDERAL COLONY / SECTOR 07', 4.8, 0.95, 6.6, 4.0, -6.55, '#b6ffdc', '#193a35');
+        rcPlacard('LAST RESORT', 'BAR / ROOMS', 2.5, 0.65, 9.3, 2.55, -7.7, '#ff99b9', '#481d33');
+        rcPlacard('OXYGEN', 'FEDERAL SUPPLY / METERED AIR', 2.0, 0.65, 4.3, 1.25, -6.9, '#f6d5a0', '#58352c');
+        for (const x of [4.08, 9.12]) {
+            box(0.15, 4.4, 0.22, rcSteelDk, x, 2.2, -6.65);
+            box(0.035, 3.8, 0.04, rcTubeCyan, x, 2.35, -6.50);
+        }
+        box(4.4, 0.12, 1.0, rcSteelDk, 7.0, 2.85, -6.6);
+        for (let i = 0; i < 12; i++) box(0.045, 0.65, 0.045, rcSteel, 4.95 + i * 0.37, 3.21, -6.05);
+        box(4.5, 0.045, 0.045, rcSteel, 7.0, 3.55, -6.05);
+        box(2.7, 0.06, 0.08, rcTubePink, 9.3, 2.98, -7.65);
+        cable([[3, 4.1, -6.5], [5.6, 3.25, -5.9], [9, 4.45, -6.5]], 0.025);
+        for (let rung = 0; rung < 18; rung++) box(0.42, 0.04, 0.05, rcSteel, 10.2, 0.4 + rung * 0.3, -8.3);
+        for (const x of [9.98, 10.42]) box(0.05, 5.6, 0.05, rcSteelDk, x, 3, -8.3);
+        for (let door = 0; door < 3; door++) {
+            const x = 5.5 + door * 1.5;
+            box(1.15, 1.85, 0.16, rcSteelDk, x, 0.95, -7.15);
+            for (let slat = 0; slat < 14; slat++) box(1.08, 0.075, 0.06, rcColonyTrim, x, 0.15 + slat * 0.12, -7.04);
+            box(0.7, 0.045, 0.08, rcTubePink, x, 1.95, -7.0);
+        }
+        rcColonyG.scale.setScalar(0.78);
+        rcColonyG.position.set(-0.9, 0, -3.5);
+        addTarget = recallGroup;
+
+        // Johnny Cab: wedge body, glazed canopy, checker belt and robot chauffeur.
+        const rcCabG = new THREE.Group();
+        rcCabG.position.set(-3.1, 0.12, 4.3); rcCabG.rotation.y = 0.3;
+        recallGroup.add(rcCabG); addTarget = rcCabG;
+        const rcCabBlue = lm(0x448fa0, 0, 0, 0.36, 0.48);
+        const rcCabRubber = lm(0x192323, 0, 0, 0.95);
+        const rcCabYellow = lm(0xe4b84b, 0, 0, 0.52, 0.2);
+        box(1.35, 0.52, 2.3, rcCabBlue, 0, 0.52, 0);
+        box(1.4, 0.12, 2.35, rcCabRubber, 0, 0.29, 0);
+        box(1.30, 0.27, 0.73, rcCabBlue, 0, 0.72, 0.8, -0.18);
+        box(1.4, 0.13, 0.16, rcSteelDk, 0, 0.37, 1.22);
+        box(1.35, 0.12, 0.14, rcSteelDk, 0, 0.4, -1.23);
+        box(1.1, 0.12, 0.6, rcUphDk, 0, 0.67, -0.54);
+        box(1.1, 0.42, 0.12, rcUphDk, 0, 0.91, -0.86);
+        box(1.25, 0.10, 1.52, rcCabBlue, 0, 1.67, -0.22);
+        for (const side of [-1, 1]) {
+            box(0.06, 0.97, 0.065, rcSteelDk, side * 0.60, 1.18, -0.94);
+            box(0.055, 0.99, 0.055, rcSteelDk, side * 0.60, 1.19, 0.47, -0.23);
+            box(0.065, 0.95, 0.065, rcSteelDk, side * 0.61, 1.19, -0.26);
+            box(0.035, 0.15, 2.16, rcCabYellow, side * 0.687, 0.66, 0);
+            for (let i = 0; i < 16; i++) box(0.015, 0.07, 0.12, rcCabRubber, side * 0.711, 0.625 + (i % 2) * 0.075, -1 + i * 0.13);
+            box(0.04, 0.035, 0.19, rcSteelDk, side * 0.71, 0.82, -0.51);
+            box(0.17, 0.08, 0.1, rcCabBlue, side * 0.78, 1.0, 0.45);
+            box(0.25, 0.14, 0.035, rcTubeWhite, side * 0.45, 0.64, 1.178);
+            box(0.20, 0.10, 0.03, rcTubePink, side * 0.47, 0.57, -1.169);
+            for (const z of [-0.76, 0.72]) {
+                const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.15, 24), rcCabRubber);
+                wheel.rotation.z = Math.PI / 2; wheel.position.set(side * 0.67, 0.3, z); rcCabG.add(wheel);
+                const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.16, 12), rcSteel);
+                hub.rotation.z = Math.PI / 2; hub.position.copy(wheel.position); rcCabG.add(hub);
+            }
+        }
+        const rcCabGlass = new THREE.MeshStandardMaterial({ color: 0xb7e1de, transparent: true, opacity: 0.16, roughness: 0.2, metalness: 0.25, side: THREE.DoubleSide, depthWrite: false });
+        const rcWindshield = new THREE.Mesh(new THREE.PlaneGeometry(1.14, 0.83), rcCabGlass);
+        rcWindshield.position.set(0, 1.21, 0.485); rcWindshield.rotation.x = -0.23; rcCabG.add(rcWindshield);
+        rcPlacard('JOHNNY CAB', 'AUTOMATED TAXI', 1.0, 0.28, 0, 1.85, -0.14, '#292e2b', '#e4c659');
+        box(1.0, 0.14, 0.25, rcSteelDk, 0, 0.93, 0.38);
+        const rcJohnny = new THREE.Group(); rcJohnny.position.set(-0.28, 0.84, 0.03); rcCabG.add(rcJohnny);
+        const rcSkin = lm(0xcda27f, 0, 0, 0.86);
+        const rcUniform = lm(0x648eac, 0, 0, 0.84);
+        const rcFacePart = (geo, mat, x, y, z) => {
+            const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); rcJohnny.add(m); return m;
+        };
+        rcFacePart(new THREE.CylinderGeometry(0.12, 0.17, 0.3, 10), rcUniform, 0, 0, 0);
+        rcFacePart(new THREE.CylinderGeometry(0.055, 0.055, 0.09, 10), rcSteel, 0, 0.19, 0);
+        const rcJohnnyHead = rcFacePart(new THREE.SphereGeometry(0.12, 16, 12), rcSkin, 0, 0.34, 0);
+        rcJohnnyHead.scale.set(0.85, 1.2, 0.9);
+        rcFacePart(new THREE.BoxGeometry(0.035, 0.054, 0.046), rcSkin, 0, 0.34, 0.10);
+        for (const side of [-1, 1]) {
+            rcFacePart(new THREE.SphereGeometry(0.026, 8, 6), rcSkin, side * 0.11, 0.34, 0);
+            rcFacePart(new THREE.SphereGeometry(0.012, 8, 6), rcSteelDk, side * 0.043, 0.37, 0.09);
+        }
+        rcFacePart(new THREE.BoxGeometry(0.067, 0.017, 0.014), rcPaint, 0, 0.288, 0.091);
+        rcFacePart(new THREE.CylinderGeometry(0.12, 0.13, 0.065, 16), rcUniform, 0, 0.477, 0);
+        rcFacePart(new THREE.BoxGeometry(0.19, 0.025, 0.10), rcUniform, 0, 0.458, 0.092);
+        const rcSteering = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.016, 6, 20), rcCabRubber);
+        rcSteering.position.set(-0.28, 1.02, 0.28); rcSteering.rotation.x = -0.65; rcCabG.add(rcSteering);
+        addTarget = recallGroup;
+        // Inset paving and lane studs connect the vignettes into a colony street.
+        box(9, 0.045, 2.5, rcColonyConcrete, -0.8, 0.03, 4.5);
+        for (let i = 0; i < 16; i++) {
+            box(0.022, 0.012, 2.5, rcSteelDk, -5.2 + i * 0.56, 0.057, 4.5);
+            if (i % 2 === 0) box(0.22, 0.016, 0.07, rcCabYellow, -5.2 + i * 0.56, 0.06, 5.4);
+        }
+
+        // The excavated alien machine: massive fluted pistons over an ice basin.
+        // Retain the reactive materials so the reactor control still wakes it.
+        rcPyrG.scale.setScalar(0.78);
+        const rcAlienMetal = lm(0x536763, 0, 0, 0.6, 0.55);
+        const rcAlienDark = lm(0x243832, 0, 0, 0.82, 0.4);
+        const rcIce = lm(0x96b8ac, 0x41695e, 0.3, 0.4, 0.18);
+        const rcAlienAdd = (geo, mat, x, y, z) => {
+            const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z);
+            mesh.castShadow = mesh.receiveShadow = true; rcPyrG.add(mesh); return mesh;
+        };
+        rcAlienAdd(new THREE.CylinderGeometry(6, 6.8, 0.7, 48), rcPyrStone, 0, 0.1, 0);
+        rcAlienAdd(new THREE.CylinderGeometry(5.5, 5.5, 0.2, 48), rcIce, 0, 0.51, 0);
+        const rcPistons = [];
+        for (let i = 0; i < 7; i++) {
+            const a = i * Math.PI * 2 / 7, px = Math.cos(a) * 4.3, pz = Math.sin(a) * 4.3;
+            rcAlienAdd(new THREE.CylinderGeometry(0.9, 1.25, 1.4, 12), rcAlienDark, px, 1, pz);
+            rcAlienAdd(new THREE.CylinderGeometry(0.63, 0.76, 6.2, 16), rcAlienMetal, px, 4.6, pz);
+            for (let rib = 0; rib < 14; rib++) rcAlienAdd(new THREE.CylinderGeometry(0.83, 0.83, 0.13, 16), rcAlienDark, px, 1.9 + rib * 0.41, pz);
+            const crown = rcAlienAdd(new THREE.CylinderGeometry(1.24, 0.86, 1.1, 12), rcAlienMetal, px, 8.0, pz);
+            rcPistons.push({ mesh: crown, y: 8, phase: i * 0.7 });
+            rcAlienAdd(new THREE.CylinderGeometry(1.25, 1.25, 0.08, 12), rcSeamMat, px, 8.54, pz);
+            for (let flute = 0; flute < 8; flute++) {
+                const fa = flute * Math.PI / 4;
+                rcAlienAdd(new THREE.BoxGeometry(0.09, 0.65, 0.09), rcAlienDark, px + Math.cos(fa) * 1.08, 8.0, pz + Math.sin(fa) * 1.08);
+            }
+        }
+        rcAlienAdd(new THREE.CylinderGeometry(1.2, 2.1, 3.4, 8), rcAlienDark, 0, 2.0, 0);
+        rcAlienAdd(new THREE.CylinderGeometry(1.3, 1.3, 0.14, 24), rcCoreMat, 0, 3.76, 0);
+        const rcVaporGeo = new THREE.BufferGeometry();
+        const rcVaporPositions = new Float32Array(160 * 3);
+        rcVaporGeo.setAttribute('position', new THREE.BufferAttribute(rcVaporPositions, 3));
+        rcVaporGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 4, 0), 8);
+        const rcVaporMat = new THREE.PointsMaterial({ map: rcDotTex, color: 0xd7f7e6, size: 0.7, transparent: true, opacity: 0.2, depthWrite: false });
+        const rcVapor = new THREE.Points(rcVaporGeo, rcVaporMat); rcPyrG.add(rcVapor);
+        // A palm-shaped activation plate in the foreground excavation console.
+        const rcPalmCv = mkCanvas(256, 256);
+        {
+            const g = rcPalmCv.getContext('2d'); g.fillStyle = '#192e29'; g.fillRect(0, 0, 256, 256);
+            g.strokeStyle = '#6f9c84'; g.lineWidth = 3;
+            for (let r = 32; r < 125; r += 19) { g.beginPath(); g.arc(128, 128, r, 0, Math.PI * 2); g.stroke(); }
+            g.fillStyle = '#b5d8ae'; g.beginPath(); g.ellipse(128, 151, 37, 43, 0, 0, Math.PI * 2); g.fill();
+            g.lineCap = 'round'; g.strokeStyle = '#b5d8ae'; g.lineWidth = 15;
+            [[96, 117, 85, 68], [114, 115, 111, 46], [134, 115, 138, 42], [151, 121, 163, 59], [98, 160, 65, 127]].forEach(p => {
+                g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[2], p[3]); g.stroke();
+            });
+        }
+        const rcPalmTex = new THREE.CanvasTexture(rcPalmCv); rcPalmTex.colorSpace = THREE.SRGBColorSpace;
+        box(0.8, 0.75, 0.62, rcAlienDark, -4.0, 0.35, 0.2);
+        const rcPalm = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.68), new THREE.MeshStandardMaterial({ map: rcPalmTex, emissiveMap: rcPalmTex, emissive: 0x8fffc1, emissiveIntensity: 0.45 }));
+        rcPalm.rotation.x = -Math.PI / 2; rcPalm.position.set(-4, 0.735, 0.2); addTarget.add(rcPalm);
+
         // Clark's spot — a foil thermal blanket over the deck plate
         box(0.6, 0.02, 0.44, lm(0x9a5a28, 0, 0, 0.8, 0.15), BEDX, 0.026, BEDZ);
         box(0.52, 0.014, 0.36, lm(0xd8d8dc, 0, 0, 0.45, 0.7), BEDX, 0.04, BEDZ);
@@ -9970,8 +10134,6 @@
         const rcHorizonDusty = new THREE.Color(0xc4763c), rcHorizonClear = new THREE.Color(0xa8c4de);
         const rcSunDusty = new THREE.Color(0xffcf9c), rcSunClear = new THREE.Color(0xfff4e2);
         const rcGrCold = new THREE.Color(0x4a2413), rcGrWarm = new THREE.Color(0x3c4a34);
-        const rcGlassCold = new THREE.Color(0xd9a97e), rcGlassWarm = new THREE.Color(0xcfe4f6);
-        const rcGlassInCold = new THREE.Color(0xe8c0a0), rcGlassInWarm = new THREE.Color(0xd8ecff);
         const rcBeamHot = new THREE.Color(0xff6a2a), rcBeamCold = new THREE.Color(0x9ad8ff);
         const rcSkyCol = new THREE.Color(), rcBeamCol = new THREE.Color();
 
@@ -11984,6 +12146,13 @@
         const rvSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const tlSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const htSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const rcSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const rcOpeningCamera = () => {
+            const portrait = camera.aspect < 0.8;
+            controls.target.set(portrait ? -0.7 : 0, portrait ? 1.5 : 1.8, -1.8);
+            camera.position.set(portrait ? 5 : 9.2, portrait ? 11.5 : 7.3, portrait ? 26 : 13.2);
+            controls.update();
+        };
         const tlFraming = () => window.innerWidth / window.innerHeight < 0.8 ? 1.45 : 1;
         const htOpeningCamera = () => {
             const portrait = camera.aspect < 0.8;
@@ -12007,6 +12176,15 @@
             if (th !== 'hunt' && htSavedCamera.active) {
                 camera.position.copy(htSavedCamera.position); controls.target.copy(htSavedCamera.target);
                 htSavedCamera.active = false; controls.update();
+            }
+            if (th !== 'recall' && rcSavedCamera.active) {
+                camera.position.copy(rcSavedCamera.position); controls.target.copy(rcSavedCamera.target);
+                rcSavedCamera.active = false; controls.update();
+            }
+            if (th === 'recall' && theme !== 'recall') {
+                rcSavedCamera.position.copy(camera.position); rcSavedCamera.target.copy(controls.target); rcSavedCamera.active = true;
+                controls.maxDistance = 42;
+                rcOpeningCamera();
             }
             if (th === 'river' && theme !== 'river') {
                 rvSavedCamera.position.copy(camera.position); rvSavedCamera.target.copy(controls.target); rvSavedCamera.active = true;
@@ -12121,7 +12299,7 @@
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
             document.getElementById('sound-btn').classList.remove('hidden');
             // the module interior is tight — keep the camera inside its hull
-            controls.maxDistance = isSP ? 3.0 : isTillson ? 50 : (isHunt || isBeach || isRiver) ? 38 : 22;
+            controls.maxDistance = isSP ? 3.0 : isTillson ? 50 : isRecall ? 42 : (isHunt || isBeach || isRiver) ? 38 : 22;
             // Mars needs a much deeper view — the sky shell and the reactor sit
             // far past where every other world's far plane cuts off.
             // The hunt is a big woods; the far plane has to reach the tree belt.
@@ -13321,7 +13499,7 @@
         });
         // Sit under the halo and the machine writes you a memory — Clark disputes it
         let rcImplantUntil = -10;
-        addInteract([rcHaloRing, rcHeadPad], {
+        addInteract([rcChairG, rcConG], {
             theme: 'recall',
             onClick: () => {
                 rcImplantUntil = clock.getElapsedTime() + 3.2;
@@ -13330,8 +13508,8 @@
                 if (soundOn && audioCtx) aroo();
             },
         });
-        // Thump the pyramid and the reactor surges
-        addInteract(rcPyrCore, {
+        // The five-finger plate activates the excavated atmosphere machine.
+        addInteract([rcPalm, rcPyrG], {
             theme: 'recall',
             onClick: () => {
                 const start = clock.getElapsedTime();
@@ -13341,13 +13519,18 @@
                     const k = Math.sin((el / 1.6) * Math.PI);
                     rcReactorLight.intensity += k * 9;
                     rcCoreMat.emissiveIntensity += k * 1.6;
-                    rcBeamMat.opacity += k * 0.22;
+                    rcVaporMat.opacity += k * 0.25;
                     return true;
                 });
             },
         });
         // The rover's mast camera swivels over to look at whoever poked it
         let rcRoverLookUntil = -10;
+        let rcCabLookUntil = -10;
+        addInteract(rcCabG, {
+            theme: 'recall',
+            onClick: () => { rcCabLookUntil = clock.getElapsedTime() + 3; },
+        });
         addInteract(rcRover, {
             theme: 'recall',
             onClick: () => { rcRoverLookUntil = clock.getElapsedTime() + 3.5; },
@@ -13645,6 +13828,7 @@
             if(theme==='room' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(rmFraming()/previousRoomFrame).add(controls.target);
             if(theme==='tillson' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(tlFraming()/previousTillsonFrame).add(controls.target);
             if(theme==='hunt' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) htOpeningCamera();
+            if(theme==='recall' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) rcOpeningCamera();
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
@@ -14871,7 +15055,7 @@
                 rcSkyCol.copy(rcHorizonDusty).lerp(rcHorizonClear, atmo);
                 scene.background.copy(rcSkyCol);
                 scene.fog.color.copy(rcSkyCol).multiplyScalar(0.96);
-                scene.fog.density = 0.030 - atmo * 0.022;
+                scene.fog.density = 0.019 - atmo * 0.013;
 
                 // Sun burns through as the dust settles out of the air
                 rcSun.intensity = (1.7 + atmo * 1.8) * b;
@@ -14889,31 +15073,27 @@
                     if (cl.position.x > 26) cl.position.x = -26;
                 });
 
-                // Dome glass picks up whatever colour the sky is
-                rcGlassMat.color.copy(rcGlassCold).lerp(rcGlassWarm, atmo);
-                rcGlassInnerMat.color.copy(rcGlassInCold).lerp(rcGlassInWarm, atmo);
-
-                // Reactor: dead basalt at rest, a climbing column once it spins up.
-                // It runs furnace-orange under the red sky and goes cold blue-white
-                // as the atmosphere takes hold
+                // Pistons and sublimating ice respond to reactor output.
                 const pulse = 0.82 + Math.sin(t * 1.15) * 0.12 + Math.sin(t * 3.3) * 0.06;
+                for (const piston of rcPistons) piston.mesh.position.y = piston.y - rx * (0.25 + Math.sin(t * 0.65 + piston.phase) * 0.22);
+                for (let i = 0; i < 160; i++) {
+                    const life = (i / 160 + t * (0.025 + rx * 0.06)) % 1;
+                    const angle = i * 2.39996 + life * 1.6;
+                    const radius = 0.8 + (i % 7) * 0.32 + life * 1.2;
+                    rcVaporPositions[i * 3] = Math.cos(angle) * radius;
+                    rcVaporPositions[i * 3 + 1] = 0.9 + life * (2 + rx * 5);
+                    rcVaporPositions[i * 3 + 2] = Math.sin(angle) * radius;
+                }
+                rcVaporGeo.attributes.position.needsUpdate = true;
+                rcVaporMat.opacity = rx * 0.3;
+                rcJohnny.rotation.y += ((t < rcCabLookUntil ? 1.6 : Math.sin(t * 0.5) * 0.12) - rcJohnny.rotation.y) * Math.min(1, dt * 4);
                 rcBeamCol.copy(rcBeamHot).lerp(rcBeamCold, atmo);
                 rcSeamMat.emissiveIntensity = (0.05 + rx * 1.3) * pulse;
                 rcCoreMat.emissiveIntensity = (0.1 + rx * 2.4) * pulse;
                 rcCoreMat.emissive.copy(rcBeamCol);
                 rcSeamMat.emissive.copy(rcBeamCol);
-                rcPyrCore.rotation.y += dt * (0.15 + rx * 0.55);
-                rcPyrCore.rotation.x = Math.sin(t * 0.4) * 0.16;
                 rcReactorLight.intensity = (0.4 + rx * 7) * pulse * b;
                 rcReactorLight.color.copy(rcBeamCol);
-                rcBeamMat.color.copy(rcBeamCol);
-                rcBeamGlowMat.color.copy(rcBeamCol);
-                rcBeamMat.opacity = (0.025 + rx * 0.24) * pulse;
-                rcBeamGlowMat.opacity = (0.015 + rx * 0.22) * pulse;
-                rcBeam.scale.set(1 + rx * 0.3, 1, 1 + rx * 0.3);
-                rcBeamHalo.scale.copy(rcBeam.scale);
-                rcBeamCap.scale.set(1 + rx * 0.5, 0.42 + rx * 0.2, 1 + rx * 0.5);
-                rcBeam.rotation.y += dt * 0.25;
 
                 // Blowing dust, and two devils walking the plain
                 rcDustMat.opacity = 0.05 + dusty * 0.4;
