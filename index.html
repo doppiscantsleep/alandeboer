@@ -7269,11 +7269,11 @@
         addTarget = videoGroup;
 
         // ═══════════════════════════════
-        //  VIDEO STORE — Friday night, 1996. Blue carpet, gold signage,
-        //  a wall of new releases and a tape rewinding behind the counter.
+        //  VIDEO STORE — Friday night, 1996. An independent rental shop:
+        //  illustrated VHS sleeves, confetti carpet, CRTs and a busy checkout.
         // ═══════════════════════════════
 
-        const VS = { hx: 6.2, zBack: -6.4, zFront: 4.2, ceil: 3.3 };
+        const VS = { hx: 6.2, zBack: -6.4, zFront: 4.2, ceil: 3.8 };
         const VS_CZ = (VS.zBack + VS.zFront) / 2, VS_DEPTH = VS.zFront - VS.zBack;
 
         // Shared sign painter — also used by the Mars world further down
@@ -7321,87 +7321,111 @@
         };
 
         // ── Cover art. Every box on every shelf is painted from this ──
-        const V_PAL = [
-            ['#c8341c', '#2a0a08', '#ffdc50', '#f4f0e4'],   // action
-            ['#e07818', '#1a0c04', '#fff4e0', '#ffcc33'],
-            ['#2044b8', '#050a24', '#8ce8ff', '#ffffff'],   // sci-fi
-            ['#5a28a8', '#0c0620', '#e0b0ff', '#ffe14a'],
-            ['#0d2a14', '#020604', '#8fe07a', '#c81828'],   // horror
-            ['#3a0810', '#050203', '#ff6a6a', '#e8e0d0'],
-            ['#f0c020', '#c84a10', '#20304a', '#ffffff'],   // comedy
-            ['#18b0a0', '#0a3a40', '#fff0a0', '#ff7ab0'],
-            ['#7a6a54', '#1a1610', '#f0e8d8', '#c8a860'],   // drama
-            ['#4a5a70', '#0e1420', '#dfe8f4', '#f0c060'],
-            ['#38a8e0', '#0a3a60', '#fff2b0', '#ff9a30'],   // family
-            ['#8ac828', '#1a4008', '#ffffff', '#ffd83a'],
-        ];
         const vRnd = (seed, n) => {
             const s = Math.sin(seed * 91.7 + n * 37.3) * 43758.5453;
             return s - Math.floor(s);
         };
+        const vFilms = [
+            ['MIDNIGHT', 'PURSUIT', '#cb583a', '#172331', '#ffe9af'],
+            ['ORBITAL', 'DRIFT', '#287984', '#141c36', '#d2f5dd'],
+            ['THE LAST', 'LIGHT', '#47745e', '#121c26', '#ecdfb2'],
+            ['SUMMER', 'STATIC', '#eda177', '#547f98', '#fff3c6'],
+            ['DEEP', 'CURRENT', '#308f9d', '#091b32', '#c9f5e8'],
+            ['NEON', 'CITY', '#bc487e', '#29273d', '#f8d4a0'],
+            ['WILD', 'WEEKEND', '#ebbd59', '#ca6774', '#fff6d2'],
+            ['MOON', 'PATROL', '#6a83b9', '#273651', '#ffe49b'],
+        ];
         const vCover = (g, x, y, w, h, seed) => {
-            const R = n => vRnd(seed, n);
-            const pal = V_PAL[(R(1) * V_PAL.length) | 0];
-            const gr = g.createLinearGradient(x, y, x + w * 0.35, y + h);
-            gr.addColorStop(0, pal[0]); gr.addColorStop(1, pal[1]);
-            g.fillStyle = gr; g.fillRect(x, y, w, h);
-            const cx = x + w / 2, cy = y + h * 0.52;
-            const motif = [0, 0, 2, 2, 3, 3, 4, 4, 1, 0, 2, 4][(R(2) * 12) | 0];
-            g.globalAlpha = 0.85;
-            g.fillStyle = pal[1];
-            if (motif === 0) {                                  // hero, feet planted
-                g.beginPath(); g.arc(cx, cy - h * 0.15, w * 0.13, 0, Math.PI * 2); g.fill();
-                g.fillRect(cx - w * 0.14, cy - h * 0.04, w * 0.28, h * 0.3);
-                g.fillRect(cx - w * 0.27, cy - h * 0.02, w * 0.11, h * 0.2);
-                g.fillRect(cx + w * 0.16, cy - h * 0.02, w * 0.11, h * 0.2);
-            } else if (motif === 1) {                           // explosion
-                g.fillStyle = R(9) < 0.5 ? pal[3] : pal[2];
+            g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+            g.translate(x, y); g.scale(w / 256, h / 384);
+            const R = n => vRnd(seed, n), kind = Math.floor(R(1) * vFilms.length), film = vFilms[kind];
+            const gr = g.createLinearGradient(0, 0, 0, 384);
+            gr.addColorStop(0, film[2]); gr.addColorStop(1, film[3]);
+            g.fillStyle = gr; g.fillRect(0, 0, 256, 384);
+            const disc = (cx, cy, r, color) => { g.fillStyle = color; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); };
+            const poly = (pts, color) => { g.fillStyle = color; g.beginPath(); pts.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.fill(); };
+            // Original miniature movie posters share print proportions across tapes and lightboxes.
+            if (kind === 0 || kind === 5) {
+                disc(176, 160, 45, kind === 0 ? '#eda56a' : '#e08cab');
                 for (let i = 0; i < 12; i++) {
-                    const a = (i / 12) * Math.PI * 2;
-                    g.beginPath();
-                    g.moveTo(cx, cy);
-                    g.lineTo(cx + Math.cos(a) * w * 0.44, cy + Math.sin(a) * h * 0.3);
-                    g.lineTo(cx + Math.cos(a + 0.27) * w * 0.44, cy + Math.sin(a + 0.27) * h * 0.3);
-                    g.fill();
+                    const bh = 30 + R(i + 14) * 103;
+                    g.fillStyle = i % 2 ? '#222936' : '#343c49'; g.fillRect(i * 24 - 6, 260 - bh, 22, bh);
+                    g.fillStyle = '#e9ba77';
+                    for (let j = 0; j < bh / 14; j++) if (R(i * 12 + j) > 0.3) g.fillRect(i * 24, 258 - bh + j * 14, 3, 6);
                 }
-            } else if (motif === 2) {                           // a face, very moody
-                g.beginPath(); g.ellipse(cx, cy, w * 0.27, h * 0.21, 0, 0, Math.PI * 2); g.fill();
-                g.fillStyle = pal[2];
-                g.beginPath(); g.ellipse(cx - w * 0.1, cy - h * 0.05, w * 0.055, h * 0.022, 0, 0, Math.PI * 2); g.fill();
-                g.beginPath(); g.ellipse(cx + w * 0.1, cy - h * 0.05, w * 0.055, h * 0.022, 0, 0, Math.PI * 2); g.fill();
-            } else if (motif === 3) {                           // skyline
-                g.fillRect(x + w * 0.08, cy + h * 0.14, w * 0.84, h * 0.02);
-                for (let i = 0; i < 6; i++) {
-                    const bw = w * (0.07 + R(10 + i) * 0.07);
-                    g.fillRect(x + w * 0.12 + i * w * 0.13, cy + h * 0.14 - h * (0.08 + R(20 + i) * 0.24), bw, h * 0.3);
+                poly([[0, 384], [111, 240], [147, 240], [256, 384]], '#101c2b');
+                g.strokeStyle = '#d4af71'; g.lineWidth = 3;
+                for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(128, 255 + i * 24); g.lineTo(128, 268 + i * 24); g.stroke(); }
+                if (kind === 0) {
+                    poly([[59, 329], [71, 280], [174, 280], [195, 329]], '#111822');
+                    poly([[79, 282], [91, 260], [155, 260], [171, 282]], '#63818a');
+                    g.fillStyle = '#ff553d'; g.fillRect(70, 302, 31, 8); g.fillRect(154, 302, 31, 8);
+                    g.fillStyle = '#c7ccb9'; g.fillRect(115, 312, 25, 9);
+                } else {
+                    disc(125, 231, 10, '#10151e');
+                    poly([[111, 244], [140, 244], [150, 311], [104, 311]], '#111720');
+                    g.fillStyle = '#10151e'; g.fillRect(113, 305, 9, 35); g.fillRect(134, 305, 9, 35);
+                    g.strokeStyle = '#91b5bb'; g.lineWidth = 1;
+                    for (let i = 0; i < 36; i++) { const px = R(i + 50) * 256, py = R(i + 90) * 220 + 120; g.beginPath(); g.moveTo(px, py); g.lineTo(px - 6, py + 23); g.stroke(); }
                 }
-            } else {                                            // lone figure, long road
-                g.fillStyle = pal[3]; g.globalAlpha = 0.3;
-                g.beginPath();
-                g.moveTo(cx - w * 0.34, y + h * 0.88); g.lineTo(cx + w * 0.34, y + h * 0.88);
-                g.lineTo(cx + w * 0.05, cy - h * 0.05); g.lineTo(cx - w * 0.05, cy - h * 0.05);
-                g.fill();
-                g.globalAlpha = 0.9; g.fillStyle = pal[1];
-                g.fillRect(cx - w * 0.035, cy - h * 0.1, w * 0.07, h * 0.24);
-                g.beginPath(); g.arc(cx, cy - h * 0.14, w * 0.055, 0, Math.PI * 2); g.fill();
+            } else if (kind === 1 || kind === 7) {
+                for (let i = 0; i < 75; i++) disc(R(i + 4) * 256, 122 + R(i + 87) * 220, i % 5 === 0 ? 1.6 : 0.7, '#dceee4');
+                disc(161, 216, 69, kind === 1 ? '#a6c6b6' : '#d5b484');
+                disc(181, 201, 57, kind === 1 ? '#477785' : '#9b807c');
+                g.strokeStyle = '#c8e8d2'; g.lineWidth = 5; g.beginPath(); g.ellipse(161, 219, 97, 22, -0.35, 0, Math.PI * 2); g.stroke();
+                if (kind === 1) {
+                    poly([[35, 308], [104, 187], [115, 276], [139, 313], [99, 293]], '#f0eee0');
+                    poly([[74, 284], [104, 217], [107, 266]], '#396472');
+                    poly([[77, 306], [22, 349], [95, 317]], '#eead70');
+                } else {
+                    g.fillStyle = '#d9e7dc'; g.fillRect(52, 251, 59, 47); g.fillRect(46, 303, 72, 43);
+                    g.fillStyle = '#192e48'; g.fillRect(59, 266, 44, 20);
+                    disc(68, 275, 5, '#efb663'); disc(95, 275, 5, '#efb663');
+                    g.fillStyle = '#b8d2d5'; g.fillRect(34, 312, 10, 32); g.fillRect(120, 312, 10, 32);
+                }
+            } else if (kind === 2) {
+                disc(181, 155, 34, '#d7dbb4');
+                for (let i = 0; i < 9; i++) { const tx = i * 33 - 10; poly([[tx - 34, 306], [tx + 8, 153 + R(i + 8) * 60], [tx + 43, 306]], '#172d2c'); }
+                g.fillStyle = '#171b25'; g.fillRect(72, 220, 115, 105);
+                poly([[60, 225], [126, 164], [199, 225]], '#111923');
+                g.fillStyle = '#ddd07c'; g.fillRect(92, 235, 17, 28); g.fillRect(151, 235, 17, 28);
+                g.fillStyle = '#a4563d'; g.fillRect(121, 284, 22, 41);
+                poly([[121, 325], [143, 325], [202, 384], [53, 384]], '#425954');
+            } else if (kind === 3 || kind === 6) {
+                disc(174, 179, 50, '#f4d892');
+                g.fillStyle = kind === 3 ? '#509da8' : '#95b99a'; g.fillRect(0, 222, 256, 162);
+                for (let i = 0; i < 9; i++) { g.fillStyle = '#aed2ba'; g.fillRect(R(i + 8) * 256, 236 + i * 13, 25 + R(i) * 75, 2); }
+                poly([[0, 384], [86, 231], [112, 231], [225, 384]], '#d4b788');
+                poly([[50, 309], [67, 272], [165, 272], [184, 309]], kind === 3 ? '#c85456' : '#446f8c');
+                g.fillStyle = '#eed8b2'; g.fillRect(66, 295, 104, 19);
+                disc(78, 316, 12, '#263441'); disc(156, 316, 12, '#263441');
+                for (let i = 0; i < 2; i++) { disc(94 + i * 30, 249, 10, '#533d41'); g.fillStyle = '#f4bd76'; g.fillRect(86 + i * 30, 260, 16, 17); }
+                g.strokeStyle = '#335653'; g.lineWidth = 8; g.beginPath(); g.moveTo(216, 344); g.quadraticCurveTo(202, 244, 224, 180); g.stroke();
+                for (let i = 0; i < 5; i++) poly([[224, 180], [177 + i * 15, 153 + (i % 2) * 14], [168 + i * 24, 202]], '#315a55');
+            } else {
+                for (let i = 0; i < 6; i++) poly([[70 + i * 27, 120], [10 + i * 41, 330], [47 + i * 39, 330]], 'rgba(143,229,212,0.09)');
+                g.strokeStyle = '#153e4c'; g.lineWidth = 6;
+                for (let i = 0; i < 9; i++) { g.beginPath(); g.moveTo(i * 34, 384); g.quadraticCurveTo(i * 34 - 30, 294, i * 34 + 8, 270); g.stroke(); }
+                g.save(); g.translate(128, 248); g.rotate(-0.45);
+                g.fillStyle = '#102936'; g.fillRect(-12, -20, 24, 61); disc(0, -31, 14, '#18313d');
+                g.fillStyle = '#87b8b8'; g.fillRect(-10, -38, 20, 8);
+                poly([[-10, 36], [-23, 83], [-2, 67], [10, 38]], '#192f3b');
+                poly([[8, 37], [25, 77], [40, 79], [18, 32]], '#192f3b'); g.restore();
+                for (let i = 0; i < 8; i++) { g.strokeStyle = '#b7ded2'; g.lineWidth = 1; g.beginPath(); g.arc(149 + Math.sin(i) * 8, 195 - i * 10, 2 + i % 3, 0, Math.PI * 2); g.stroke(); }
             }
-            g.globalAlpha = 1;
-            const ty = R(3) < 0.5 ? y + h * 0.09 : y + h * 0.72;   // title treatment
-            g.fillStyle = pal[2];
-            g.fillRect(x + w * 0.09, ty, w * 0.82, h * 0.06);
-            g.fillRect(x + w * 0.22, ty + h * 0.08, w * 0.56, h * 0.035);
-            g.fillStyle = pal[3]; g.globalAlpha = 0.45;          // credit block
-            g.fillRect(x + w * 0.16, y + h * 0.935, w * 0.68, h * 0.014);
-            g.globalAlpha = 1;
-            if (R(4) < 0.16) {                                   // gold "NEW" starburst
-                g.fillStyle = '#ffc81e';
-                g.beginPath(); g.arc(x + w * 0.8, y + h * 0.24, w * 0.13, 0, Math.PI * 2); g.fill();
-            }
-            g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x, y, w * 0.05, h);   // clamshell spine
-            g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x + w * 0.05, y, w * 0.02, h);
+            g.fillStyle = film[4]; g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.font = '9px Arial'; g.fillText('FRIDAY NIGHT HOME ENTERTAINMENT', 128, 15);
+            g.font = '900 32px Arial'; g.fillText(film[0], 128, 49, 228); g.fillText(film[1], 128, 83, 228);
+            g.font = '8px monospace'; g.fillText('A NIGHT WORTH STAYING IN FOR', 128, 109);
+            g.fillStyle = 'rgba(12,18,25,0.85)'; g.fillRect(0, 350, 256, 34);
+            g.fillStyle = '#deded1'; g.font = '7px Arial'; g.fillText('STEREO / COLOR / DIGITALLY MASTERED', 128, 360);
+            g.fillText('FRIDAY NIGHT PICTURES PRESENTS A HOME VIDEO RELEASE', 128, 372);
+            g.fillStyle = '#111721'; g.fillRect(0, 0, 8, 384);
+            g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(8, 0, 2, 384);
+            g.restore();
         };
         // A packed shelf row baked into one texture — 1 draw call instead of 20
-        const V_CW = 48, V_CH = 84;
+        const V_CW = 64, V_CH = 104;
         const vStripTex = (n, seed, gapChance = 0.07) => {
             const cv = mkCanvas(n * V_CW, V_CH), g = cv.getContext('2d');
             g.fillStyle = '#111318'; g.fillRect(0, 0, n * V_CW, V_CH);
@@ -7428,10 +7452,10 @@
         const vTapeMat = i => vTapeMats[((i % 8) + 8) % 8];
 
         // ── Materials ──
-        const vBlue     = lm(0x142a86, 0, 0, 0.82);
-        const vBlueDk   = lm(0x0b1550, 0, 0, 0.8);
+        const vBlue     = lm(0x236c70, 0, 0, 0.72);
+        const vBlueDk   = lm(0x16383e, 0, 0, 0.8);
         const vGold     = lm(0xffc81e, 0, 0, 0.62);
-        const vWallMat  = lm(0xdcd7c9, 0, 0, 0.93);
+        const vWallMat  = lm(0xd9dfd4, 0, 0, 0.93);
         const shelfDk   = lm(0x2a2c32, 0, 0, 0.72);
         const vTrim     = lm(0x9aa0aa, 0, 0, 0.45, 0.55);
         const vLaminate = lm(0xe6e2d4, 0, 0, 0.5, 0.05);
@@ -7441,7 +7465,7 @@
         const vcCv = mkCanvas(512, 512);
         {
             const c = vcCv.getContext('2d');
-            c.fillStyle = '#111c58'; c.fillRect(0, 0, 512, 512);
+            c.fillStyle = '#283137'; c.fillRect(0, 0, 512, 512);
             for (let i = 0; i < 420; i++) {
                 c.fillStyle = ['#24379c', '#ffc81e', '#c8356e', '#1f9a8c', '#6f3ac4', '#e8452c'][(Math.random() * 6) | 0];
                 c.globalAlpha = 0.45 + Math.random() * 0.45;
@@ -7514,10 +7538,10 @@
             c.beginPath(); c.moveTo(128, 0); c.lineTo(128, 256);
             c.moveTo(0, 128); c.lineTo(256, 128); c.stroke();
         }
-        const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(VS.hx * 2, VS_DEPTH),
+        const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(VS.hx * 2, 1.8),
             new THREE.MeshStandardMaterial({ map: asTex(vCeilCv, 10, 9), roughness: 0.96 }));
         vCeil.rotation.x = Math.PI / 2;
-        vCeil.position.set(0, VS.ceil, VS_CZ);
+        vCeil.position.set(0, VS.ceil, VS.zBack + 0.9);
         addTarget.add(vCeil);
         const vDiffCv = mkCanvas(64, 64);
         {
@@ -7530,7 +7554,7 @@
             }
         }
         const fluoros = [];
-        [-3.9, 0, 3.9].forEach(fx => [-5.0, -2.6, -0.2, 2.2].forEach(fz => {
+        [-4.6, 4.6].forEach(fx => [-5.65].forEach(fz => {
             box(1.35, 0.1, 0.66, vTrim, fx, VS.ceil - 0.05, fz);
             const panel = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.04, 0.55),
                 new THREE.MeshStandardMaterial({
@@ -7590,15 +7614,15 @@
             const len = z1 - z0;
             g.position.set(x, 0, (z0 + z1) / 2);
             addTarget.add(g);
-            const carcass = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.82, len), vBlueDk);
-            carcass.position.y = 0.91;
+            const carcass = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.48, len), vBlueDk);
+            carcass.position.y = 0.74;
             carcass.castShadow = carcass.receiveShadow = true;
             g.add(carcass);
             box(0.62, 0.06, len + 0.06, shelfDk, x, 0.03, (z0 + z1) / 2);        // kick plinth
             const cap = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, len + 0.06), vGold);
-            cap.position.y = 1.85;
+            cap.position.y = 1.51;
             g.add(cap);
-            for (let s = 0; s < 5; s++) {
+            for (let s = 0; s < 4; s++) {
                 const sy = 0.36 + s * 0.3;
                 [-1, 1].forEach(side => {
                     const inner = new THREE.Group();
@@ -7642,12 +7666,12 @@
             ecTex.anisotropy = MAX_ANISO;
             const ec = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.51),
                 new THREE.MeshStandardMaterial({ map: ecTex, roughness: 0.65 }));
-            ec.position.set(0, 1.18, len / 2 + 0.006);
+            ec.position.set(0, 0.98, len / 2 + 0.006);
             g.add(ec);
             const ecHdr = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.13),
                 new THREE.MeshStandardMaterial({
                     map: signCv('STAFF PICK', 192, 64, '#0d1a63', '#ffc81e', 24), roughness: 0.7 }));
-            ecHdr.position.set(0, 1.55, len / 2 + 0.006);
+            ecHdr.position.set(0, 1.33, len / 2 + 0.006);
             g.add(ecHdr);
             vGondolas.push(g);
             return g;
@@ -7698,12 +7722,12 @@
             g.add(hdr);
         }
         // The house badge, high on the back wall
-        const marquee = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.8, 0.12),
+        const marquee = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.8, 0.12),
             new THREE.MeshStandardMaterial({
-                map: vTicketCv('VIDEO', 640, 170), emissive: 0x3346c8, emissiveIntensity: 0.35, roughness: 0.55,
+                map: vTicketCv('FRIDAY NIGHT VIDEO', 1280, 144), emissive: 0x3d6369, emissiveIntensity: 0.35, roughness: 0.55,
             }));
         marquee.scale.set(1, 0.82, 1);
-        marquee.position.set(4.6, 2.86, VS.zBack + 0.09);
+        marquee.position.set(-0.7, 3.35, VS.zBack + 0.09);
         addTarget.add(marquee);
 
         // ── Hanging aisle signs ──
@@ -7730,8 +7754,8 @@
 
         // ── Checkout counter, front right by the door ──
         const vCounter = new THREE.Group();
-        vCounter.position.set(4.55, 0, 1.5);
-        vCounter.rotation.y = -Math.PI / 2;
+        vCounter.position.set(3.95, 0, 1.65);
+        vCounter.rotation.y = 0;
         addTarget.add(vCounter);
         const cAdd = m => { m.castShadow = true; m.receiveShadow = true; vCounter.add(m); return m; };
         cAdd(new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.0, 0.72), vBlue)).position.set(0, 0.5, 0);
@@ -7786,19 +7810,19 @@
         const crtCtx = crtCv.getContext('2d');
         const crtTex = new THREE.CanvasTexture(crtCv);
         const crt = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.48, 0.5), lm(0x2c2c31, 0, 0, 0.68));
-        crt.position.set(4.3, 1.31, 2.75);
-        crt.rotation.y = -1.15;
+        crt.position.set(4.9, 1.31, 1.65);
+        crt.rotation.y = 0.12;
         crt.castShadow = true;
         addTarget.add(crt);
-        box(0.44, 0.06, 0.4, lm(0x1e1e22, 0, 0, 0.7), 4.3, 1.05, 2.75, 0, -1.15, 0);
+        box(0.44, 0.06, 0.4, lm(0x1e1e22, 0, 0, 0.7), 4.9, 1.05, 1.65, 0, 0.12, 0);
         const crtScr = new THREE.Mesh(new THREE.PlaneGeometry(0.43, 0.34),
             new THREE.MeshBasicMaterial({ map: crtTex }));
         crtScr.position.copy(crt.position);
-        crtScr.rotation.y = -1.15;
+        crtScr.rotation.y = 0.12;
         crtScr.translateZ(0.253);
         addTarget.add(crtScr);
         const vCrtLight = new THREE.PointLight(0x88aaff, 0.7, 3);
-        vCrtLight.position.set(4.0, 1.35, 3.0);
+        vCrtLight.position.set(4.9, 1.4, 2.0);
         addTarget.add(vCrtLight);
 
         // ── Popcorn machine ──
@@ -7974,9 +7998,10 @@
         };
         const vPoster = (x, y, z, ry, seed) => {
             box(0.78, 1.1, 0.07, vTrim, x, y, z, 0, ry, 0);
+            const art = vPosterArt(seed);
             const p = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 1.0),
                 new THREE.MeshStandardMaterial({
-                    map: vPosterArt(seed), emissive: 0xffffff, emissiveIntensity: 0.32, roughness: 0.5,
+                    map: art, emissiveMap: art, emissive: 0xffffff, emissiveIntensity: 0.16, roughness: 0.5,
                 }));
             p.position.set(x + Math.sin(ry) * 0.04, y, z + Math.cos(ry) * 0.04);
             p.rotation.y = ry;
@@ -8061,37 +8086,32 @@
         const frontTex = new THREE.CanvasTexture(frontCv);
         frontTex.colorSpace = THREE.SRGBColorSpace;
         frontTex.anisotropy = MAX_ANISO;
-        const vGlass = new THREE.Mesh(new THREE.PlaneGeometry(VS.hx * 2, VS.ceil),
+        const vGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.0, VS.ceil),
             new THREE.MeshBasicMaterial({ map: frontTex, fog: false }));
-        vGlass.position.set(0, VS.ceil / 2, VS.zFront);
+        vGlass.position.set(-5.2, VS.ceil / 2, VS.zFront);
         vGlass.rotation.y = Math.PI;
         addTarget.add(vGlass);
         // mullions skip the middle span — that is the doorway, and it is also
         // exactly where you are standing when the world opens
-        [-6.2, -4.2, -2.2, 3.7, 5.2, 6.2].forEach(mx =>
+        [-6.2, -4.2].forEach(mx =>
             box(0.1, VS.ceil, 0.1, vTrim, mx, VS.ceil / 2, VS.zFront - 0.02));
-        box(VS.hx * 2, 0.12, 0.12, vTrim, 0, VS.ceil - 0.06, VS.zFront - 0.02);
+        box(2.1, 0.12, 0.12, vTrim, -5.2, VS.ceil - 0.06, VS.zFront - 0.02);
         box(VS.hx * 2, 0.2, 0.16, vBlue, 0, 0.1, VS.zFront - 0.02);
         // door: a gap in the mullions with a push bar and a hours decal
-        box(0.06, 2.2, 0.06, vTrim, 1.75, 1.1, VS.zFront - 0.04);
-        box(0.06, 2.2, 0.06, vTrim, 0.05, 1.1, VS.zFront - 0.04);
-        box(1.7, 0.06, 0.06, vTrim, 0.9, 2.2, VS.zFront - 0.04);
-        box(0.7, 0.05, 0.05, lm(0xb8bcc4, 0, 0, 0.4, 0.6), 0.9, 1.05, VS.zFront - 0.09);
+        box(0.8, 0.05, 0.05, vTrim, -5.2, 1.05, VS.zFront - 0.09);
         const vHours = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3),
             new THREE.MeshBasicMaterial({
                 map: signCv('OPEN TIL 11', 256, 128, '#ffc81e', 'rgba(0,0,0,0)', 26),
                 transparent: true, fog: false,
             }));
-        vHours.position.set(0.9, 1.62, VS.zFront - 0.05);
-        vHours.rotation.y = Math.PI;
+        vHours.position.set(-5.2, 1.62, VS.zFront + 0.05);
         addTarget.add(vHours);
         const openSign = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.36),
             new THREE.MeshBasicMaterial({
                 map: signCv('OPEN', 192, 88, '#ff4a8a', '#0a0614', 52),
                 transparent: true, opacity: 0.95, fog: false,
             }));
-        openSign.position.set(-2.6, 2.35, VS.zFront - 0.06);
-        openSign.rotation.y = Math.PI;
+        openSign.position.set(-5.2, 2.35, VS.zFront + 0.06);
         addTarget.add(openSign);
 
         // ── Clark's staff-picks beanbag ──
@@ -8106,9 +8126,159 @@
         vBeanTag.position.set(BEDX, 0.155, BEDZ + 0.02);
         addTarget.add(vBeanTag);
 
+        // The cutaway exposes the shop's construction, while the rear canopy
+        // and window fragment retain the feeling of a real strip-mall interior.
+        const vCherry = lm(0x842f46, 0, 0, 0.65);
+        const vOakArt = woodTex('#99764b', '#b19265', '#574536');
+        const vOak = new THREE.MeshStandardMaterial({ map: asTex(vOakArt.map), bumpMap: asTex(vOakArt.bump, 1, 1, false), bumpScale: 0.008, roughness: 0.64 });
+        const vNeonTube = lm(0xeb8299, 0xff547f, 1.7);
+        box(VS.hx * 2 + 0.16, 0.23, VS_DEPTH + 0.16, vBlueDk, 0, -0.14, VS_CZ);
+        box(VS.hx * 2, 0.15, 0.28, vCherry, 0, VS.ceil, VS.zBack);
+        box(0.22, 0.15, VS_DEPTH, vCherry, -VS.hx, VS.ceil, VS_CZ);
+        box(VS.hx * 2, 0.065, 0.09, vGold, 0, 2.94, VS.zBack + 0.04);
+        box(VS.hx * 2, 0.12, 0.09, vBlueDk, 0, 0.08, VS.zBack + 0.06);
+        box(0.06, 0.12, VS_DEPTH, vBlueDk, -VS.hx + 0.04, 0.08, VS_CZ);
+        const vNotice = (title, sub, w, h, x, y, z, color = '#eeeccf', background = '#205253') => {
+            const cv = mkCanvas(640, 224), g = cv.getContext('2d');
+            g.fillStyle = background; g.fillRect(0, 0, 640, 224);
+            g.strokeStyle = color; g.lineWidth = 2; g.strokeRect(12, 12, 616, 200);
+            g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.font = '900 57px Arial'; g.fillText(title, 320, 86, 590);
+            g.font = '23px monospace'; g.fillText(sub, 320, 161, 588);
+            const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.65 }));
+            m.position.set(x, y, z); addTarget.add(m); return m;
+        };
+        vNotice('BE KIND. REWIND.', 'THANK YOU FOR MAKING IT A MOVIE NIGHT', 2.2, 0.47, 3.95, 0.53, 2.018, '#f2d071', '#742d44');
+        vNotice('2 NIGHTS / $2.99', 'NEW RELEASES / VHS / STEREO', 1.45, 0.40, 4.65, 3.26, VS.zBack + 0.03);
+        vNotice('MEMBERSHIP IS FREE', 'YOUR WEEKEND STARTS HERE', 1.9, 0.40, -4.9, 3.28, VS.zBack + 0.03);
+        vNotice('FRIDAY NIGHT VIDEO', 'OPEN UNTIL 11 / EST. 1987', 2.6, 0.48, 0, -0.05, VS.zFront + 0.11, '#ffe399', '#1d4449');
+        box(3.75, 0.07, 0.12, vOak, 3.95, 1.03, 2.08);
+        for (const x of [2.3, 3.4, 4.5, 5.6]) box(0.025, 0.74, 0.028, vTrim, x, 0.51, 2.025);
+        // Worn paper, a barcode and an inked due-date stamp on the counter.
+        const vReceiptCv = mkCanvas(256, 512);
+        {
+            const g = vReceiptCv.getContext('2d'); g.fillStyle = '#f1eed9'; g.fillRect(0, 0, 256, 512);
+            g.fillStyle = '#334b47'; g.textAlign = 'center'; g.font = 'bold 20px monospace';
+            g.fillText('FRIDAY NIGHT', 128, 35); g.fillText('VIDEO', 128, 62);
+            g.font = '14px monospace'; g.fillText('MEMBER 0041987', 128, 103);
+            ['VHS RENTAL     2.99', 'POPCORN         .99', 'TAX             .29', 'TOTAL          4.27'].forEach((line, i) => g.fillText(line, 128, 146 + i * 33));
+            g.strokeStyle = '#a84a50'; g.lineWidth = 3; g.strokeRect(20, 290, 216, 86);
+            g.fillStyle = '#a84a50'; g.font = 'bold 19px monospace'; g.fillText('RETURN BY', 128, 319); g.fillText('SUN MAY 12 1996', 128, 351);
+            g.fillStyle = '#263c39'; for (let i = 0; i < 45; i++) g.fillRect(26 + i * 4.5, 405, i % 3 === 0 ? 3 : 1, 52);
+            g.font = '12px monospace'; g.fillText('HAVE A GREAT WEEKEND', 128, 486);
+        }
+        const vReceipt = new THREE.Mesh(new THREE.PlaneGeometry(0.20, 0.40), new THREE.MeshStandardMaterial({ map: asTex(vReceiptCv), roughness: 0.98, side: THREE.DoubleSide }));
+        vReceipt.position.set(3.55, 1.073, 1.77); vReceipt.rotation.set(-Math.PI / 2, 0, -0.25); addTarget.add(vReceipt);
+        // An actual VHS shell: reel windows, ridged edges and a rental label.
+        const vCassette = (parent, x, y, z, angle = 0) => {
+            const group = new THREE.Group(); group.position.set(x, y, z); group.rotation.y = angle; parent.add(group);
+            const part = (w, h, d, mat, px, py, pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(px, py, pz); m.castShadow = true; group.add(m); return m; };
+            part(0.42, 0.075, 0.24, vPlastic, 0, 0, 0);
+            part(0.39, 0.025, 0.032, shelfDk, 0, 0.016, -0.12);
+            for (const side of [-1, 1]) {
+                part(0.12, 0.004, 0.13, vTrim, side * 0.13, 0.04, 0);
+                const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.007, 20), vLaminate);
+                hub.position.set(side * 0.13, 0.047, 0); group.add(hub);
+                const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.009, 10), vPlastic);
+                hole.position.copy(hub.position); hole.position.y += 0.006; group.add(hole);
+                for (let i = 0; i < 6; i++) part(0.015, 0.008, 0.10, shelfDk, side * (0.18 - i * 0.008), 0.04, 0.065);
+            }
+            const label = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.18), new THREE.MeshStandardMaterial({ map: asTex(vReceiptCv), roughness: 0.9 }));
+            label.position.y = 0.043; label.rotation.x = -Math.PI / 2; group.add(label);
+            return group;
+        };
+        const vReturnTape = vCassette(videoGroup, -1.9, 0.99, 3.7, 0.13);
+        vCassette(vCounter, -0.1, 1.115, 0.12, -0.16);
+        vCassette(vCounter, 0.86, 1.115, -0.13, 0.22);
+        const vKeysCv = mkCanvas(256, 192);
+        {
+            const g = vKeysCv.getContext('2d'); g.fillStyle = '#bcbfb0'; g.fillRect(0, 0, 256, 192);
+            for (let row = 0; row < 5; row++) for (let col = 0; col < 8; col++) {
+                g.fillStyle = col > 5 ? '#387c75' : '#e8e5d5'; g.fillRect(10 + col * 30, 10 + row * 34, 25, 26);
+                g.fillStyle = '#374947'; g.font = '11px monospace'; g.fillText(String((row * 8 + col) % 10), 18 + col * 30, 28 + row * 34);
+            }
+        }
+        const vKeys = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.28), new THREE.MeshStandardMaterial({ map: asTex(vKeysCv), roughness: 0.6 }));
+        vKeys.rotation.x = -Math.PI / 2; vKeys.position.set(-1.05, 1.205, 0.045); vCounter.add(vKeys);
+        // Candy wrappers use a shared print atlas rather than unmarked colored blocks.
+        const vCandyCv = mkCanvas(512, 256);
+        {
+            const g = vCandyCv.getContext('2d'); g.fillStyle = '#9e304b'; g.fillRect(0, 0, 512, 256);
+            g.fillStyle = '#f3c865'; g.fillRect(0, 20, 512, 22); g.fillRect(0, 214, 512, 22);
+            g.fillStyle = '#fff0c2'; g.font = 'italic 900 86px Arial'; g.textAlign = 'center'; g.fillText('MOVIE', 256, 122); g.fillText('BITES', 256, 202);
+        }
+        const vCandyMat = new THREE.MeshStandardMaterial({ map: asTex(vCandyCv), roughness: 0.44 });
+        vSpinHead.traverse(m => { if (m.isMesh && m.geometry.type === 'BoxGeometry') m.material = vCandyMat; });
+        // Popcorn cart gets a proper theater sign, framed glazing and a serving scoop.
+        const popLabel = vNotice('HOT POPCORN', 'FRESH ALL NIGHT / 99c', 0.60, 0.20, 0, 0, 0, '#ffe8a7', '#923346');
+        vPop.attach(popLabel); popLabel.position.set(0, 1.34, 0.285); popLabel.rotation.set(0, 0, 0);
+        for (const x of [-0.29, 0.29]) for (const z of [-0.23, 0.23]) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.51, 0.025), vGold); post.position.set(x, 1.03, z); vPop.add(post);
+        }
+        const scoop = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.10, 12, 1, true), vTrim);
+        scoop.rotation.z = 0.6; scoop.position.set(0.19, 0.89, 0.09); vPop.add(scoop);
+        // A rental-console demo kiosk, tucked into the games aisle.
+        const vGameG = new THREE.Group(); vGameG.position.set(5.10, 0, -4.9); videoGroup.add(vGameG);
+        const vGameAdd = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; vGameG.add(m); return m; };
+        vGameAdd(0.95, 1.1, 0.70, vCherry, 0, 0.55, 0);
+        vGameAdd(1.00, 0.09, 0.84, vPlastic, 0, 1.13, 0.09);
+        vGameAdd(0.92, 0.7, 0.65, vBlueDk, 0, 1.50, -0.07);
+        vGameAdd(1.0, 0.28, 0.76, vCherry, 0, 2.0, -0.06);
+        const vGameHeader = vNotice('SPACE RUN', '16-BIT / TRY BEFORE YOU RENT', 0.89, 0.22, 0, 0, 0, '#ffe18a', '#42315a');
+        vGameG.attach(vGameHeader); vGameHeader.position.set(0, 2.0, 0.327);
+        const vGameCv = mkCanvas(256, 192), vGameCtx = vGameCv.getContext('2d');
+        const vGameTex = new THREE.CanvasTexture(vGameCv); vGameTex.colorSpace = THREE.SRGBColorSpace;
+        const vGameScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.71, 0.53), new THREE.MeshBasicMaterial({ map: vGameTex }));
+        vGameScreen.position.set(0, 1.53, 0.262); vGameG.add(vGameScreen);
+        for (const side of [-1, 1]) {
+            const pad = vGameAdd(0.28, 0.05, 0.13, vLaminate, side * 0.25, 1.20, 0.24);
+            pad.rotation.y = side * -0.17;
+            vGameAdd(0.07, 0.01, 0.025, vPlastic, side * 0.25 - 0.065, 1.235, 0.24);
+            vGameAdd(0.025, 0.01, 0.07, vPlastic, side * 0.25 - 0.065, 1.235, 0.24);
+            for (let i = 0; i < 2; i++) vGameAdd(0.03, 0.02, 0.03, i ? vGold : vCherry, side * 0.25 + 0.065, 1.235, 0.22 + i * 0.04);
+        }
+        let vGameBoostUntil = -10, vReturnUntil = -10;
+        // Endcap placards, price rails and alphabet dividers complete the library.
+        vNotice('WEEKEND FAVORITES', '3 TAPES / 3 NIGHTS / $5', 2.0, 0.37, -3.8, 2.18, 0.76, '#fbdda0', '#773b51');
+        for (let i = 0; i < 9; i++) {
+            vNotice(String.fromCharCode(65 + i * 3), 'VHS', 0.17, 0.14, -4.5 + i * 0.86, 0.20, VS.zBack + 0.25, '#f5eccc', '#224347');
+        }
+        vPoster(4.8, 2.83, VS.zBack + 0.08, 0, 77);
+        vPoster(-5.0, 2.76, VS.zBack + 0.08, 0, 61);
+        box(6.6, 0.035, 0.035, vNeonTube, -0.7, 3.78, VS.zBack + 0.2);
+        // Stepped staff-pick display: oversized display sleeves above rental copies.
+        const vFeature = new THREE.Group(); vFeature.position.set(0, 0, -3.65); videoGroup.add(vFeature);
+        const featureBase = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.65, 1.30), vCherry);
+        featureBase.position.y = 0.325; featureBase.castShadow = featureBase.receiveShadow = true; vFeature.add(featureBase);
+        const featureTop = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1.4), vOak);
+        featureTop.position.y = 0.69; featureTop.receiveShadow = true; vFeature.add(featureTop);
+        vNotice('STAFF PICKS', 'FOUR FAVORITES FOR FRIDAY', 1.9, 0.31, 0, 0.38, -2.991, '#f6ddb2', '#742e45');
+        const vFeaturedTapes = [];
+        for (let i = 0; i < 4; i++) {
+            const art = vPosterArt(41 + i * 14);
+            const coverMat = new THREE.MeshStandardMaterial({ map: art, roughness: 0.46 });
+            const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.73, 0.075), [vPlastic, vPlastic, vPlastic, vPlastic, coverMat, vPlastic]);
+            sleeve.position.set(-0.84 + i * 0.56, 1.115, -0.10); sleeve.rotation.x = -0.12;
+            sleeve.castShadow = true; vFeature.add(sleeve);
+            const h = { m: sleeve, dir: 1 }; vHeroTapes.push(h); vFeaturedTapes.push(h);
+            for (let copy = 0; copy < 3; copy++) {
+                const rental = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.033, 0.23), vTapeMat(i));
+                rental.position.set(-0.84 + i * 0.56, 0.755 + copy * 0.034, 0.42); rental.rotation.y = (i - 1.5) * 0.06; vFeature.add(rental);
+            }
+        }
+        // A large tube television makes the playing feature readable across the shop.
+        const vPreview = new THREE.Group(); vPreview.position.set(-4.85, 0, 1.35); vPreview.rotation.y = 0.3; videoGroup.add(vPreview);
+        const vPreviewBody = new THREE.Mesh(new THREE.BoxGeometry(1.10, 0.86, 0.7), vPlastic);
+        vPreviewBody.position.y = 1.62; vPreviewBody.castShadow = true; vPreview.add(vPreviewBody);
+        const vPreviewScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.83, 0.62), new THREE.MeshBasicMaterial({ map: crtTex }));
+        vPreviewScreen.position.set(-0.05, 1.65, 0.354); vPreview.add(vPreviewScreen);
+        const pedestal = new THREE.Mesh(new THREE.BoxGeometry(0.94, 1.17, 0.61), vOak); pedestal.position.y = 0.585; vPreview.add(pedestal);
+        for (let i = 0; i < 6; i++) { const vent = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.012, 0.02), vTrim); vent.position.set(0.46, 1.50 + i * 0.055, 0.355); vPreview.add(vent); }
+
         // neon + marquee glow, driven by the neon slider
         const vNeonLight = new THREE.PointLight(0xff4a8a, 0, 5.5);
-        vNeonLight.position.set(-2.6, 2.3, 3.85);
+        vNeonLight.position.set(-5.2, 2.3, 3.85);
         addTarget.add(vNeonLight);
         const vMarqLight = new THREE.PointLight(0xffc81e, 0, 7);
         vMarqLight.position.set(3.2, 2.4, VS.zBack + 0.9);
@@ -12147,6 +12317,13 @@
         const tlSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const htSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
         const rcSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const vSavedCamera = { position: new THREE.Vector3(), target: new THREE.Vector3(), active: false };
+        const vOpeningCamera = () => {
+            const portrait = camera.aspect < 0.8;
+            controls.target.set(0, 1.05, -1.1);
+            camera.position.set(portrait ? 2.2 : 8, portrait ? 19 : 8.4, portrait ? 32 : 12.3);
+            controls.update();
+        };
         const rcOpeningCamera = () => {
             const portrait = camera.aspect < 0.8;
             controls.target.set(portrait ? -0.7 : 0, portrait ? 1.5 : 1.8, -1.8);
@@ -12162,9 +12339,9 @@
         };
         const setTheme = th => {
             controls.minPolarAngle = th === 'room' ? 0.25 : 0;
-            controls.maxPolarAngle = th === 'room' ? 1.48 : th === 'recall' ? 1.43 : Math.PI*0.8;
-            controls.minAzimuthAngle = th === 'room' ? -0.15 : -Infinity;
-            controls.maxAzimuthAngle = th === 'room' ? 1.35 : Infinity;
+            controls.maxPolarAngle = th === 'room' ? 1.48 : (th === 'recall' || th === 'video') ? 1.43 : Math.PI*0.8;
+            controls.minAzimuthAngle = th === 'room' ? -0.15 : th === 'video' ? -0.65 : -Infinity;
+            controls.maxAzimuthAngle = th === 'room' ? 1.35 : th === 'video' ? 1.15 : Infinity;
             if (th !== 'river' && rvSavedCamera.active) {
                 camera.position.copy(rvSavedCamera.position); controls.target.copy(rvSavedCamera.target);
                 rvSavedCamera.active = false; controls.update();
@@ -12180,6 +12357,15 @@
             if (th !== 'recall' && rcSavedCamera.active) {
                 camera.position.copy(rcSavedCamera.position); controls.target.copy(rcSavedCamera.target);
                 rcSavedCamera.active = false; controls.update();
+            }
+            if (th !== 'video' && vSavedCamera.active) {
+                camera.position.copy(vSavedCamera.position); controls.target.copy(vSavedCamera.target);
+                vSavedCamera.active = false; controls.update();
+            }
+            if (th === 'video' && theme !== 'video') {
+                vSavedCamera.position.copy(camera.position); vSavedCamera.target.copy(controls.target); vSavedCamera.active = true;
+                controls.maxDistance = 38;
+                vOpeningCamera();
             }
             if (th === 'recall' && theme !== 'recall') {
                 rcSavedCamera.position.copy(camera.position); rcSavedCamera.target.copy(controls.target); rcSavedCamera.active = true;
@@ -12299,12 +12485,12 @@
             worldBtns.forEach(w => w.classList.toggle('active', w.dataset.world === th));
             document.getElementById('sound-btn').classList.remove('hidden');
             // the module interior is tight — keep the camera inside its hull
-            controls.maxDistance = isSP ? 3.0 : isTillson ? 50 : isRecall ? 42 : (isHunt || isBeach || isRiver) ? 38 : 22;
+            controls.maxDistance = isSP ? 3.0 : isTillson ? 50 : isRecall ? 42 : (isHunt || isBeach || isRiver || isVideo) ? 38 : 22;
             // Mars needs a much deeper view — the sky shell and the reactor sit
             // far past where every other world's far plane cuts off.
             // The hunt is a big woods; the far plane has to reach the tree belt.
             // The beach needs the lagoon and the island on the horizon.
-            const wantFar = isRecall ? 72 : (isHunt || isBeach || isRiver || isTillson) ? 90 : 30;
+            const wantFar = isRecall ? 72 : isVideo ? 60 : (isHunt || isBeach || isRiver || isTillson) ? 90 : 30;
             if (camera.far !== wantFar) { camera.far = wantFar; camera.updateProjectionMatrix(); }
         };
         worldBtns.forEach(btn => btn.addEventListener('click', () => setTheme(btn.dataset.world)));
@@ -13386,8 +13572,9 @@
 
         // ── VIDEO STORE ──
         // Browse a rack and a box slides out like someone's considering it
-        const vPullTape = () => {
-            const h = vHeroTapes[(Math.random() * vHeroTapes.length) | 0];
+        const vPullTape = (choices = vHeroTapes) => {
+            const available = choices.filter(h => !h.busy);
+            const h = available[(Math.random() * available.length) | 0];
             if (!h || h.busy) return;
             h.busy = true;
             const axis = h.axis === 'x' ? 'x' : 'z';
@@ -13401,9 +13588,11 @@
                 return true;
             });
         };
-        vGondolas.forEach(g => addInteract(g, { theme: 'video', onClick: vPullTape }));
+        vGondolas.forEach(g => addInteract(g, { theme: 'video', onClick: () => vPullTape(vHeroTapes.filter(h => g.getObjectById(h.m.id))) }));
+        addInteract(vFeature, { theme: 'video', onClick: () => vPullTape(vFeaturedTapes) });
+        vHeroTapes.forEach(h => addInteract(h.m, { theme: 'video', onClick: () => vPullTape([h]) }));
         let crtForceBlue = 0, vCrtChannel = 0;
-        addInteract(crt, {
+        addInteract([crt, vPreview], {
             theme: 'video',
             onClick: () => { vCrtChannel = (vCrtChannel + 1) % 4; crtForceBlue = clock.getElapsedTime() + 0.45; },
         });
@@ -13420,6 +13609,8 @@
             },
         });
         // Thump the popcorn machine and the kettle goes off
+        addInteract(vGameG, { theme: 'video', onClick: () => { vGameBoostUntil = clock.getElapsedTime() + 3.0; } });
+        addInteract(vReturnTape, { theme: 'video', onClick: () => { vReturnUntil = clock.getElapsedTime() + 1.2; } });
         addInteract(vPop, { theme: 'video', onClick: () => { vPopBurstUntil = clock.getElapsedTime() + 2.2; } });
         // Ring up a rental: the drawer kicks open
         addInteract(vRegHead, { theme: 'video', onClick: () => { vRegOpenUntil = clock.getElapsedTime() + 1.8; } });
@@ -13829,6 +14020,7 @@
             if(theme==='tillson' && !monZoom && !lapZoom) camera.position.sub(controls.target).multiplyScalar(tlFraming()/previousTillsonFrame).add(controls.target);
             if(theme==='hunt' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) htOpeningCamera();
             if(theme==='recall' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) rcOpeningCamera();
+            if(theme==='video' && !monZoom && !lapZoom && previousHuntPortrait !== (camera.aspect < 0.8)) vOpeningCamera();
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
@@ -14846,14 +15038,14 @@
                 tvMoteMat.opacity = 0.25 + hearth * 0.2;
             } else if (theme === 'video') {
                 // ── Video store: fluorescent Friday night ──
-                scene.background.setHex(0x05060e);
-                scene.fog.color.setHex(0x0a0c16);
-                scene.fog.density = 0.02;
+                scene.background.setHex(0x202a2e);
+                scene.fog.color.setHex(0x202a2e);
+                scene.fog.density = 0.008;
 
-                hemiLight.intensity = 3.2 * b;
+                hemiLight.intensity = 1.75 * b;
                 hemiLight.color.setHex(0xf0f2ea);
                 hemiLight.groundColor.setHex(0x3a4258);
-                fillLight.intensity = 1.5 * b;
+                fillLight.intensity = 0.8 * b;
                 fillLight.color.setHex(0xeef0e8);
 
                 // one tube is always dying — flicker a random panel
@@ -14869,6 +15061,10 @@
 
                 // neon slider: OPEN sign + marquee glow
                 const neon2 = params.lampBrightness;
+                vNeonTube.emissiveIntensity = 0.1 + neon2 * 1.4;
+                const returnHop = t < vReturnUntil ? Math.sin((1.2 - (vReturnUntil - t)) / 1.2 * Math.PI) : 0;
+                vReturnTape.position.y = 0.99 + returnHop * 0.2;
+                vReturnTape.rotation.z = returnHop * 0.22;
                 vNeonLight.intensity = neon2 * 1.4 * b;
                 vMarqLight.intensity = neon2 * 1.1 * b;
                 openSign.material.opacity = 0.4 + Math.min(1, neon2) * 0.55 + Math.sin(t * 30) * 0.02;
@@ -14946,6 +15142,21 @@
                         g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, y, W, 1);
                     }
                     crtTex.needsUpdate = true;
+                    const gg = vGameCtx, boosting = t < vGameBoostUntil;
+                    gg.fillStyle = '#101e31'; gg.fillRect(0, 0, 256, 192);
+                    for (let i = 0; i < 45; i++) {
+                        const sx = (i * 47) % 256, sy = (i * 31 + t * (boosting ? 110 : 24)) % 192;
+                        gg.fillStyle = i % 3 ? '#75bfc3' : '#fae59f'; gg.fillRect(sx, sy, 2, boosting ? 9 : 2);
+                    }
+                    const shipX = 128 + Math.sin(t * 1.1) * 55;
+                    gg.fillStyle = '#bacdd6'; gg.fillRect(shipX - 7, 134, 14, 27); gg.fillRect(shipX - 21, 152, 42, 8);
+                    gg.fillStyle = '#d4536f'; gg.fillRect(shipX - 4, 139, 8, 12);
+                    gg.fillStyle = '#f7c05c'; gg.fillRect(shipX - 4, 162, 8, boosting ? 22 : 8);
+                    for (let i = 0; i < 4; i++) { gg.fillStyle = '#bc799b'; gg.fillRect(38 + i * 53 + Math.sin(t + i) * 12, 47 + (i % 2) * 25, 18, 8); }
+                    gg.fillStyle = '#e6dfaa'; gg.font = 'bold 11px monospace'; gg.textAlign = 'left'; gg.fillText('1UP  024800', 12, 17);
+                    gg.textAlign = 'right'; gg.fillText(boosting ? 'HYPERDRIVE' : 'DEMO PLAY', 244, 17);
+                    gg.fillStyle = 'rgba(0,0,0,0.13)'; for (let y = 0; y < 192; y += 3) gg.fillRect(0, y, 256, 1);
+                    vGameTex.needsUpdate = true;
                 }
 
                 // somebody's always rewinding
